@@ -1288,6 +1288,7 @@ export async function createPaseoDaemon(
       })),
   });
   const profileRouter = createProfileRouter({
+    getRouting: () => loadPersistedConfig(config.paseoHome).daemon?.systemOne?.routing ?? {},
     getProfiles: (cwd) =>
       providerSnapshotManager.getCachedSnapshot(cwd).records.map(({ entry }) => ({
         id: entry.provider,
@@ -1300,7 +1301,12 @@ export async function createPaseoDaemon(
       })),
     getUsage: (profileIds) => providerUsageService.listUsage({ profileIds }).catch(() => null),
     decisionSource: (cwd) =>
-      createConfiguredSystemOneDecisionSource(config.paseoHome, daemonConfigStore, () => cwd, "routing"),
+      createConfiguredSystemOneDecisionSource(
+        config.paseoHome,
+        daemonConfigStore,
+        () => cwd,
+        "routing",
+      ),
     enabled: (cwd) =>
       daemonConfigStore.get().systemOne?.enabled === true &&
       !isSystemOneExcluded(config.paseoHome, cwd),

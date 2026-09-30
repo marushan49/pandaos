@@ -10,6 +10,7 @@ import type { AgentStorage } from "./agent-storage.js";
 import { ensureAgentLoaded } from "./agent-loading.js";
 import { isStaleProviderSessionError } from "./stale-provider-session-error.js";
 import {
+  MAX_PROVIDER_ATTEMPTS,
   describeProviderFailure,
   providerRetryDelayMs,
   shouldRetryProviderFailure,
@@ -99,9 +100,6 @@ interface AgentRunOutcome {
   failure: ProviderFailure | null;
   producedSideEffects: boolean;
 }
-
-/** How many times one prompt may be sent before a passing failure is treated as real. */
-const MAX_PROVIDER_ATTEMPTS = 3;
 
 async function drainAgentRunIterator(
   iterator: AsyncGenerator<import("./agent-sdk-types.js").AgentStreamEvent>,

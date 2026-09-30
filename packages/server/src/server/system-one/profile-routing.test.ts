@@ -33,7 +33,11 @@ const profiles: RoutingProfile[] = ["codex-plus", "codex-work", "codex-business"
     },
   ],
 }));
-function fixture(entries = profiles.map((profile) => usage(profile.id)), catalog = profiles) {
+function fixture(
+  entries = profiles.map((profile) => usage(profile.id)),
+  catalog = profiles,
+  enabled = true,
+) {
   let now = Date.parse("2026-09-30T12:00:00Z");
   const decide = vi.fn(async (request: TypeSafeDecisionRequest) => {
     const route = request.questions.route;
@@ -66,7 +70,7 @@ function fixture(entries = profiles.map((profile) => usage(profile.id)), catalog
     getProfiles: () => catalog,
     getUsage,
     decisionSource: () => ({ decide }),
-    enabled: () => true,
+    enabled: () => enabled,
     minimumConfidence: () => 0.5,
     now: () => now,
   });
@@ -180,4 +184,116 @@ it("does not attempt a capacity retry while a genuine quota reset is still in th
   expect(f.decide).not.toHaveBeenCalled();
   f.setNow("2026-09-30T13:00:00Z");
   await expect(f.router({ ...f.input, currentRetry: true })).resolves.toBeNull();
+});
+
+it.each(["off", "unreachable", "low confidence"])(
+  "preserves a verified free model/effort route when Jev is %s",
+  async (state) => {
+    const f = fixture(
+      [usage("codex-plus", 100, "2026-09-30T13:00:00Z"), usage("codex-business")],
+      profiles,
+      state !== "off",
+    );
+    if (state === "unreachable") f.decide.mockRejectedValue(new Error("timeout"));
+    if (state === "low confidence")
+      f.decide.mockImplementation(async () => ({
+        model: "jev",
+        latencyMs: 1,
+        answers: {
+          route: { choice: "route0", confidence: 0.1, probabilities: { route0: 1 } },
+          reason: {
+            choice: "implementation",
+            confidence: 0.1,
+            probabilities: { mechanical: 0, implementation: 1, complex: 0 },
+          },
+        },
+      }));
+    const route = await f.router({ ...f.input, fallback: "quota" });
+    expect(route).toMatchObject({
+      profile: { provider: "codex-business", thinkingOptionId: "medium" },
+      model: "gpt-6.1-sol",
+    });
+    expect(route?.reason).toContain("Preserved model and effort");
+  },
+);
+
+it("preserves an already selected supported Opus xhigh while forbidding automatic xhigh", async () => {
+  const catalog = ["claude", "claude-extra"].map((id) => ({
+    id,
+    label: id,
+    enabled: true,
+    harness: "claude",
+    models: [
+      {
+        id: "claude-opus-5-5",
+        provider: id,
+        label: "Opus",
+        thinkingOptions: [
+          { id: "high", label: "High" },
+          { id: "xhigh", label: "Xhigh" },
+        ],
+      },
+    ],
+  }));
+  const f = fixture(
+    catalog.map(({ id }) => usage(id)),
+    catalog,
+  );
+  expect(
+    await f.router({
+      ...f.input,
+      provider: "claude",
+      model: "claude-opus-5-5",
+      thinkingOptionId: "xhigh",
+      fallback: "quota",
+    }),
+  ).toMatchObject({ profile: { provider: "claude-extra", thinkingOptionId: "xhigh" } });
+});
+
+it("applies persisted routing model/effort lists by actual provider and inherited harness", async () => {
+  const catalog = profiles.map((profile) => ({
+    ...profile,
+    models: [
+      ...profile.models,
+      {
+        provider: profile.id,
+        id: "gpt-6-luna",
+        label: "Luna",
+        thinkingOptions: [
+          { id: "low", label: "Low" },
+          { id: "high", label: "High" },
+        ],
+      },
+    ],
+  }));
+  const decide = vi.fn(async (_request: TypeSafeDecisionRequest) => ({
+    model: "jev",
+    latencyMs: 1,
+    answers: {
+      route: { choice: "route0", confidence: 1, probabilities: { route0: 1 } },
+      reason: { choice: "mechanical", confidence: 1, probabilities: { mechanical: 1 } },
+    },
+  }));
+  const router = createProfileRouter({
+    getProfiles: () => catalog,
+    enabled: () => true,
+    minimumConfidence: () => 0.5,
+    getUsage: async () => ({
+      fetchedAt: new Date().toISOString(),
+      providers: profiles.map(({ id }) => usage(id)),
+    }),
+    decisionSource: () => ({ decide }),
+    getRouting: () => ({
+      codex: { models: ["gpt-6-luna", "unsupported"], thinking: ["low"] },
+      "codex-business": { models: ["gpt-6.1-sol", "unsupported"], thinking: ["medium"] },
+    }),
+  });
+  await router({ provider: "codex-plus", cwd: "/project", prompt: "Lookup" });
+  const question = decide.mock.calls[0][0].questions.route;
+  if (question.type !== "choice") throw new Error("expected route choice");
+  expect(Object.values(question.criteria)).toEqual([
+    expect.objectContaining({ profile: "codex-plus", model: "gpt-6-luna", effort: "low" }),
+    expect.objectContaining({ profile: "codex-work", model: "gpt-6-luna", effort: "low" }),
+    expect.objectContaining({ profile: "codex-business", model: "gpt-6.1-sol", effort: "medium" }),
+  ]);
 });

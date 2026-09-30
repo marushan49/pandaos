@@ -1,3 +1,4 @@
+import { ProfileRoutingUnavailableError } from "../../system-one/profile-routing.js";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -95,7 +96,7 @@ test("session create forwards clientMessageId to the initial prompt run options"
   });
 });
 
-test.each(["session", "mcp human", "mcp delegated"] as const)(
+test.each(["session", "mcp human", "mcp delegated", "session unavailable"] as const)(
   "%s create routes the task before runtime creation and clears unsupported effort",
   async (kind) => {
     const snapshot = {
@@ -106,11 +107,16 @@ test.each(["session", "mcp human", "mcp delegated"] as const)(
       runtimeInfo: null,
     } as ManagedAgent;
     const createAgent = vi.fn(async () => snapshot);
-    const createRouter = vi.fn(async () => ({
-      provider: "claude",
-      model: "claude-sonnet-5-5",
-      thinkingOptionId: undefined,
-    }));
+    const unavailable = kind === "session unavailable";
+    const createRouter = vi.fn(async () => {
+      if (unavailable)
+        throw new ProfileRoutingUnavailableError("Quota cooldown", "2026-09-30T13:00:00Z");
+      return {
+        provider: "claude",
+        model: "claude-sonnet-5-5",
+        thinkingOptionId: undefined,
+      };
+    });
     const stub = createProviderSnapshotManagerStub();
     const dependencies: Parameters<typeof createAgentCommand>[0] = {
       agentManager: {
@@ -135,7 +141,7 @@ test.each(["session", "mcp human", "mcp delegated"] as const)(
     };
     await createAgentCommand(
       dependencies,
-      kind === "session"
+      kind === "session" || unavailable
         ? {
             kind: "session",
             config,
@@ -169,15 +175,15 @@ test.each(["session", "mcp human", "mcp delegated"] as const)(
     );
     expect(stub.resolveCreateConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "claude",
-        requestedMode: undefined,
+        provider: unavailable ? "codex" : "claude",
+        requestedMode: unavailable ? "codex-only-mode" : undefined,
       }),
     );
     expect(createAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "claude",
-        model: "claude-sonnet-5-5",
-        thinkingOptionId: undefined,
+        provider: unavailable ? "codex" : "claude",
+        model: unavailable ? "gpt-6.1-sol" : "claude-sonnet-5-5",
+        thinkingOptionId: unavailable ? "xhigh" : undefined,
         modeId: undefined,
       }),
       undefined,

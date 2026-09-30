@@ -10,6 +10,7 @@ export interface RoutingProfile {
   harness: string;
   enabled: boolean;
   models: readonly AgentModelDefinition[];
+  routing?: { models: string[]; thinking?: string[] };
 }
 export interface ProfileRouteInput {
   provider: string;
@@ -75,13 +76,17 @@ interface ProfileRouterOptions {
   enabled: (cwd: string) => boolean;
   minimumConfidence: () => number;
   now?: () => number;
+  getRouting?: () => Record<string, { models: string[]; thinking?: string[] }>;
 }
 
 export function createProfileRouter(options: ProfileRouterOptions): ProfileRouter {
   const limits = new Map<string, { resetsAt: string | null; observedAt: number }>();
   return async (input) => {
     const now = (options.now ?? Date.now)();
-    const profiles = options.getProfiles(input.cwd).filter((profile) => profile.enabled);
+    const profiles = configuredProfiles(
+      options.getProfiles(input.cwd),
+      options.getRouting?.() ?? {},
+    );
     const evidence = await options
       .getUsage(profiles.map((profile) => profile.id))
       .catch(() => null);
@@ -124,28 +129,65 @@ export function createProfileRouter(options: ProfileRouterOptions): ProfileRoute
         );
       return null;
     }
-    if (!options.enabled(input.cwd)) {
-      if (input.fallback || currentLimited)
-        return unavailable("Jev routing is disabled; the limited profile will not be attempted.");
-      return null;
-    }
-    const { candidates, preserving } = routingCandidates(eligible, input);
-    if (!candidates.length) {
-      if (input.fallback || currentLimited)
-        return unavailable(
-          "No eligible profile with verified usage and a supported model is available.",
-        );
-      return null;
-    }
-    try {
-      return await decideRoute(options, input, candidates, preserving, usage, reset);
-    } catch (error) {
-      if (error instanceof ProfileRoutingUnavailableError) throw error;
-      if (input.fallback || currentLimited)
-        return unavailable("Jev reassessment is unavailable; retaining the pending task.");
-      return null;
-    }
+    return selectAvailableRoute(
+      options,
+      currentLimited && !input.fallback ? { ...input, fallback: "quota" } : input,
+      eligible,
+      usage,
+      reset,
+      unavailable,
+    );
   };
+}
+
+function configuredProfiles(
+  profiles: readonly RoutingProfile[],
+  routing: Record<string, { models: string[]; thinking?: string[] }>,
+): RoutingProfile[] {
+  return profiles
+    .filter((profile) => profile.enabled)
+    .map((profile) =>
+      Object.assign({}, profile, { routing: routing[profile.id] ?? routing[profile.harness] }),
+    );
+}
+
+async function selectAvailableRoute(
+  options: ProfileRouterOptions,
+  input: ProfileRouteInput,
+  eligible: RoutingProfile[],
+  usage: Map<string, ProviderUsage>,
+  reset: string | null,
+  unavailable: (message: string) => never,
+): Promise<ProfileRoute | null> {
+  const { candidates, preserving } = routingCandidates(eligible, input);
+  const preserved = (reason: string) =>
+    preserving
+      ? candidateRoute(candidates[0], reset, `Preserved model and effort; ${reason}`)
+      : null;
+  if (!options.enabled(input.cwd)) {
+    const route = preserved("Jev routing is disabled.");
+    if (route) return route;
+    if (input.fallback) return unavailable("Jev routing is disabled; reassessment is unavailable.");
+    return null;
+  }
+  if (!candidates.length) {
+    if (input.fallback)
+      return unavailable(
+        "No eligible profile with verified usage and a supported model is available.",
+      );
+    return null;
+  }
+  try {
+    const route = await decideRoute(options, input, candidates, preserving, usage, reset);
+    return route ?? preserved("Jev produced no route.");
+  } catch (error) {
+    const route = preserved("Jev reassessment evidence is unavailable.");
+    if (route) return route;
+    if (error instanceof ProfileRoutingUnavailableError) return unavailable(error.message);
+    if (input.fallback)
+      return unavailable("Jev reassessment is unavailable; retaining the pending task.");
+    return null;
+  }
 }
 
 interface RoutingCandidate {
@@ -169,7 +211,6 @@ function routingCandidates(eligible: RoutingProfile[], input: ProfileRouteInput)
           !model ||
           !allowedModel(model.id) ||
           routes.has(JSON.stringify([profile.id, model.id])) ||
-          !allowedEffort(model.id, input.thinkingOptionId) ||
           (input.thinkingOptionId &&
             !model.thinkingOptions?.some((option) => option.id === input.thinkingOptionId))
         )
@@ -180,7 +221,12 @@ function routingCandidates(eligible: RoutingProfile[], input: ProfileRouteInput)
   const candidates = preserving.length
     ? preserving
     : eligible.flatMap((profile) =>
-        profile.models
+        (profile.routing
+          ? profile.routing.models.flatMap((id) =>
+              profile.models.filter((model) => model.id === id),
+            )
+          : profile.models
+        )
           .filter(
             (model) =>
               model.isSelectable !== false &&
@@ -189,7 +235,12 @@ function routingCandidates(eligible: RoutingProfile[], input: ProfileRouteInput)
           )
           .flatMap((model) =>
             (model.thinkingOptions?.map((option) => option.id) ?? [undefined])
-              .filter((effort) => allowedEffort(model.id, effort))
+              .filter(
+                (effort) =>
+                  allowedEffort(model.id, effort) &&
+                  (!profile.routing?.thinking ||
+                    (effort !== undefined && profile.routing.thinking.includes(effort))),
+              )
               .map((effort) => ({ profile, model, effort })),
           ),
       );
@@ -261,6 +312,20 @@ async function decideRoute(
     return unavailable("Jev did not produce a confident route and reassessment reason.");
   const candidate = candidates[Number(selected.choice.slice(5))];
   if (!candidate) return unavailable("Jev selected an unknown route.");
+  return candidateRoute(
+    candidate,
+    reset,
+    preserving
+      ? `Jev preserved model and effort (${selected.confidence})`
+      : `Jev reassessed: ${rationale.choice} (${selected.confidence})`,
+  );
+}
+
+function candidateRoute(
+  candidate: RoutingCandidate,
+  reset: string | null,
+  reason: string,
+): ProfileRoute {
   return {
     profile: {
       id: candidate.profile.id,
@@ -271,8 +336,6 @@ async function decideRoute(
     },
     model: candidate.model.id,
     resetsAt: reset,
-    reason: preserving
-      ? `Jev preserved model and effort (${selected.confidence})`
-      : `Jev reassessed: ${rationale.choice} (${selected.confidence})`,
+    reason,
   };
 }

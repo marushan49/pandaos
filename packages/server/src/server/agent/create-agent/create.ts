@@ -1,3 +1,4 @@
+import { ProfileRoutingUnavailableError } from "../../system-one/profile-routing.js";
 import type { Logger } from "pino";
 
 import type { TerminalManager } from "../../../terminal/terminal-manager.js";
@@ -250,14 +251,23 @@ async function resolveSessionCreateAgent(
   );
   const route =
     trimmedPrompt && !builtSessionConfig.internal && dependencies.createRouter
-      ? await dependencies.createRouter({
-          requestedProvider: builtSessionConfig.provider,
-          requestedModel: builtSessionConfig.model,
-          requestedThinking: builtSessionConfig.thinkingOptionId,
-          cwd: builtSessionConfig.cwd,
-          prompt: trimmedPrompt,
-          isAgentScoped: false,
-        })
+      ? await dependencies
+          .createRouter({
+            requestedProvider: builtSessionConfig.provider,
+            requestedModel: builtSessionConfig.model,
+            requestedThinking: builtSessionConfig.thinkingOptionId,
+            cwd: builtSessionConfig.cwd,
+            prompt: trimmedPrompt,
+            isAgentScoped: false,
+          })
+          .catch((error: unknown) => {
+            if (!(error instanceof ProfileRoutingUnavailableError)) throw error;
+            dependencies.logger.info(
+              { resetsAt: error.resetsAt },
+              "Creation defers unavailable routing to turn preflight",
+            );
+            return null;
+          })
       : null;
   const routedConfig = route
     ? {

@@ -1,3 +1,5 @@
+export const MAX_PROVIDER_ATTEMPTS = 3;
+
 /**
  * What a provider says when a turn dies, in a form the rest of the daemon can act on.
  *
@@ -38,7 +40,9 @@ export function describeProviderFailure(raw: string, code?: string): ProviderFai
   return {
     message,
     ...(statusCode === undefined ? {} : { statusCode }),
-    retryable: code !== "quota_fallback_exhausted" && decideRetryable(parsed, trimmed),
+    retryable:
+      !["quota_fallback_exhausted", "provider_retry_exhausted"].includes(code ?? "") &&
+      decideRetryable(parsed, trimmed),
   };
 }
 

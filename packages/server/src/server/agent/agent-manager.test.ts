@@ -12256,6 +12256,30 @@ test("routeNextTurn publishes structured Jev notice only when the route changes"
   );
 });
 
+test("ordinary unchanged or unverified routing clears stale composer notices", async () => {
+  const { manager, agent } = await createProviderSwitchFixture({
+    agentId: "00000000-0000-4000-8000-000000000622",
+    target: new ProviderSwitchClient("claude"),
+  });
+  agent.config.routingNotice = {
+    fromProfile: "codex",
+    toProfile: "codex",
+    fromModel: "gpt-5.4",
+    model: "gpt-5.4",
+    fromEffort: null,
+    effort: null,
+    resetsAt: null,
+    status: "unverified",
+    reason: "Unknown usage",
+  };
+  agent.lastUserMessageAt = new Date();
+  manager.setTurnRouter(async () => null);
+  await manager.routeNextTurn(agent.id, "Ordinary request");
+  expect(toAgentPayload(agent).routingNotice).toBeUndefined();
+  await manager.routeNextTurn(agent.id, "Another ordinary request");
+  expect(toAgentPayload(agent).routingNotice).toBeUndefined();
+});
+
 test("setAgentProvider marks the provider cut in the timeline", async () => {
   const { manager, agent } = await createProviderSwitchFixture({
     agentId: "00000000-0000-4000-8000-000000000604",
@@ -12341,9 +12365,9 @@ test("prompt dispatch exhausts each actual quota account once without an outer s
         waiting.resolve();
     });
     await startAgentRun(manager, agent.id, "A single logical message", logger);
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1);
     await secondStarted.promise;
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1);
     await waiting.promise;
     expect(starts).toEqual(["codex", "claude"]);
     expect(stream).toHaveBeenCalledTimes(1);
@@ -12369,6 +12393,8 @@ async function createCapacityFixture(
     tool?: boolean;
     synchronous?: boolean;
     rejectBeforeStart?: boolean;
+    transientAt?: number[];
+    throwTransient?: boolean;
     quotaReset?: string;
     onlyOrigin?: boolean;
   } = {},
@@ -12395,6 +12421,9 @@ async function createCapacityFixture(
       if (failed && options.rejectBeforeStart) {
         throw new Error("Selected model is at capacity. Please try a different model.");
       }
+      const transient = options.transientAt?.includes(attempts.length);
+      if (transient && options.throwTransient)
+        throw new Error('{"statusCode":503,"message":"overloaded","isRetryable":true}');
       const emit = () => {
         this.pushEvent({ type: "turn_started", provider: this.provider, turnId });
         if (options.tool && prompt === "Write once, then finish") {
@@ -12413,18 +12442,23 @@ async function createCapacityFixture(
             },
           });
         }
-        this.pushEvent(
-          failed
-            ? {
-                type: "turn_failed",
-                provider: this.provider,
-                turnId,
-                error: options.quotaReset
-                  ? "429 quota exceeded"
-                  : "Selected model is at capacity. Please try a different model.",
-              }
-            : { type: "turn_completed", provider: this.provider, turnId },
-        );
+        if (transient) {
+          this.pushEvent({
+            type: "turn_failed",
+            provider: this.provider,
+            turnId,
+            error: '{"statusCode":503,"message":"overloaded","isRetryable":true}',
+          });
+        } else if (failed) {
+          this.pushEvent({
+            type: "turn_failed",
+            provider: this.provider,
+            turnId,
+            error: options.quotaReset
+              ? "429 quota exceeded"
+              : "Selected model is at capacity. Please try a different model.",
+          });
+        } else this.pushEvent({ type: "turn_completed", provider: this.provider, turnId });
       };
       if (options.synchronous) emit();
       else setTimeout(emit, 0);
@@ -12513,7 +12547,13 @@ async function createCapacityFixture(
     clients: Object.fromEntries(definitions.map(({ id }) => [id, client(id)])),
   });
   const agent = await manager.createAgent(
-    { provider: "codex-plus", cwd: workdir, model: "gpt-6.1-sol", thinkingOptionId: "medium" },
+    {
+      provider: "codex-plus",
+      cwd: workdir,
+      model: "gpt-6.1-sol",
+      thinkingOptionId: "medium",
+      title: "Recovery task",
+    },
     undefined,
     { workspaceId: undefined },
   );
@@ -12612,6 +12652,7 @@ test("persistent native capacity tries same-model accounts before Jev model reas
       "claude",
     ]);
     expect(fixture.attempts.slice(0, 6).every(({ model }) => model === "gpt-6.1-sol")).toBe(true);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.config.title).toBe("Recovery task");
     expect(fixture.manager.getAgent(fixture.agent.id)!.config.routingNotice).toMatchObject({
       fromProfile: "codex-business",
       toProfile: "claude",
@@ -12734,6 +12775,87 @@ test("delegated prompt dispatch uses daemon capacity recovery without Paperclip 
     expect(fixture.attempts).toHaveLength(2);
     expect(stream).toHaveBeenCalledTimes(1);
     expect(fixture.manager.getAgent(child.id)!.lifecycle).toBe("idle");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test.each([false, true])(
+  "transient 503 inside recovery retries the current logical route (throw %s)",
+  async (throwTransient) => {
+    vi.useFakeTimers();
+    const fixture = await createCapacityFixture({ failures: 1, transientAt: [2], throwTransient });
+    try {
+      const run = drainAsyncGenerator(
+        fixture.manager.streamAgent(fixture.agent.id, "Implement the task", {
+          clientMessageId: "transient-recovery",
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(3_010);
+      await run;
+      expect(fixture.attempts).toHaveLength(3);
+      expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("idle");
+      expect(
+        fixture.manager
+          .fetchTimeline(fixture.agent.id, { projection: "canonical" })
+          .rows.filter(({ item }) => item.type === "user_message"),
+      ).toHaveLength(1);
+    } finally {
+      await fixture.cleanup();
+      vi.useRealTimers();
+    }
+  },
+);
+
+test("bounded transient recovery exhaustion does not replay the quota or capacity chain", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture({ failures: 1, transientAt: [2, 3, 4, 5, 6] });
+  try {
+    const run = drainAsyncGenerator(
+      fixture.manager.streamAgent(fixture.agent.id, "Implement the task"),
+    );
+    await vi.advanceTimersByTimeAsync(20_000);
+    await run;
+    expect(fixture.attempts).toHaveLength(4);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("error");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("transient recovery after a completed tool does not replay its side effect", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture({ tool: true, transientAt: [2] });
+  try {
+    const run = drainAsyncGenerator(
+      fixture.manager.streamAgent(fixture.agent.id, "Write once, then finish"),
+    );
+    await vi.advanceTimersByTimeAsync(20_000);
+    await run;
+    expect(fixture.writes()).toBe(1);
+    expect(fixture.attempts).toHaveLength(2);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("error");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("replaceAgentRun routes its replacement through shared foreground preparation", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture({ failures: 0 });
+  const route = vi.fn(async () => null);
+  fixture.manager.setTurnRouter(route);
+  try {
+    const iterator = await fixture.manager.replaceAgentRun(fixture.agent.id, "Replacement task");
+    const run = drainAsyncGenerator(iterator);
+    await vi.advanceTimersByTimeAsync(0);
+    await run;
+    expect(route).toHaveBeenCalledTimes(1);
+    expect(route).toHaveBeenCalledWith(expect.objectContaining({ prompt: "Replacement task" }));
+    expect(fixture.attempts).toHaveLength(1);
   } finally {
     await fixture.cleanup();
     vi.useRealTimers();

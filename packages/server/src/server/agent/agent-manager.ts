@@ -100,6 +100,8 @@ import { resolveCreateAgentTitles } from "./create-agent-title.js";
 import type { PaseoToolCatalogFactory } from "./tools/types.js";
 import { isPaseoToolPolicyEnabled } from "./paseo-tool-policy.js";
 import {
+  MAX_PROVIDER_ATTEMPTS,
+  shouldRetryProviderFailure,
   describeProviderFailure,
   providerRetryDelayMs,
   isModelCapacityError,
@@ -803,6 +805,7 @@ export class AgentManager {
   private readonly recoveryWake = new Map<string, () => void>();
   private readonly capacityAttempts = new Map<string, Map<string, number>>();
   private readonly capacityTimedWait = new Set<string>();
+  private readonly providerRetryAttempts = new Map<string, number>();
   private readonly attemptedRoutes = new Map<string, Set<string>>();
   private readonly preparedRoutes = new Map<string, AgentPromptInput>();
   private streamObserver:
@@ -984,6 +987,11 @@ export class AgentManager {
       this.preparedRoutes.set(agent.id, prompt);
       return;
     }
+    if (agent.config.routingNotice) {
+      agent.config.routingNotice = undefined;
+      this.touchUpdatedAt(agent);
+      this.emitState(agent);
+    }
     const lastRouted = this.routedModels.get(agent.id);
     if (lastRouted !== undefined && lastRouted !== (agent.config.model ?? null)) return;
     const route = await this.turnRouter({
@@ -995,13 +1003,11 @@ export class AgentManager {
       isFirstTurn: agent.lastUserMessageAt === null,
     });
     if (route) await this.applyRoute(agent, route);
-    else {
-      this.setRoutingNotice(
-        agent,
-        "unverified",
-        "Usage or Jev evidence unavailable; retaining the requested route.",
+    else
+      this.logger.info(
+        { agentId, provider: agent.provider },
+        "Usage or Jev evidence unavailable; retaining the requested route",
       );
-    }
     this.routedModels.set(agent.id, agent.config.model ?? null);
     this.preparedRoutes.set(agent.id, prompt);
   }
@@ -2963,6 +2969,7 @@ export class AgentManager {
     this.foregroundToolCalls.delete(agentId);
     this.recoveryControllers.set(agentId, new AbortController());
     this.capacityAttempts.set(agentId, new Map());
+    this.providerRetryAttempts.set(agentId, 0);
     this.capacityTimedWait.delete(agentId);
     this.attemptedRoutes.set(agentId, new Set());
 
@@ -3103,6 +3110,7 @@ export class AgentManager {
     this.recoveryControllers.get(agent.id)?.abort();
     this.recoveryControllers.delete(agent.id);
     this.capacityAttempts.delete(agent.id);
+    this.providerRetryAttempts.delete(agent.id);
     this.capacityTimedWait.delete(agent.id);
     this.attemptedRoutes.delete(agent.id);
     if (turnId) {
@@ -5015,27 +5023,9 @@ export class AgentManager {
       "handleStreamEvent: turn_failed",
     );
     if (terminalDisposition === "stale") return;
-    const capacity = isModelCapacityError({
-      message: event.error,
-      code: event.code,
-      diagnostic: event.diagnostic,
-    });
-    const quota = isQuotaOrRateLimitError({
-      message: event.error,
-      code: event.code,
-      diagnostic: event.diagnostic,
-    });
-    if (
-      isForegroundEvent &&
-      !options?.fromHistory &&
-      event.code !== "quota_fallback_exhausted" &&
-      (capacity || quota)
-    ) {
-      const recovering = await this.retryQuotaLimitedForegroundTurn(
-        agent,
-        eventTurnId,
-        capacity ? "capacity" : "quota",
-      );
+    const failure = this.recoveryFailure(agent, event);
+    if (isForegroundEvent && !options?.fromHistory && failure !== null) {
+      const recovering = await this.retryQuotaLimitedForegroundTurn(agent, eventTurnId, failure);
       if (recovering) {
         flags.shouldDispatchEvent = false;
         flags.shouldNotifyWaiters = false;
@@ -5062,7 +5052,7 @@ export class AgentManager {
   private async retryQuotaLimitedForegroundTurn(
     agent: ActiveManagedAgent,
     logicalTurnId: string | undefined,
-    failure: "quota" | "capacity" = "quota",
+    failure: "quota" | "capacity" | "transient" = "quota",
   ): Promise<boolean> {
     const attempted = this.fallbackAttemptedProfiles.get(agent.id) ?? new Set<string>();
     if (failure === "quota") attempted.add(agent.provider);
@@ -5090,7 +5080,9 @@ export class AgentManager {
             type: "turn_failed",
             provider: agent.provider,
             turnId: logicalTurnId,
-            code: "quota_fallback_exhausted",
+            code: describeProviderFailure(String(error)).retryable
+              ? "provider_retry_exhausted"
+              : "quota_fallback_exhausted",
             error: String(error),
           });
         }
@@ -5134,23 +5126,14 @@ export class AgentManager {
   private async recoverForegroundTurn(
     agent: ActiveManagedAgent,
     logicalTurnId: string,
-    initialFailure: "quota" | "capacity",
+    initialFailure: "quota" | "capacity" | "transient",
   ): Promise<void> {
     const activePrompt = this.activeForegroundPrompts.get(agent.id)!;
     const controller = this.recoveryControllers.get(agent.id)!;
     let failure = initialFailure;
     let recordFailure = true;
     while (!controller.signal.aborted) {
-      const history = this.timelineStore.getItems(agent.id);
-      const lastUser = history.findLastIndex((item) => item.type === "user_message");
-      const tools = new Map(
-        history
-          .slice(lastUser + 1)
-          .flatMap((item) =>
-            item.type === "tool_call" ? [[item.callId, item.status] as const] : [],
-          ),
-      );
-      if ([...tools.values()].some((status) => status === "running")) {
+      if (this.hasRunningToolCheckpoint(agent.id)) {
         this.setRoutingNotice(
           agent,
           "waiting",
@@ -5169,22 +5152,10 @@ export class AgentManager {
       const routes = this.attemptedRoutes.get(agent.id)!;
       const attempted = this.fallbackAttemptedProfiles.get(agent.id)!;
       let route: ProfileRoute | null = null;
-      if (failure === "capacity" && (counts.get(routeKey) ?? 0) < 2) {
-        if (!(await this.canRetryCurrentProfile(agent, activePrompt.prompt))) {
-          counts.set(routeKey, 2);
-          continue;
-        }
-        const count = (counts.get(routeKey) ?? 0) + 1;
-        counts.set(routeKey, count);
-        const retryAt = new Date(Date.now() + providerRetryDelayMs(count)).toISOString();
-        this.setRoutingNotice(
-          agent,
-          "retrying",
-          `Model temporarily at capacity; retry ${count}/2 on the same profile, model and effort.`,
-          retryAt,
-        );
-        await this.persistSnapshot(agent);
-        if (!(await this.waitForRecovery(agent.id, retryAt))) break;
+      if (failure === "transient") {
+        if (!(await this.waitForTransientRetry(agent))) break;
+      } else if (failure === "capacity" && (counts.get(routeKey) ?? 0) < 2) {
+        if (!(await this.waitForCapacityRetry(agent, activePrompt.prompt, routeKey))) continue;
       } else {
         if (failure === "capacity") routes.add(routeKey);
         else if (recordFailure) attempted.add(agent.provider);
@@ -5210,10 +5181,11 @@ export class AgentManager {
           break;
         return;
       } catch (error) {
-        const message = String(error);
-        if (isModelCapacityError({ message })) failure = "capacity";
-        else if (isQuotaOrRateLimitError(message)) failure = "quota";
-        else throw error;
+        const next = this.recoveryFailure(agent, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        if (!next) throw error;
+        failure = next;
       }
     }
     await this.dispatchSessionEvent(agent, {
@@ -5222,6 +5194,87 @@ export class AgentManager {
       turnId: logicalTurnId,
       reason: "Managed recovery cancelled",
     });
+  }
+
+  private canRetryTransient(agent: ActiveManagedAgent, message: string, code?: string): boolean {
+    return shouldRetryProviderFailure({
+      failure: describeProviderFailure(message, code),
+      attempt: (this.providerRetryAttempts.get(agent.id) ?? 0) + 1,
+      maxAttempts: MAX_PROVIDER_ATTEMPTS,
+      producedSideEffects: this.foregroundToolCalls.has(agent.id),
+    });
+  }
+
+  private hasRunningToolCheckpoint(agentId: string): boolean {
+    const history = this.timelineStore.getItems(agentId);
+    const lastUser = history.findLastIndex((item) => item.type === "user_message");
+    const tools = new Map(
+      history
+        .slice(lastUser + 1)
+        .flatMap((item) =>
+          item.type === "tool_call" ? [[item.callId, item.status] as const] : [],
+        ),
+    );
+    return [...tools.values()].some((status) => status === "running");
+  }
+
+  private async waitForCapacityRetry(
+    agent: ActiveManagedAgent,
+    prompt: AgentPromptInput,
+    routeKey: string,
+  ): Promise<boolean> {
+    const counts = this.capacityAttempts.get(agent.id)!;
+    if (!(await this.canRetryCurrentProfile(agent, prompt))) {
+      counts.set(routeKey, 2);
+      return false;
+    }
+    const count = (counts.get(routeKey) ?? 0) + 1;
+    counts.set(routeKey, count);
+    const retryAt = new Date(Date.now() + providerRetryDelayMs(count)).toISOString();
+    this.setRoutingNotice(
+      agent,
+      "retrying",
+      `Model temporarily at capacity; retry ${count}/2 on the same profile, model and effort.`,
+      retryAt,
+    );
+    await this.persistSnapshot(agent);
+    return this.waitForRecovery(agent.id, retryAt);
+  }
+
+  private async waitForTransientRetry(agent: ActiveManagedAgent): Promise<boolean> {
+    const count = (this.providerRetryAttempts.get(agent.id) ?? 0) + 1;
+    this.providerRetryAttempts.set(agent.id, count);
+    const retryAt = new Date(Date.now() + providerRetryDelayMs(count)).toISOString();
+    this.setRoutingNotice(
+      agent,
+      "retrying",
+      `Transient provider failure; retry ${count}/${MAX_PROVIDER_ATTEMPTS - 1} on the current route.`,
+      retryAt,
+    );
+    await this.persistSnapshot(agent);
+    return this.waitForRecovery(agent.id, retryAt);
+  }
+
+  private recoveryFailure(
+    agent: ActiveManagedAgent,
+    event: Pick<
+      Extract<AgentStreamEvent, { type: "turn_failed" }>,
+      "error" | "code" | "diagnostic"
+    >,
+  ): "quota" | "capacity" | "transient" | null {
+    if (event.code === "quota_fallback_exhausted" || event.code === "provider_retry_exhausted")
+      return null;
+    const input = { message: event.error, code: event.code, diagnostic: event.diagnostic };
+    if (isModelCapacityError(input)) return "capacity";
+    if (isQuotaOrRateLimitError(input)) return "quota";
+    if (
+      (!this.fallbackTurnIds.has(agent.id) && !this.recoveryJobs.has(agent.id)) ||
+      !describeProviderFailure(event.error, event.code).retryable
+    )
+      return null;
+    if (this.canRetryTransient(agent, event.error, event.code)) return "transient";
+    event.code = "provider_retry_exhausted";
+    return null;
   }
 
   private async canRetryCurrentProfile(
@@ -5366,6 +5419,7 @@ export class AgentManager {
     const { storedConfig, launchConfig, paseoToolPolicy } = await this.prepareSessionConfig(
       {
         cwd: agent.cwd,
+        title: agent.config.title,
         systemPrompt: agent.config.systemPrompt,
         mcpServers: agent.config.mcpServers,
         toolPolicy: agent.config.toolPolicy,
