@@ -7,6 +7,7 @@ import { expect, test, vi } from "vitest";
 import { createTestLogger } from "../../../test-utils/test-logger.js";
 import { createTestAgentClients } from "../../test-utils/fake-agent-client.js";
 import { createProviderSnapshotManagerStub } from "../../test-utils/session-stubs.js";
+import { PluginRuntime } from "../../plugins/runtime.js";
 import { AgentManager } from "../agent-manager.js";
 import { AgentStorage } from "../agent-storage.js";
 import type { CreatePaseoWorktreeWorkflowResult } from "../../worktree-session.js";
@@ -20,6 +21,7 @@ function createRealAgentManager(storage: AgentStorage): AgentManager {
     clients: createTestAgentClients(),
     registry: storage,
     logger,
+    pluginLifecycle: new PluginRuntime(logger, "0.9.1"),
   });
 }
 
@@ -323,6 +325,95 @@ test("mcp create accepts provider-only internal input and leaves model undefined
     }),
   );
 });
+
+test.each(["session", "mcp delegated"] as const)(
+  "%s creation keeps the selected route through real plugin validation and the first turn",
+  async (kind) => {
+    const workdir = mkdtempSync(join(tmpdir(), "create-agent-routing-notice-"));
+    const storage = new AgentStorage(join(workdir, "agents"), logger);
+    const agentManager = createRealAgentManager(storage);
+    const turnRouter = vi.fn(async () => null);
+    agentManager.setTurnRouter(turnRouter);
+    const notice = {
+      status: "selected" as const,
+      fromProfile: "codex",
+      toProfile: "claude",
+      fromModel: "gpt-6.1-sol",
+      model: "claude-sonnet-5-5",
+      fromEffort: "high",
+      effort: "high",
+      resetsAt: "2026-09-30T21:00:00Z",
+      reason: "Jev reassessed the task after quota exhaustion",
+    };
+    const createRouter = vi.fn(async () => ({
+      provider: "claude" as const,
+      model: notice.model,
+      thinkingOptionId: notice.effort,
+      routingNotice: notice,
+    }));
+    try {
+      const parentId =
+        kind === "mcp delegated"
+          ? (
+              await agentManager.createAgent({ provider: "codex", cwd: workdir }, undefined, {
+                workspaceId: "ws-source",
+              })
+            ).id
+          : undefined;
+      const config = {
+        provider: "codex" as const,
+        cwd: workdir,
+        model: "gpt-6.1-sol",
+        thinkingOptionId: "high",
+      };
+      const result = await createAgentCommand(
+        {
+          agentManager,
+          agentStorage: storage,
+          logger,
+          providerSnapshotManager: createProviderSnapshotManagerStub().manager,
+          createRouter,
+        },
+        kind === "session"
+          ? {
+              kind: "session",
+              config,
+              workspaceId: "ws-source",
+              initialPrompt: "Implement the task",
+              labels: {},
+              provisionalTitle: null,
+              firstAgentContext: { attachments: [] },
+              buildSessionConfig: async (value) => ({ sessionConfig: value }),
+            }
+          : {
+              kind: "mcp",
+              provider: "codex/gpt-6.1-sol",
+              config,
+              cwd: workdir,
+              workspaceId: "ws-source",
+              title: "Task",
+              initialPrompt: "Implement the task",
+              background: true,
+              notifyOnFinish: false,
+              callerAgentId: parentId,
+            },
+      );
+      expect(result.initialPromptStarted).toBe(true);
+      expect(result.initialPromptError).toBeNull();
+      await vi.waitFor(() =>
+        expect(agentManager.getAgent(result.snapshot.id)?.lifecycle).toBe("idle"),
+      );
+      await agentManager.flush();
+      await storage.flush();
+      expect(createRouter).toHaveBeenCalledOnce();
+      expect(turnRouter).not.toHaveBeenCalled();
+      expect(agentManager.getAgent(result.snapshot.id)?.config.routingNotice).toEqual(notice);
+      expect((await storage.get(result.snapshot.id))?.config?.routingNotice).toEqual(notice);
+    } finally {
+      await removeRealAgentManagerWorkdir({ agentManager, storage, workdir });
+    }
+  },
+);
 
 test("session create stamps the requested workspaceId when no worktree setup runs", async () => {
   const workdir = mkdtempSync(join(tmpdir(), "create-agent-test-"));

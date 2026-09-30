@@ -17,6 +17,7 @@ import type {
   AgentSessionConfig,
 } from "./agent-sdk-types.js";
 import { createTestAgentClients } from "../test-utils/fake-agent-client.js";
+import { PluginRuntime } from "../plugins/runtime.js";
 
 test.each([
   { status: "selected", resume: true },
@@ -35,6 +36,7 @@ test.each([
       clients: createTestAgentClients(),
       registry: storage,
       logger,
+      pluginLifecycle: new PluginRuntime(logger, "0.9.1"),
     });
     const agentId = "00000000-0000-4000-8000-000000000601";
     const notice = {

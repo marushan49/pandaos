@@ -1454,7 +1454,12 @@ export class AgentManager {
         config,
         env: options.env,
       });
-      config = { ...request.config, internal: config.internal };
+      // Daemon-owned routing history is outside the plugin-editable request schema.
+      config = {
+        ...request.config,
+        internal: config.internal,
+        routingNotice: config.routingNotice,
+      };
       options = { ...options, env: request.env };
     }
     await this.deleteAgentState(resolvedAgentId);
