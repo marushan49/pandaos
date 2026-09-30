@@ -3296,6 +3296,7 @@ export const en = {
   },
   leitstand: {
     title: "Dashboard",
+    leave: "Sessions",
     metrics: {
       running_one: "{{count}} agent running",
       running_other: "{{count}} agents running",
@@ -3304,7 +3305,7 @@ export const en = {
     },
     inbox: {
       title: "Needs you",
-      hint: "Clears itself once the reason is gone",
+      hint: "Stays until you reply or mark it done",
       snoozedCount_one: "{{count}} snoozed",
       snoozedCount_other: "{{count}} snoozed",
       empty: "Nothing needs you right now.",
@@ -3317,7 +3318,7 @@ export const en = {
         scheduleError: "Run failed",
         checksFailed: "Checks red",
         mergeReady: "Ready to merge",
-        finished: "Finished",
+        finished: "Your turn",
       },
       reasons: {
         permission: "{{agent}} wants permission: {{request}}",
@@ -3329,7 +3330,7 @@ export const en = {
         checksFailed_one: "PR #{{number}} has failing checks",
         checksFailed_other: "{{count}} PRs have failing checks, starting with #{{number}}",
         mergeReady: "PR #{{number}} is green and ready to merge",
-        finished: "Finished, not looked at yet",
+        finished: "The agent handed back and waits for you",
       },
       actions: {
         review: "Review",
@@ -3351,12 +3352,16 @@ export const en = {
       topicSessions_other: "{{count}} sessions",
       moreAgents: "+{{count}}",
       running: "Running",
+      waiting: "Waiting",
       planned: "Scheduled",
       done: "Done",
+      markDone: "Mark done",
+      reopen: "Reopen",
       allProjects: "All",
       emptyRunning: "Nothing running",
       emptyPlanned: "Nothing scheduled",
-      emptyDone: "Nothing finished",
+      emptyWaiting: "Nothing waits on you",
+      emptyDone: "Nothing marked done",
       nextRun: "next {{when}}",
       unread: "new",
       stack: "{{merged}}/{{total}} merged",
