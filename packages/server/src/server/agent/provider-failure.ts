@@ -38,7 +38,7 @@ export function describeProviderFailure(raw: string, code?: string): ProviderFai
   return {
     message,
     ...(statusCode === undefined ? {} : { statusCode }),
-    retryable: decideRetryable(parsed, trimmed),
+    retryable: code !== "quota_fallback_exhausted" && decideRetryable(parsed, trimmed),
   };
 }
 
@@ -124,4 +124,16 @@ export function shouldRetryProviderFailure(input: RetryDecisionInput): boolean {
 export function providerRetryDelayMs(attempt: number): number {
   const base = 1000 * 2 ** Math.max(0, attempt - 1);
   return Math.min(base, 15000);
+}
+
+export function isModelCapacityError(input: {
+  message?: string;
+  diagnostic?: string;
+  code?: string;
+}): boolean {
+  return [input.message, input.diagnostic, input.code].some(
+    (value) =>
+      typeof value === "string" &&
+      /selected model is at capacity|model[_ -]at[_ -]capacity/i.test(value),
+  );
 }

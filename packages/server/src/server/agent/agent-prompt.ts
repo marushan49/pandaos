@@ -82,10 +82,6 @@ async function startOrReplaceRun(
   replaced: boolean;
 }> {
   const replaced = Boolean(options?.replaceRunning && agentManager.hasInFlightRun(agentId));
-  const systemPrompt = typeof prompt === "string" && isSystemInjectedEnvelope(prompt);
-  if (!agentManager.hasInFlightRun(agentId) && !systemPrompt) {
-    await agentManager.routeNextTurn?.(agentId, prompt);
-  }
   const iterator = replaced
     ? await agentManager.replaceAgentRun(agentId, prompt, options?.runOptions)
     : agentManager.streamAgent(agentId, prompt, options?.runOptions);

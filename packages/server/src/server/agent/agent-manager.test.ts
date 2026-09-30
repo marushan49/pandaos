@@ -19,8 +19,11 @@ import { InMemoryAgentTimelineStore } from "./agent-timeline-store.js";
 import { toAgentPayload } from "./agent-projections.js";
 import { projectTimelineRows } from "./timeline-projection.js";
 import { getOpenAgentTabLabel, PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
-import type { AgentProfile } from "@getpaseo/protocol/agent-profile";
 import { formatSystemNotificationPrompt, startAgentRun } from "./agent-prompt.js";
+import {
+  createProfileRouter,
+  ProfileRoutingUnavailableError,
+} from "../system-one/profile-routing.js";
 import { buildResourcePolicyPrompt } from "../resource-policy.js";
 import { StaleProviderSessionError } from "./stale-provider-session-error.js";
 import { ensureAgentLoaded, ensureUnarchivedAgentLoaded } from "./agent-loading.js";
@@ -1769,7 +1772,7 @@ function fakeCodexEmitting(args: FakeCodexEmitterArgs): AgentClient {
 
 const logger = createTestLogger();
 
-test("retries a quota-limited foreground turn with the next configured profile", async () => {
+test("does not replay a limited account through another launch preset", async () => {
   const workdir = mkdtempSync(join(tmpdir(), "agent-manager-quota-fallback-"));
   const prompts: AgentPromptInput[] = [];
   let model: string | null = "codex-opus";
@@ -1810,30 +1813,24 @@ test("retries a quota-limited foreground turn with the next configured profile",
       return session;
     }
   })();
-  const profiles: AgentProfile[] = [
-    { id: "codex-opus-profile", name: "Opus", provider: "codex", model: "codex-opus" },
-    { id: "codex-sol-profile", name: "Sol", provider: "codex", model: "codex-sol" },
-  ];
   const manager = new AgentManager({
     clients: { codex: client },
-    getAgentProfiles: () => profiles,
     logger,
   });
   const agent = await manager.createAgent({ provider: "codex", cwd: workdir, model }, undefined, {
     workspaceId: undefined,
   });
-  const result = await manager.runAgent(agent.id, "Keep the original prompt");
+  await drainAsyncGenerator(manager.streamAgent(agent.id, "Keep the original prompt"));
   const timeline = manager.fetchTimeline(agent.id, { projection: "canonical" });
 
-  expect(starts).toBe(2);
-  expect(prompts).toEqual(["Keep the original prompt", "Keep the original prompt"]);
-  expect(model).toBe("codex-sol");
-  expect(result.finalText).toBe("continued");
+  expect(starts).toBe(1);
+  expect(prompts).toEqual(["Keep the original prompt"]);
+  expect(model).toBe("codex-opus");
   expect(timeline.rows.map((entry) => entry.item)).toContainEqual(
     expect.objectContaining({
       type: "notification",
-      level: "warning",
-      message: expect.stringContaining("codex-sol"),
+      level: "error",
+      message: expect.stringContaining("No configured provider profile"),
     }),
   );
 });
@@ -1843,6 +1840,7 @@ test("preserves the handoff context and old session during a cross-provider fall
   let oldSessionClosed = false;
   let fallbackCreatedBeforeClose = false;
   const fallbackPrompts: AgentPromptInput[] = [];
+  const fallbackModels: Array<string | undefined> = [];
 
   const initialSession = new (class extends TestAgentSession {
     override async startTurn(): Promise<{ turnId: string }> {
@@ -1863,7 +1861,7 @@ test("preserves the handoff context and old session during a cross-provider fall
     override async close(): Promise<void> {
       oldSessionClosed = true;
     }
-  })({ provider: "codex", cwd: workdir, model: "codex-opus" });
+  })({ provider: "codex", cwd: workdir, model: "gpt-6.1-sol" });
 
   class FallbackSession extends TestAgentSession {
     override readonly provider = "claude" as const;
@@ -1890,6 +1888,7 @@ test("preserves the handoff context and old session during a cross-provider fall
 
     override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
       fallbackCreatedBeforeClose = !oldSessionClosed;
+      fallbackModels.push(config.model);
       return new FallbackSession(config);
     }
   }
@@ -1903,21 +1902,25 @@ test("preserves the handoff context and old session during a cross-provider fall
       })(),
       claude: new FallbackClient(),
     },
-    getAgentProfiles: () => [
-      { id: "codex-profile", name: "Codex", provider: "codex", model: "codex-opus" },
-      { id: "claude-profile", name: "Claude", provider: "claude", model: "claude-sonnet" },
-    ],
+
+    profileRouter: async () => ({
+      profile: { id: "claude", name: "Opus", provider: "claude", model: "claude-opus-5-5" },
+      model: "claude-opus-5-5",
+      reason: "Jev reassessed: complex",
+      resetsAt: null,
+    }),
     logger,
   });
 
   const agent = await manager.createAgent(
-    { provider: "codex", cwd: workdir, model: "codex-opus", title: "Continue the quota test" },
+    { provider: "codex", cwd: workdir, model: "gpt-6.1-sol", title: "Continue the quota test" },
     undefined,
     { workspaceId: undefined },
   );
   const result = await manager.runAgent(agent.id, "Keep the original prompt");
 
   expect(result.finalText).toBe("continued");
+  expect(fallbackModels).toEqual(["claude-opus-5-5"]);
   expect(fallbackCreatedBeforeClose).toBe(true);
   expect(oldSessionClosed).toBe(true);
   expect(fallbackPrompts).toHaveLength(1);
@@ -12226,24 +12229,31 @@ test("moveAgentToWorkspace restarts the same provider in the target directory", 
   });
 });
 
-test("routeNextTurn tells the timeline what Jev picked, only when it changed something", async () => {
+test("routeNextTurn publishes structured Jev notice only when the route changes", async () => {
   const { manager, agent } = await createProviderSwitchFixture({
     agentId: "00000000-0000-4000-8000-000000000621",
     target: new ProviderSwitchClient("claude"),
   });
-  manager.setTurnRouter(async () => ({ thinkingOptionId: "low" }));
-  const notices = () =>
-    manager
-      .getTimeline(agent.id)
-      .filter((item) => item.type === "notification" && item.message.startsWith("Jev routed"));
-
+  const session = manager.getAgent(agent.id)?.session;
+  if (session) session.setThinkingOption = async () => {};
+  manager.setTurnRouter(async () => ({
+    profile: { id: "codex", name: "Codex", provider: "codex", thinkingOptionId: "low" },
+    model: "gpt-5.4",
+    resetsAt: null,
+    reason: "Jev reassessed: mechanical",
+  }));
   await manager.routeNextTurn(agent.id, "What is the status?");
-  expect(notices()).toEqual([
-    expect.objectContaining({ message: "Jev routed this turn: gpt-5.4 · low" }),
-  ]);
-
+  expect(toAgentPayload(agent).routingNotice).toMatchObject({
+    fromProfile: "codex",
+    toProfile: "codex",
+    model: "gpt-5.4",
+    effort: "low",
+    reason: "Jev reassessed: mechanical",
+  });
   await manager.routeNextTurn(agent.id, "And now?");
-  expect(notices()).toHaveLength(1);
+  expect(manager.getTimeline(agent.id).filter((item) => item.type === "notification")).toHaveLength(
+    1,
+  );
 });
 
 test("setAgentProvider marks the provider cut in the timeline", async () => {
@@ -12265,4 +12275,467 @@ test("setAgentProvider marks the provider cut in the timeline", async () => {
     level: "info",
     message: "Switched provider: codex → claude",
   });
+});
+
+test("prompt dispatch exhausts each actual quota account once without an outer sweep", async () => {
+  vi.useFakeTimers();
+  const workdir = mkdtempSync(join(tmpdir(), "quota-sweep-"));
+  const starts: string[] = [];
+  const secondStarted = deferred<void>();
+  const waiting = deferred<void>();
+  class QuotaSession extends TestAgentSession {
+    constructor(config: AgentSessionConfig) {
+      super(config);
+      Object.defineProperty(this, "provider", { value: config.provider });
+    }
+    override async startTurn(): Promise<{ turnId: string }> {
+      starts.push(this.provider);
+      if (this.provider === "claude") secondStarted.resolve();
+      const turnId = randomUUID();
+      setTimeout(() => {
+        this.pushEvent({ type: "turn_started", provider: this.provider, turnId });
+        this.pushEvent({
+          type: "turn_failed",
+          provider: this.provider,
+          turnId,
+          error: "429 quota exceeded",
+          code: "rate_limit_exceeded",
+        });
+      }, 0);
+      return { turnId };
+    }
+  }
+  const client = (provider: string): AgentClient => ({
+    provider,
+    capabilities: TEST_CAPABILITIES,
+    isAvailable: async () => true,
+    createSession: async (config) => new QuotaSession(config),
+    resumeSession: async () => {
+      throw new Error("unused");
+    },
+  });
+  const manager = new AgentManager({
+    clients: { codex: client("codex"), claude: client("claude") },
+
+    logger,
+    profileRouter: async (input) => {
+      if (input.provider === "codex")
+        return {
+          profile: { id: "claude", name: "Claude", provider: "claude" },
+          model: "claude-opus-5-5",
+          reason: "Jev reassessed: complex",
+          resetsAt: null,
+        };
+      throw new ProfileRoutingUnavailableError("No eligible profile", null);
+    },
+  });
+  try {
+    const agent = await manager.createAgent(
+      { provider: "codex", cwd: workdir, model: "gpt-6.1-sol" },
+      undefined,
+      { workspaceId: undefined },
+    );
+    const stream = vi.spyOn(manager, "streamAgent");
+    manager.subscribe((event) => {
+      if (event.type === "agent_state" && event.agent.config.routingNotice?.status === "waiting")
+        waiting.resolve();
+    });
+    await startAgentRun(manager, agent.id, "A single logical message", logger);
+    await vi.advanceTimersByTimeAsync(0);
+    await secondStarted.promise;
+    await vi.advanceTimersByTimeAsync(0);
+    await waiting.promise;
+    expect(starts).toEqual(["codex", "claude"]);
+    expect(stream).toHaveBeenCalledTimes(1);
+    const exhausted = manager
+      .fetchTimeline(agent.id, { projection: "canonical" })
+      .rows.filter(({ item }) => item.type === "notification" && item.level === "error");
+    expect(exhausted).toHaveLength(0);
+    expect(toAgentPayload(manager.getAgent(agent.id)!)).toMatchObject({
+      status: "running",
+      routingNotice: { status: "waiting", reason: "No eligible profile" },
+    });
+  } finally {
+    vi.useRealTimers();
+    for (const agent of manager.listAgents()) await manager.closeAgent(agent.id);
+    rmSync(workdir, { recursive: true, force: true });
+  }
+});
+
+async function createCapacityFixture(
+  options: {
+    failures?: number;
+    persistent?: boolean;
+    tool?: boolean;
+    synchronous?: boolean;
+    rejectBeforeStart?: boolean;
+    quotaReset?: string;
+    onlyOrigin?: boolean;
+  } = {},
+) {
+  const workdir = mkdtempSync(join(tmpdir(), "capacity-recovery-"));
+  const attempts: Array<{ profile: string; model: string; prompt: AgentPromptInput }> = [];
+  let writes = 0;
+  const started = { business: deferred<void>(), claude: deferred<void>() };
+  class CapacitySession extends TestAgentSession {
+    readonly actualConfig: AgentSessionConfig;
+    constructor(config: AgentSessionConfig) {
+      super(config);
+      this.actualConfig = config;
+      Object.defineProperty(this, "provider", { value: config.provider });
+    }
+    override async startTurn(prompt: AgentPromptInput): Promise<{ turnId: string }> {
+      const turnId = randomUUID();
+      attempts.push({ profile: this.provider, model: this.actualConfig.model!, prompt });
+      if (this.provider === "codex-business") started.business.resolve();
+      if (this.provider === "claude") started.claude.resolve();
+      const failed = options.persistent
+        ? this.provider !== "claude"
+        : attempts.length <= (options.failures ?? 1);
+      if (failed && options.rejectBeforeStart) {
+        throw new Error("Selected model is at capacity. Please try a different model.");
+      }
+      const emit = () => {
+        this.pushEvent({ type: "turn_started", provider: this.provider, turnId });
+        if (options.tool && prompt === "Write once, then finish") {
+          writes++;
+          this.pushEvent({
+            type: "timeline",
+            provider: this.provider,
+            turnId,
+            item: {
+              type: "tool_call",
+              name: "write",
+              callId: "write-once",
+              status: "completed",
+              error: null,
+              detail: { type: "write", filePath: "/fixture/result", content: "done" },
+            },
+          });
+        }
+        this.pushEvent(
+          failed
+            ? {
+                type: "turn_failed",
+                provider: this.provider,
+                turnId,
+                error: options.quotaReset
+                  ? "429 quota exceeded"
+                  : "Selected model is at capacity. Please try a different model.",
+              }
+            : { type: "turn_completed", provider: this.provider, turnId },
+        );
+      };
+      if (options.synchronous) emit();
+      else setTimeout(emit, 0);
+      return { turnId };
+    }
+  }
+  const client = (provider: string): AgentClient => ({
+    provider,
+    capabilities: TEST_CAPABILITIES,
+    isAvailable: async () => true,
+    createSession: async (config) => new CapacitySession(config),
+    resumeSession: async () => {
+      throw new Error("unused");
+    },
+  });
+  const definitions = (
+    options.onlyOrigin ? ["codex-plus"] : ["codex-plus", "codex-business", "claude"]
+  ).map((id) => ({
+    id,
+    label: id,
+    enabled: true,
+    harness: id === "claude" ? "claude" : "codex",
+    models: [
+      {
+        provider: id,
+        id: id === "claude" ? "claude-opus-5-5" : "gpt-6.1-sol",
+        label: id,
+        thinkingOptions: [{ id: "medium", label: "Medium" }],
+      },
+    ],
+  }));
+  const router = createProfileRouter({
+    getProfiles: () => definitions,
+    enabled: () => true,
+    minimumConfidence: () => 0.5,
+    getUsage: async () => ({
+      fetchedAt: new Date().toISOString(),
+      providers: definitions.map(({ id }) => ({
+        providerId: id,
+        displayName: id,
+        status: "available",
+        planLabel: null,
+        error: null,
+        windows: [
+          {
+            id: "session",
+            label: "Session",
+            usedPct: options.quotaReset ? 100 : 10,
+            remainingPct: options.quotaReset ? 0 : 90,
+            resetsAt: options.quotaReset,
+          },
+        ],
+        balances: [],
+        details: [],
+      })),
+    }),
+    decisionSource: () => ({
+      decide: async (request) => {
+        const question = request.questions.route;
+        if (question.type !== "choice") throw new Error("expected choice");
+        const keys = Object.keys(question.criteria);
+        return {
+          model: "jev",
+          latencyMs: 1,
+          answers: {
+            route: {
+              choice: keys[0],
+              confidence: 1,
+              probabilities: Object.fromEntries(
+                keys.map((key, index) => [key, index === 0 ? 1 : 0]),
+              ),
+            },
+            reason: {
+              choice: "complex",
+              confidence: 1,
+              probabilities: { mechanical: 0, implementation: 0, complex: 1 },
+            },
+          },
+        };
+      },
+    }),
+  });
+  const manager = new AgentManager({
+    logger,
+    profileRouter: router,
+    clients: Object.fromEntries(definitions.map(({ id }) => [id, client(id)])),
+  });
+  const agent = await manager.createAgent(
+    { provider: "codex-plus", cwd: workdir, model: "gpt-6.1-sol", thinkingOptionId: "medium" },
+    undefined,
+    { workspaceId: undefined },
+  );
+  const cleanup = async () => {
+    for (const item of manager.listAgents()) await manager.closeAgent(item.id);
+    rmSync(workdir, { recursive: true, force: true });
+  };
+  return { manager, agent, attempts, started, writes: () => writes, cleanup };
+}
+
+test.each([1, 2])(
+  "native capacity succeeds after %i short unchanged retries without a second user message",
+  async (failures) => {
+    vi.useFakeTimers();
+    const fixture = await createCapacityFixture({ failures });
+    try {
+      const events = drainAsyncGenerator(
+        fixture.manager.streamAgent(fixture.agent.id, "Implement the task"),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(toAgentPayload(fixture.manager.getAgent(fixture.agent.id)!)).toMatchObject({
+        status: "running",
+        routingNotice: { status: "retrying" },
+      });
+      await vi.advanceTimersByTimeAsync(3_010);
+      await events;
+      expect(fixture.attempts).toHaveLength(failures + 1);
+      expect(
+        fixture.attempts.every(
+          (attempt) => attempt.profile === "codex-plus" && attempt.model === "gpt-6.1-sol",
+        ),
+      ).toBe(true);
+      expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("idle");
+    } finally {
+      await fixture.cleanup();
+      vi.useRealTimers();
+    }
+  },
+);
+
+test("native capacity rejection before start uses one logical message and the shared recovery", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture({ failures: 2, rejectBeforeStart: true });
+  try {
+    const result: AgentStreamEvent[] = [];
+    const events = (async () => {
+      for await (const event of fixture.manager.streamAgent(
+        fixture.agent.id,
+        "Implement the task",
+        {
+          clientMessageId: "native-rejection",
+        },
+      ))
+        result.push(event);
+    })();
+    await vi.advanceTimersByTimeAsync(3_010);
+    await events;
+    expect(fixture.attempts).toHaveLength(3);
+    const started = result.find((event) => event.type === "turn_started");
+    expect(result.find((event) => event.type === "turn_completed")).toMatchObject({
+      turnId: started?.turnId,
+    });
+    expect(result.some((event) => event.type === "turn_failed")).toBe(false);
+    expect(
+      fixture.manager
+        .fetchTimeline(fixture.agent.id, { projection: "canonical" })
+        .rows.filter(({ item }) => item.type === "user_message"),
+    ).toHaveLength(1);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("idle");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("persistent native capacity tries same-model accounts before Jev model reassessment", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture({ persistent: true });
+  try {
+    const events = drainAsyncGenerator(
+      fixture.manager.streamAgent(fixture.agent.id, "Implement the task"),
+    );
+    await vi.advanceTimersByTimeAsync(3_010);
+    await fixture.started.business.promise;
+    await vi.advanceTimersByTimeAsync(3_010);
+    await fixture.started.claude.promise;
+    await vi.advanceTimersByTimeAsync(0);
+    await events;
+    expect(fixture.attempts.map(({ profile }) => profile)).toEqual([
+      "codex-plus",
+      "codex-plus",
+      "codex-plus",
+      "codex-business",
+      "codex-business",
+      "codex-business",
+      "claude",
+    ]);
+    expect(fixture.attempts.slice(0, 6).every(({ model }) => model === "gpt-6.1-sol")).toBe(true);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.config.routingNotice).toMatchObject({
+      fromProfile: "codex-business",
+      toProfile: "claude",
+      model: "claude-opus-5-5",
+      reason: expect.stringContaining("Jev reassessed: complex"),
+    });
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("capacity cancellation clears delayed retry and cannot resurrect the native turn", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture();
+  try {
+    const events = drainAsyncGenerator(
+      fixture.manager.streamAgent(fixture.agent.id, "Implement the task"),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    await fixture.manager.cancelAgentRun(fixture.agent.id);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await events;
+    expect(fixture.attempts).toHaveLength(1);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("idle");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("capacity continuation after a completed tool uses the checkpoint instead of replaying the write request", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture({ tool: true });
+  try {
+    const events = drainAsyncGenerator(
+      fixture.manager.streamAgent(fixture.agent.id, "Write once, then finish", {
+        clientMessageId: "write-message",
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(1_010);
+    await events;
+    expect(fixture.writes()).toBe(1);
+    expect(fixture.attempts[1].prompt).toContain("recorded checkpoint");
+    expect(
+      fixture.manager.getTimeline(fixture.agent.id).filter((item) => item.type === "user_message"),
+    ).toHaveLength(1);
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("synchronous capacity events retain logical identity across consecutive retries", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture({ failures: 2, synchronous: true });
+  try {
+    const events = drainAsyncGenerator(
+      fixture.manager.streamAgent(fixture.agent.id, "Implement the task"),
+    );
+    await vi.advanceTimersByTimeAsync(3_010);
+    await events;
+    expect(fixture.attempts).toHaveLength(3);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("idle");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("an exhausted quota message resumes automatically at its real reset without an outer replay", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-30T12:00:00Z"));
+  const fixture = await createCapacityFixture({
+    quotaReset: "2026-09-30T12:00:30Z",
+    onlyOrigin: true,
+  });
+  try {
+    const events = drainAsyncGenerator(
+      fixture.manager.streamAgent(fixture.agent.id, "Implement the task"),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fixture.attempts).toHaveLength(1);
+    expect(toAgentPayload(fixture.manager.getAgent(fixture.agent.id)!)).toMatchObject({
+      status: "running",
+      routingNotice: {
+        status: "waiting",
+        resetsAt: "2026-09-30T12:00:30.000Z",
+        attemptedProfiles: ["codex-plus"],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(30_010);
+    await events;
+    expect(fixture.attempts.map(({ profile }) => profile)).toEqual(["codex-plus", "codex-plus"]);
+    expect(fixture.manager.getAgent(fixture.agent.id)!.lifecycle).toBe("idle");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
+});
+
+test("delegated prompt dispatch uses daemon capacity recovery without Paperclip or another send", async () => {
+  vi.useFakeTimers();
+  const fixture = await createCapacityFixture();
+  try {
+    const parentId = fixture.agent.id;
+    const child = await fixture.manager.createAgent(
+      {
+        provider: "codex-plus",
+        cwd: fixture.agent.cwd,
+        model: "gpt-6.1-sol",
+        thinkingOptionId: "medium",
+      },
+      undefined,
+      { workspaceId: undefined, labels: { [PARENT_AGENT_ID_LABEL]: parentId } },
+    );
+    const stream = vi.spyOn(fixture.manager, "streamAgent");
+    await startAgentRun(fixture.manager, child.id, "Implement the task", logger);
+    await vi.advanceTimersByTimeAsync(1_010);
+    expect(fixture.attempts).toHaveLength(2);
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(fixture.manager.getAgent(child.id)!.lifecycle).toBe("idle");
+  } finally {
+    await fixture.cleanup();
+    vi.useRealTimers();
+  }
 });

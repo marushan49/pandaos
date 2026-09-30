@@ -2,6 +2,7 @@ import { describeHookWorkspace } from "./plugins/lifecycle/index.js";
 import { isShadowModeEnabled } from "./system-one/scope.js";
 import { ShadowPredictor } from "./system-one/shadow-predictor.js";
 import { createSystemOneTurnRouter } from "./system-one/model-routing.js";
+import { createProfileRouter } from "./system-one/profile-routing.js";
 import { createSystemOneCreateRouter } from "./system-one/create-routing.js";
 import { ProviderUsageService } from "../services/quota-fetcher/service.js";
 import { isSystemOneExcluded } from "./system-one/scope.js";
@@ -1025,7 +1026,6 @@ export async function createPaseoDaemon(
     pluginLifecycle: pluginRuntime,
     clients: initialAgentManagerState.clients,
     providerDefinitions: initialAgentManagerState.providerDefinitions,
-    getAgentProfiles: () => daemonConfigStore.get().agentProfiles,
     registry: agentStorage,
     appendSystemPrompt: config.appendSystemPrompt,
     resourcePolicy: config.resourcePolicy,
@@ -1273,6 +1273,7 @@ export async function createPaseoDaemon(
 
   const providerUsageService = new ProviderUsageService({
     logger,
+    onFreshUsage: () => agentManager.notifyRoutingAvailable(),
     listProfiles: () =>
       // The persisted type narrows providers to runtime settings; the parsed file carries the
       // full profile override (extends, label, enabled).
@@ -1286,12 +1287,29 @@ export async function createPaseoDaemon(
         env: provider?.env ?? {},
       })),
   });
-  const getProviderUsageForRouting = () => providerUsageService.listUsage().catch(() => null);
-  const createRouter = createSystemOneCreateRouter({
-    paseoHome: config.paseoHome,
-    daemonConfigStore,
-    getUsage: getProviderUsageForRouting,
+  const profileRouter = createProfileRouter({
+    getProfiles: (cwd) =>
+      providerSnapshotManager.getCachedSnapshot(cwd).records.map(({ entry }) => ({
+        id: entry.provider,
+        label: entry.label ?? entry.provider,
+        harness:
+          initialAgentManagerState.providerDefinitions[entry.provider]?.derivedFromProviderId ??
+          entry.provider,
+        enabled: entry.enabled,
+        models: entry.models ?? [],
+      })),
+    getUsage: (profileIds) => providerUsageService.listUsage({ profileIds }).catch(() => null),
+    decisionSource: (cwd) =>
+      createConfiguredSystemOneDecisionSource(config.paseoHome, daemonConfigStore, () => cwd, "routing"),
+    enabled: (cwd) =>
+      daemonConfigStore.get().systemOne?.enabled === true &&
+      !isSystemOneExcluded(config.paseoHome, cwd),
+    minimumConfidence: () => daemonConfigStore.get().systemOne?.minimumConfidence ?? 0.5,
   });
+  agentManager.setProfileRouter(profileRouter);
+  daemonConfigStore.onFieldChange("systemOne", () => agentManager.notifyRoutingAvailable());
+  providerSnapshotManager.on("change", () => agentManager.notifyRoutingAvailable());
+  const createRouter = createSystemOneCreateRouter({ profileRouter });
   const createAgentCommandDependencies: CreateAgentCommandDependencies = {
     agentManager,
     agentStorage,
@@ -1693,13 +1711,7 @@ export async function createPaseoDaemon(
       if (sorted > 0) logger.info({ sorted }, "handoff backfill sorted open sessions");
     })().catch((error: unknown) => logger.warn({ err: error }, "handoff backfill failed"));
   }, HANDOFF_BACKFILL_DELAY_MS).unref();
-  agentManager.setTurnRouter(
-    createSystemOneTurnRouter({
-      paseoHome: config.paseoHome,
-      daemonConfigStore,
-      getUsage: getProviderUsageForRouting,
-    }),
-  );
+  agentManager.setTurnRouter(createSystemOneTurnRouter({ profileRouter }));
   agentManager.setBlockedMcpServers(() =>
     browserToolsPolicy.isEnabled() ? COMPETING_BROWSER_MCP_SERVERS : [],
   );

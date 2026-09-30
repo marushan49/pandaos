@@ -10,7 +10,12 @@ import type {
   CreatePaseoWorktreeWorkflowFn,
   CreatePaseoWorktreeWorkflowResult,
 } from "../../worktree-session.js";
-import type { AgentAttachment, FirstAgentContext, GitSetupOptions } from "../../messages.js";
+import type {
+  AgentRoutingNotice,
+  AgentAttachment,
+  FirstAgentContext,
+  GitSetupOptions,
+} from "../../messages.js";
 import type { AgentManager, CreateAgentOptions, ManagedAgent } from "../agent-manager.js";
 import type { AgentPromptInput, AgentRunOptions, AgentSessionConfig } from "../agent-sdk-types.js";
 import type { AgentStorage } from "../agent-storage.js";
@@ -243,6 +248,29 @@ async function resolveSessionCreateAgent(
     input.worktreeName,
     input.firstAgentContext,
   );
+  const route =
+    trimmedPrompt && !builtSessionConfig.internal && dependencies.createRouter
+      ? await dependencies.createRouter({
+          requestedProvider: builtSessionConfig.provider,
+          requestedModel: builtSessionConfig.model,
+          requestedThinking: builtSessionConfig.thinkingOptionId,
+          cwd: builtSessionConfig.cwd,
+          prompt: trimmedPrompt,
+          isAgentScoped: false,
+        })
+      : null;
+  const routedConfig = route
+    ? {
+        ...builtSessionConfig,
+        provider: route.provider,
+        model: route.model,
+        thinkingOptionId: route.thinkingOptionId,
+        routingNotice: route.routingNotice,
+        ...(route.provider !== builtSessionConfig.provider
+          ? { providerOptions: undefined, modeId: undefined, featureValues: undefined }
+          : {}),
+      }
+    : builtSessionConfig;
   // Validate the requested mode against the provider's modes for the resolved
   // cwd. The app remembers mode preferences globally, so a saved mode can be
   // stale for a workspace whose provider config no longer defines it — reject
@@ -257,15 +285,15 @@ async function resolveSessionCreateAgent(
   // this is a pre-existing gap for directory-only workspace creates, not
   // introduced by this validation).
   const resolvedCreateConfig = await dependencies.providerSnapshotManager.resolveCreateConfig({
-    cwd: builtSessionConfig.cwd,
-    provider: builtSessionConfig.provider,
-    requestedMode: builtSessionConfig.modeId,
-    featureValues: builtSessionConfig.featureValues,
+    cwd: routedConfig.cwd,
+    provider: routedConfig.provider,
+    requestedMode: routedConfig.modeId,
+    featureValues: routedConfig.featureValues,
     parent: null,
     unattended: false,
   });
   const sessionConfig: AgentSessionConfig = {
-    ...builtSessionConfig,
+    ...routedConfig,
     modeId: resolvedCreateConfig.modeId,
     featureValues: resolvedCreateConfig.featureValues,
   };
@@ -310,8 +338,8 @@ async function resolveMcpCreateAgent(
 ): Promise<ResolvedCreateAgent> {
   const resolvedProviderModel = resolveProviderModel(input.provider);
   let provider = resolvedProviderModel.provider;
-  let requestedModel = resolvedProviderModel.model;
-  let requestedThinking = input.thinking;
+  let requestedModel = resolvedProviderModel.model ?? input.config?.model;
+  let requestedThinking = input.thinking ?? input.config?.thinkingOptionId;
   const parentAgent = input.callerAgentId
     ? requireParentAgent(dependencies.agentManager, input.callerAgentId)
     : null;
@@ -341,9 +369,6 @@ async function resolveMcpCreateAgent(
       cwd: resolvedCwd,
     }),
   });
-  // Quota-aware auto-routing for agent-spawned children. Human top-level
-  // creates keep their explicit choice; subagents get the cheapest sufficient
-  // provider/model. Fail-open: routing never blocks creation.
   const routedSelection = await applySubagentCreateRouting({
     dependencies,
     input,
@@ -356,12 +381,19 @@ async function resolveMcpCreateAgent(
   requestedModel = routedSelection.requestedModel;
   requestedThinking = routedSelection.requestedThinking;
 
-  const routedInput =
-    requestedThinking !== input.thinking ? { ...input, thinking: requestedThinking } : input;
-  const routedProviderModel =
-    requestedModel !== resolvedProviderModel.model
-      ? { provider, model: requestedModel }
-      : { provider, model: resolvedProviderModel.model };
+  const switchedProvider = provider !== resolvedProviderModel.provider;
+  const routedInput = {
+    ...input,
+    thinking: requestedThinking,
+    config: {
+      ...input.config,
+      thinkingOptionId: requestedThinking,
+      ...(switchedProvider
+        ? { providerOptions: undefined, modeId: undefined, featureValues: undefined }
+        : {}),
+    },
+    ...(switchedProvider ? { mode: undefined, features: undefined } : {}),
+  };
   const resolvedCreateConfig = await resolveMcpProviderCreateConfig({
     dependencies,
     input: routedInput,
@@ -372,15 +404,18 @@ async function resolveMcpCreateAgent(
 
   const trimmedPrompt = input.initialPrompt?.trim() ?? "";
   return {
-    config: buildMcpSessionConfig({
-      input: routedInput,
-      resolvedProviderModel: routedProviderModel,
-      provider,
-      resolvedCwd: intent.cwd,
-      trimmedPrompt,
-      resolvedMode: resolvedCreateConfig.modeId,
-      resolvedFeatures: resolvedCreateConfig.featureValues,
-    }),
+    config: {
+      ...buildMcpSessionConfig({
+        input: routedInput,
+        resolvedProviderModel: { provider, model: requestedModel },
+        provider,
+        resolvedCwd: intent.cwd,
+        trimmedPrompt,
+        resolvedMode: resolvedCreateConfig.modeId,
+        resolvedFeatures: resolvedCreateConfig.featureValues,
+      }),
+      routingNotice: routedSelection.routingNotice,
+    },
     createOptions: {
       ...(Object.keys(intent.labels).length > 0 ? { labels: intent.labels } : {}),
       workspaceId: intent.workspaceId,
@@ -406,12 +441,14 @@ async function applySubagentCreateRouting(params: {
   provider: string;
   requestedModel: string | undefined;
   requestedThinking: string | undefined;
+  routingNotice?: AgentRoutingNotice;
 }> {
   const { dependencies, input } = params;
   let { provider, requestedModel, requestedThinking } = params;
-  if (!dependencies.createRouter || !input.callerAgentId || input.internal) {
+  if (!dependencies.createRouter || input.internal) {
     return { provider, requestedModel, requestedThinking };
   }
+  let routingNotice: AgentRoutingNotice | undefined;
   try {
     const route = await dependencies.createRouter({
       requestedProvider: provider,
@@ -419,12 +456,13 @@ async function applySubagentCreateRouting(params: {
       requestedThinking,
       prompt: input.initialPrompt ?? "",
       cwd: params.resolvedCwd,
-      isAgentScoped: true,
+      isAgentScoped: Boolean(input.callerAgentId),
     });
     if (route) {
       provider = route.provider;
       if (route.model !== undefined) requestedModel = route.model;
-      if (route.thinkingOptionId !== undefined) requestedThinking = route.thinkingOptionId;
+      requestedThinking = route.thinkingOptionId;
+      routingNotice = route.routingNotice;
       dependencies.logger.info(
         { parentAgentId: input.callerAgentId, provider, model: requestedModel },
         "System One routed new subagent",
@@ -433,7 +471,7 @@ async function applySubagentCreateRouting(params: {
   } catch (error) {
     dependencies.logger.warn({ err: error }, "System One subagent routing failed");
   }
-  return { provider, requestedModel, requestedThinking };
+  return { provider, requestedModel, requestedThinking, routingNotice };
 }
 
 function resolveMcpInitialCwd(

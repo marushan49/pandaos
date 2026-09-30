@@ -1,6 +1,11 @@
 import { readTranscriptLastReply } from "./transcript-last-reply.js";
 import { projectTimelineRows } from "./timeline-projection.js";
 import type { TurnRouter } from "../system-one/model-routing.js";
+import {
+  ProfileRoutingUnavailableError,
+  type ProfileRouter,
+  type ProfileRoute,
+} from "../system-one/profile-routing.js";
 import type { PluginLifecycle } from "../plugins/lifecycle/index.js";
 import { describeHookAgent, publishAgentStream } from "../plugins/lifecycle/index.js";
 import type { PluginSessionOpenRequest } from "@getpaseo/plugin/server";
@@ -94,7 +99,11 @@ import { stripInternalPaseoMcpServer, withRuntimePaseoMcpServer } from "./runtim
 import { resolveCreateAgentTitles } from "./create-agent-title.js";
 import type { PaseoToolCatalogFactory } from "./tools/types.js";
 import { isPaseoToolPolicyEnabled } from "./paseo-tool-policy.js";
-import { describeProviderFailure } from "./provider-failure.js";
+import {
+  describeProviderFailure,
+  providerRetryDelayMs,
+  isModelCapacityError,
+} from "./provider-failure.js";
 import {
   ProviderSubagentStore,
   type ProviderSubagentDescriptor,
@@ -104,11 +113,8 @@ import { withTimeout } from "../../utils/promise-timeout.js";
 import { addTurnUsage, type AgentUsageTotals } from "./agent-usage-totals.js";
 import { extractAttention } from "../persistence-hooks.js";
 import {
-  createInTurnRetryPlan,
   inTurnFallbackExhaustedVisibility,
-  inTurnFallbackVisibility,
   isQuotaOrRateLimitError,
-  selectNextInTurnFallback,
 } from "../system-one/in-turn-fallback.js";
 
 const RELOAD_SESSION_CLOSE_TIMEOUT_MS = 3_000;
@@ -212,6 +218,7 @@ function buildStoredAgentConfig(record: StoredAgentRecord): AgentSessionConfig {
   if (!record.config) {
     return config;
   }
+  if (record.config.routingNotice) config.routingNotice = record.config.routingNotice;
   if (record.config.modeId != null) config.modeId = record.config.modeId;
   if (record.config.model != null) config.model = record.config.model;
   if (record.config.thinkingOptionId != null) {
@@ -341,7 +348,7 @@ export interface AgentManagerOptions {
   pluginLifecycle?: PluginLifecycle;
   clients?: ProviderClientMap;
   providerDefinitions?: ProviderEnabledMap;
-  getAgentProfiles?: () => readonly AgentProfile[] | undefined;
+  profileRouter?: ProfileRouter;
   idFactory?: () => string;
   registry?: AgentStorage;
   onAgentAttention?: AgentAttentionCallback;
@@ -756,7 +763,6 @@ export class AgentManager {
   private readonly clients = new Map<AgentProvider, AgentClient>();
   private readonly providerEnabled = new Map<AgentProvider, boolean>();
   private readonly providerDefinitions = new Map<AgentProvider, ProviderEnabledFlag>();
-  private readonly getAgentProfiles: () => readonly AgentProfile[];
   private readonly agents = new Map<string, LiveManagedAgent>();
   private readonly timelineStore = new InMemoryAgentTimelineStore();
   // A switched-to provider session starts empty. Its briefing waits here until
@@ -791,6 +797,14 @@ export class AgentManager {
   private appendSystemPrompt: string;
   private resolveBlockedMcpServers: () => readonly string[] = () => [];
   private turnRouter: TurnRouter | null = null;
+  private profileRouter?: ProfileRouter;
+  private readonly recoveryControllers = new Map<string, AbortController>();
+  private readonly recoveryJobs = new Map<string, symbol>();
+  private readonly recoveryWake = new Map<string, () => void>();
+  private readonly capacityAttempts = new Map<string, Map<string, number>>();
+  private readonly capacityTimedWait = new Set<string>();
+  private readonly attemptedRoutes = new Map<string, Set<string>>();
+  private readonly preparedRoutes = new Map<string, AgentPromptInput>();
   private streamObserver:
     | ((agent: { id: string; provider: string; cwd: string }, event: AgentStreamEvent) => void)
     | null = null;
@@ -807,12 +821,14 @@ export class AgentManager {
     { prompt: AgentPromptInput; options?: AgentRunOptions }
   >();
   private readonly fallbackAttemptedProfiles = new Map<string, Set<string>>();
+  private readonly foregroundToolCalls = new Set<string>();
   private readonly fallbackTurnIds = new Map<string, Map<string, string>>();
   private readonly resolveWorkspaceForgeConfigDir?: AgentManagerOptions["resolveWorkspaceForgeConfigDir"];
   private acceptingAgentRegistrations = true;
 
   constructor(options: AgentManagerOptions) {
     this.pluginLifecycle = options.pluginLifecycle;
+    this.profileRouter = options.profileRouter;
     this.idFactory = options?.idFactory ?? (() => randomUUID());
     this.registry = options?.registry;
     this.durableTimelineStore = options?.durableTimelineStore;
@@ -832,7 +848,6 @@ export class AgentManager {
         options.rescueTimeouts?.interruptSessionMs ?? INTERRUPT_SESSION_TIMEOUT_MS,
     };
     this.beforeSteerUnavailableFallback = options.beforeSteerUnavailableFallback;
-    this.getAgentProfiles = () => options.getAgentProfiles?.() ?? [];
     this.resolveWorkspaceForgeConfigDir = options.resolveWorkspaceForgeConfigDir;
     this.agentStreamCoalescer = new AgentStreamCoalescer({
       windowMs: options.agentStreamCoalesceWindowMs ?? AGENT_STREAM_COALESCE_DEFAULT_WINDOW_MS,
@@ -877,6 +892,8 @@ export class AgentManager {
         this.clients.set(provider, client);
       }
     }
+
+    this.notifyRoutingAvailable();
 
     for (const provider of input.retiredProviders ?? []) {
       for (const agent of this.agents.values()) {
@@ -945,55 +962,109 @@ export class AgentManager {
     this.turnRouter = router;
   }
 
-  /**
-   * Lets System One pick model and thinking for the next turn. Call it before the
-   * turn is registered so queued steers and replacements keep their order.
-   * Fail-open: a routing problem must never block the user's turn.
-   */
+  setProfileRouter(router: ProfileRouter): void {
+    this.profileRouter = router;
+  }
+
+  notifyRoutingAvailable(): void {
+    for (const wake of this.recoveryWake.values()) wake();
+  }
+
   async routeNextTurn(agentId: string, prompt: AgentPromptInput): Promise<void> {
     const agent = this.agents.get(agentId);
     if (!this.turnRouter || !agent || agent.config.internal) return;
-    const lastRouted = this.routedModels.get(agent.id);
-    // A model picked by hand after routing started wins for the rest of the session.
-    if (lastRouted !== undefined && lastRouted !== (agent.config.model ?? null)) return;
-    try {
-      const route = await this.turnRouter({
-        provider: agent.provider,
-        cwd: agent.cwd,
-        model: agent.config.model,
-        thinkingOptionId: agent.config.thinkingOptionId,
-        prompt,
-        isFirstTurn: agent.lastUserMessageAt === null,
-      });
-      let changed = false;
-      if (route?.model && route.model !== agent.config.model) {
-        await this.setAgentModel(agent.id, route.model);
-        changed = true;
-      }
-      if (route?.thinkingOptionId && route.thinkingOptionId !== agent.config.thinkingOptionId) {
-        await this.setAgentThinkingOption(agent.id, route.thinkingOptionId);
-        changed = true;
-      }
+    if (typeof prompt === "string" && isSystemInjectedEnvelope(prompt)) return;
+    if (
+      agent.lastUserMessageAt === null &&
+      !this.routedModels.has(agent.id) &&
+      agent.config.routingNotice?.status === "selected" &&
+      agent.config.routingNotice.toProfile === agent.provider
+    ) {
       this.routedModels.set(agent.id, agent.config.model ?? null);
-      if (route) {
-        this.logger.info(
-          { agentId: agent.id, provider: agent.provider, route },
-          "System One routed turn",
-        );
-      }
-      // Routing is otherwise invisible; the person should see what Jev chose and why a
-      // turn runs cheaper or deeper than the composer said.
-      if (changed) {
-        const parts = [agent.config.model, agent.config.thinkingOptionId].filter(Boolean);
-        await this.appendTimelineItem(agent.id, {
-          type: "notification",
-          level: "info",
-          message: `Jev routed this turn: ${parts.join(" · ")}`,
-        });
-      }
-    } catch (error) {
-      this.logger.warn({ err: error, agentId: agent.id }, "System One turn routing failed");
+      this.preparedRoutes.set(agent.id, prompt);
+      return;
     }
+    const lastRouted = this.routedModels.get(agent.id);
+    if (lastRouted !== undefined && lastRouted !== (agent.config.model ?? null)) return;
+    const route = await this.turnRouter({
+      provider: agent.provider,
+      cwd: agent.cwd,
+      model: agent.config.model,
+      thinkingOptionId: agent.config.thinkingOptionId,
+      prompt: this.routingTask(agent, prompt),
+      isFirstTurn: agent.lastUserMessageAt === null,
+    });
+    if (route) await this.applyRoute(agent, route);
+    else {
+      this.setRoutingNotice(
+        agent,
+        "unverified",
+        "Usage or Jev evidence unavailable; retaining the requested route.",
+      );
+    }
+    this.routedModels.set(agent.id, agent.config.model ?? null);
+    this.preparedRoutes.set(agent.id, prompt);
+  }
+
+  private routingTask(agent: ActiveManagedAgent, prompt: AgentPromptInput): AgentPromptInput {
+    const task = this.timelineStore.getItems(agent.id).find((item) => item.type === "user_message");
+    if (!task || task.type !== "user_message") return prompt;
+    const text = `Original task: ${task.text}\nCurrent request: `;
+    return typeof prompt === "string" ? text + prompt : [{ type: "text", text }, ...prompt];
+  }
+
+  private setRoutingNotice(
+    agent: ActiveManagedAgent,
+    status: "selected" | "retrying" | "waiting" | "exhausted" | "unverified",
+    reason: string,
+    resetsAt: string | null = null,
+    route?: ProfileRoute,
+  ): void {
+    const capacityProfiles = [...(this.capacityAttempts.get(agent.id)?.keys() ?? [])].map(
+      (key) => (JSON.parse(key) as [string, string | undefined])[0],
+    );
+    agent.config.routingNotice = {
+      attemptedProfiles: [
+        ...new Set([
+          ...(this.fallbackAttemptedProfiles.get(agent.id) ?? []),
+          ...capacityProfiles,
+          agent.provider,
+          ...(route ? [route.profile.provider] : []),
+        ]),
+      ],
+      fromProfile: agent.provider,
+      toProfile: route?.profile.provider ?? null,
+      fromModel: agent.config.model ?? null,
+      model: route?.model ?? agent.config.model ?? null,
+      fromEffort: agent.config.thinkingOptionId ?? null,
+      effort: route?.profile.thinkingOptionId ?? agent.config.thinkingOptionId ?? null,
+      resetsAt,
+      status,
+      reason,
+    };
+    this.touchUpdatedAt(agent);
+    this.emitState(agent);
+  }
+
+  private async applyRoute(agent: ActiveManagedAgent, route: ProfileRoute): Promise<void> {
+    this.logger.info({ agentId: agent.id, route }, "Jev routed turn");
+    if (
+      route.profile.provider === agent.provider &&
+      route.model === agent.config.model &&
+      route.profile.thinkingOptionId === agent.config.thinkingOptionId
+    )
+      return;
+    this.setRoutingNotice(agent, "retrying", route.reason, route.resetsAt, route);
+    const notice = agent.config.routingNotice;
+    await this.applyFallbackCandidate(agent, route.profile, route.model);
+    agent.config.routingNotice = notice ? { ...notice, status: "selected" } : undefined;
+    await this.persistSnapshot(agent);
+    this.emitState(agent);
+    await this.appendTimelineItem(agent.id, {
+      type: "notification",
+      level: "info",
+      message: `${notice?.fromProfile} → ${route.profile.provider} · ${route.model} · ${route.profile.thinkingOptionId ?? "default"}. ${route.reason}`,
+    });
   }
 
   setBlockedMcpServers(resolver: () => readonly string[]): void {
@@ -2021,6 +2092,7 @@ export class AgentManager {
   }
 
   closeAgent(agentId: string): Promise<void> {
+    this.recoveryControllers.get(agentId)?.abort();
     const existing = this.inFlightAgentCloses.get(agentId);
     if (existing) {
       return existing;
@@ -2801,6 +2873,20 @@ export class AgentManager {
         this.runs.settleForegroundRun(agentId, pendingRun.token);
         throw error;
       }
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        this.profileRouter &&
+        (isModelCapacityError({ message }) || isQuotaOrRateLimitError(message))
+      ) {
+        const turnId = randomUUID();
+        pendingRun.stagedEvents.push({
+          type: "turn_failed",
+          provider: agent.provider,
+          turnId,
+          error: message,
+        });
+        return turnId;
+      }
       agent.pendingReplacement = false;
       const errorMsg = error instanceof Error ? error.message : "Failed to start turn";
       pendingRun.start = { status: "failed", error: errorMsg };
@@ -2874,12 +2960,18 @@ export class AgentManager {
     agent.lastError = undefined;
     this.activeForegroundPrompts.set(agentId, { prompt, options });
     this.fallbackAttemptedProfiles.set(agentId, new Set());
+    this.foregroundToolCalls.delete(agentId);
+    this.recoveryControllers.set(agentId, new AbortController());
+    this.capacityAttempts.set(agentId, new Map());
+    this.capacityTimedWait.delete(agentId);
+    this.attemptedRoutes.set(agentId, new Set());
 
     const pendingRun = this.runs.createPendingRun(agentId);
 
     const streamForwarder = async function* streamForwarder(this: AgentManager) {
       let turnId: string;
       let turnStream: ReturnType<AgentRunState["createTurnStream"]> | null = null;
+      await this.prepareForegroundRouting(agent, promptInput, pendingRun);
       turnId = await this.startPendingForegroundTurn({
         agent,
         agentId,
@@ -2971,11 +3063,48 @@ export class AgentManager {
     return streamForwarder;
   }
 
+  private async prepareForegroundRouting(
+    agent: ActiveManagedAgent,
+    prompt: AgentPromptInput,
+    pendingRun: PendingForegroundRun,
+  ): Promise<void> {
+    try {
+      if (this.preparedRoutes.get(agent.id) === prompt) return;
+      for (;;) {
+        try {
+          await this.routeNextTurn(agent.id, prompt);
+          return;
+        } catch (error) {
+          if (!(error instanceof ProfileRoutingUnavailableError)) throw error;
+          agent.lifecycle = "running";
+          this.setRoutingNotice(agent, "waiting", error.message, error.resetsAt);
+          await this.persistSnapshot(agent);
+          if (!(await this.waitForRecovery(agent.id, error.resetsAt)))
+            throw new Error("Routing cancelled", { cause: error });
+        }
+      }
+    } catch (error) {
+      this.runs.settleForegroundRun(agent.id, pendingRun.token);
+      this.activeForegroundPrompts.delete(agent.id);
+      agent.lifecycle = "idle";
+      this.emitState(agent);
+      throw error;
+    } finally {
+      this.preparedRoutes.delete(agent.id);
+    }
+  }
+
   private finalizeForegroundTurn(agent: ActiveManagedAgent, turnId?: string): void {
     const mutableAgent = agent;
     this.activeForegroundPrompts.delete(agent.id);
     this.fallbackAttemptedProfiles.delete(agent.id);
     this.fallbackTurnIds.delete(agent.id);
+    this.foregroundToolCalls.delete(agent.id);
+    this.recoveryControllers.get(agent.id)?.abort();
+    this.recoveryControllers.delete(agent.id);
+    this.capacityAttempts.delete(agent.id);
+    this.capacityTimedWait.delete(agent.id);
+    this.attemptedRoutes.delete(agent.id);
     if (turnId) {
       this.runs.rememberFinalizedTurn(mutableAgent, turnId);
     }
@@ -3383,6 +3512,7 @@ export class AgentManager {
   }
 
   async cancelAgentRun(agentId: string): Promise<AgentRunCancellationResult> {
+    this.recoveryControllers.get(agentId)?.abort();
     return this.runForegroundMutation(agentId, () => this.cancelAgentRunNow(agentId));
   }
 
@@ -4109,14 +4239,7 @@ export class AgentManager {
     }
     const agentId = agent.id;
     const unsubscribe = agent.session.subscribe((event: AgentStreamEvent) => {
-      const providerTurnId = getAgentStreamEventTurnId(event);
-      const logicalTurnId = providerTurnId
-        ? this.fallbackTurnIds.get(agentId)?.get(providerTurnId)
-        : undefined;
-      this.enqueueSessionEvent(
-        agentId,
-        logicalTurnId && "turnId" in event ? { ...event, turnId: logicalTurnId } : event,
-      );
+      this.enqueueSessionEvent(agentId, event);
     });
     agent.unsubscribeSession = unsubscribe;
   }
@@ -4137,6 +4260,11 @@ export class AgentManager {
       steerBarrier.events.push(event);
       return;
     }
+    const providerTurnId = getAgentStreamEventTurnId(event);
+    const logicalTurnId = providerTurnId
+      ? this.fallbackTurnIds.get(agentId)?.get(providerTurnId)
+      : undefined;
+    if (logicalTurnId && "turnId" in event) event = { ...event, turnId: logicalTurnId };
     const pendingRun = this.runs.getPendingRun(agentId);
     if (pendingRun?.start.status === "pending") {
       pendingRun.stagedEvents.push(event);
@@ -4838,6 +4966,17 @@ export class AgentManager {
     // it from the completion event.
     agent.lastError = undefined;
     if (
+      agent.config.routingNotice &&
+      ["retrying", "waiting"].includes(agent.config.routingNotice.status)
+    ) {
+      agent.config.routingNotice = {
+        ...agent.config.routingNotice,
+        status: "selected",
+        toProfile: agent.provider,
+        reason: "Recovery completed on the same profile, model and effort.",
+      };
+    }
+    if (
       !isForegroundEvent &&
       !agent.activeForegroundTurnId &&
       agent.lifecycle !== "idle" &&
@@ -4876,21 +5015,33 @@ export class AgentManager {
       "handleStreamEvent: turn_failed",
     );
     if (terminalDisposition === "stale") return;
+    const capacity = isModelCapacityError({
+      message: event.error,
+      code: event.code,
+      diagnostic: event.diagnostic,
+    });
+    const quota = isQuotaOrRateLimitError({
+      message: event.error,
+      code: event.code,
+      diagnostic: event.diagnostic,
+    });
     if (
       isForegroundEvent &&
       !options?.fromHistory &&
-      isQuotaOrRateLimitError({
-        code: event.code,
-        diagnostic: event.diagnostic,
-        message: event.error,
-      })
+      event.code !== "quota_fallback_exhausted" &&
+      (capacity || quota)
     ) {
-      const retried = await this.retryQuotaLimitedForegroundTurn(agent, eventTurnId);
-      if (retried) {
+      const recovering = await this.retryQuotaLimitedForegroundTurn(
+        agent,
+        eventTurnId,
+        capacity ? "capacity" : "quota",
+      );
+      if (recovering) {
         flags.shouldDispatchEvent = false;
         flags.shouldNotifyWaiters = false;
         return;
       }
+      event.code = "quota_fallback_exhausted";
     }
     if (!isForegroundEvent && !agent.activeForegroundTurnId) {
       agent.lifecycle = "error";
@@ -4911,70 +5062,260 @@ export class AgentManager {
   private async retryQuotaLimitedForegroundTurn(
     agent: ActiveManagedAgent,
     logicalTurnId: string | undefined,
+    failure: "quota" | "capacity" = "quota",
   ): Promise<boolean> {
-    const activePrompt = this.activeForegroundPrompts.get(agent.id);
-    const profiles = this.getAgentProfiles();
-    if (!activePrompt || profiles.length === 0 || !logicalTurnId) {
-      if (profiles.length === 0) {
-        await this.appendTimelineItem(agent.id, inTurnFallbackExhaustedVisibility());
-      }
-      return false;
-    }
-
     const attempted = this.fallbackAttemptedProfiles.get(agent.id) ?? new Set<string>();
-    const currentProfileId = profiles.find(
-      (profile) =>
-        profile.provider === agent.provider &&
-        (profile.model === undefined || profile.model === agent.config.model),
-    )?.id;
-    const candidate = selectNextInTurnFallback({
-      currentProfileId,
-      currentProvider: agent.provider,
-      currentModel: agent.config.model,
-      profiles,
-      attemptedProfileIds: Array.from(attempted),
-    });
-    if (!candidate) {
+    if (failure === "quota") attempted.add(agent.provider);
+    this.fallbackAttemptedProfiles.set(agent.id, attempted);
+    if (!this.activeForegroundPrompts.has(agent.id) || !logicalTurnId || !this.profileRouter) {
       await this.appendTimelineItem(agent.id, inTurnFallbackExhaustedVisibility());
       return false;
     }
-    attempted.add(candidate.profile.id);
-    this.fallbackAttemptedProfiles.set(agent.id, attempted);
-
-    for (const item of inTurnFallbackVisibility(
-      { provider: agent.provider, model: agent.config.model },
-      candidate,
-    )) {
-      await this.appendTimelineItem(agent.id, item);
-    }
-
-    try {
-      await this.applyFallbackCandidate(agent, candidate.profile, candidate.model);
-      const retryPlan = createInTurnRetryPlan({
-        prompt: activePrompt.prompt,
-        history: this.timelineStore.getItems(agent.id),
-        candidate,
+    if (this.recoveryJobs.has(agent.id)) return true;
+    const job = Symbol();
+    this.recoveryJobs.set(agent.id, job);
+    agent.activeTurnId = logicalTurnId;
+    agent.lifecycle = "running";
+    this.emitState(agent);
+    // Recovery runs outside the provider event tail so cancellation and tool results can arrive.
+    void this.recoverForegroundTurn(agent, logicalTurnId, failure)
+      .catch(async (error) => {
+        this.logger.warn({ err: error, agentId: agent.id }, "Managed recovery failed");
+        if (this.recoveryJobs.get(agent.id) === job) this.recoveryJobs.delete(agent.id);
+        if (
+          this.agents.get(agent.id) === agent &&
+          !this.recoveryControllers.get(agent.id)?.signal.aborted
+        ) {
+          await this.dispatchSessionEvent(agent, {
+            type: "turn_failed",
+            provider: agent.provider,
+            turnId: logicalTurnId,
+            code: "quota_fallback_exhausted",
+            error: String(error),
+          });
+        }
+      })
+      .finally(() => {
+        if (this.recoveryJobs.get(agent.id) === job) this.recoveryJobs.delete(agent.id);
       });
-      const result = await agent.session.startTurn(
-        this.applyPendingHandoff(agent.id, retryPlan.prompt),
-        activePrompt.options,
+    return true;
+  }
+
+  private async waitForRecovery(agentId: string, resetsAt: string | null): Promise<boolean> {
+    const signal = this.recoveryControllers.get(agentId)?.signal;
+    if (!signal || signal.aborted) return false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let onAbort = () => {};
+    const wake = new Promise<void>((resolvePromise) => {
+      this.recoveryWake.set(agentId, resolvePromise);
+    });
+    const interrupted = new Promise<void>((resolvePromise) => {
+      onAbort = resolvePromise;
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+    const delay = new Promise<void>((resolvePromise) => {
+      const reset = Date.parse(resetsAt ?? "");
+      if (Number.isFinite(reset))
+        timer = setTimeout(
+          resolvePromise,
+          Math.min(2_147_483_647, Math.max(1, reset - Date.now())),
+        );
+    });
+    try {
+      await Promise.race([wake, interrupted, delay]);
+      return !signal.aborted;
+    } finally {
+      if (timer) clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      this.recoveryWake.delete(agentId);
+    }
+  }
+
+  private async recoverForegroundTurn(
+    agent: ActiveManagedAgent,
+    logicalTurnId: string,
+    initialFailure: "quota" | "capacity",
+  ): Promise<void> {
+    const activePrompt = this.activeForegroundPrompts.get(agent.id)!;
+    const controller = this.recoveryControllers.get(agent.id)!;
+    let failure = initialFailure;
+    let recordFailure = true;
+    while (!controller.signal.aborted) {
+      const history = this.timelineStore.getItems(agent.id);
+      const lastUser = history.findLastIndex((item) => item.type === "user_message");
+      const tools = new Map(
+        history
+          .slice(lastUser + 1)
+          .flatMap((item) =>
+            item.type === "tool_call" ? [[item.callId, item.status] as const] : [],
+          ),
       );
-      const providerTurnId = result.turnId;
+      if ([...tools.values()].some((status) => status === "running")) {
+        this.setRoutingNotice(
+          agent,
+          "waiting",
+          "Waiting for the in-flight tool checkpoint before continuation.",
+        );
+        if (!(await this.waitForRecovery(agent.id, null))) break;
+        continue;
+      }
+      const continuation: AgentPromptInput = this.foregroundToolCalls.has(agent.id)
+        ? formatSystemNotificationPrompt(
+            "Continue the interrupted task from the recorded checkpoint. Completed tool calls and their results are already in the session history. Do not repeat completed writes or other side effects.",
+          )
+        : activePrompt.prompt;
+      const routeKey = JSON.stringify([agent.provider, agent.config.model]);
+      const counts = this.capacityAttempts.get(agent.id)!;
+      const routes = this.attemptedRoutes.get(agent.id)!;
+      const attempted = this.fallbackAttemptedProfiles.get(agent.id)!;
+      let route: ProfileRoute | null = null;
+      if (failure === "capacity" && (counts.get(routeKey) ?? 0) < 2) {
+        if (!(await this.canRetryCurrentProfile(agent, activePrompt.prompt))) {
+          counts.set(routeKey, 2);
+          continue;
+        }
+        const count = (counts.get(routeKey) ?? 0) + 1;
+        counts.set(routeKey, count);
+        const retryAt = new Date(Date.now() + providerRetryDelayMs(count)).toISOString();
+        this.setRoutingNotice(
+          agent,
+          "retrying",
+          `Model temporarily at capacity; retry ${count}/2 on the same profile, model and effort.`,
+          retryAt,
+        );
+        await this.persistSnapshot(agent);
+        if (!(await this.waitForRecovery(agent.id, retryAt))) break;
+      } else {
+        if (failure === "capacity") routes.add(routeKey);
+        else if (recordFailure) attempted.add(agent.provider);
+        route = await this.selectRecoveryRoute(agent, activePrompt.prompt, failure, recordFailure);
+        if (!route) {
+          recordFailure = false;
+          continue;
+        }
+        if (controller.signal.aborted) break;
+        await this.applyRoute(agent, route);
+      }
+      if (controller.signal.aborted) break;
+      try {
+        if (
+          !(await this.startRecoveryTurn(
+            agent,
+            logicalTurnId,
+            continuation,
+            activePrompt.options,
+            controller.signal,
+          ))
+        )
+          break;
+        return;
+      } catch (error) {
+        const message = String(error);
+        if (isModelCapacityError({ message })) failure = "capacity";
+        else if (isQuotaOrRateLimitError(message)) failure = "quota";
+        else throw error;
+      }
+    }
+    await this.dispatchSessionEvent(agent, {
+      type: "turn_canceled",
+      provider: agent.provider,
+      turnId: logicalTurnId,
+      reason: "Managed recovery cancelled",
+    });
+  }
+
+  private async canRetryCurrentProfile(
+    agent: ActiveManagedAgent,
+    prompt: AgentPromptInput,
+  ): Promise<boolean> {
+    try {
+      await this.profileRouter!({
+        provider: agent.provider,
+        model: agent.config.model,
+        cwd: agent.cwd,
+        prompt,
+        currentRetry: true,
+      });
+      return true;
+    } catch (error) {
+      if (!(error instanceof ProfileRoutingUnavailableError)) throw error;
+      return false;
+    }
+  }
+
+  private startRecoveryTurn(
+    agent: ActiveManagedAgent,
+    logicalTurnId: string,
+    prompt: AgentPromptInput,
+    options: AgentRunOptions | undefined,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    return this.runSteerAdmission(agent, logicalTurnId, async () => {
+      if (signal.aborted) return false;
+      const result = await agent.session.startTurn(
+        this.applyPendingHandoff(agent.id, prompt),
+        options,
+      );
       const turnIds = this.fallbackTurnIds.get(agent.id) ?? new Map<string, string>();
-      turnIds.set(providerTurnId, logicalTurnId);
+      turnIds.set(result.turnId, logicalTurnId);
       this.fallbackTurnIds.set(agent.id, turnIds);
+      this.recoveryJobs.delete(agent.id);
+      if (signal.aborted) {
+        await this.interruptSession(agent.session, agent.id);
+        return false;
+      }
       agent.activeTurnId = logicalTurnId;
       agent.activeTurnStartedAt = new Date();
       agent.lastError = undefined;
       agent.lifecycle = "running";
       this.emitState(agent);
       return true;
+    });
+  }
+
+  private async selectRecoveryRoute(
+    agent: ActiveManagedAgent,
+    prompt: AgentPromptInput,
+    failure: "quota" | "capacity",
+    recordFailure: boolean,
+  ): Promise<ProfileRoute | null> {
+    const attempted = this.fallbackAttemptedProfiles.get(agent.id)!;
+    const routes = this.attemptedRoutes.get(agent.id)!;
+    try {
+      const route = await this.profileRouter!({
+        provider: agent.provider,
+        model: agent.config.model,
+        thinkingOptionId: agent.config.thinkingOptionId,
+        cwd: agent.cwd,
+        prompt: this.routingTask(agent, prompt),
+        fallback: failure,
+        attemptedProfileIds: [...attempted],
+        attemptedRoutes: [...routes],
+        recordFailure,
+        explicitEffort: agent.config.thinkingOptionId === "max",
+      });
+      if (!route)
+        throw new ProfileRoutingUnavailableError(
+          "Jev reassessment is unavailable; retaining the pending task.",
+          null,
+        );
+      return route;
     } catch (error) {
-      this.logger.warn(
-        { err: error, agentId: agent.id, provider: candidate.profile.provider },
-        "Failed to retry quota-limited turn with fallback profile",
-      );
-      return false;
+      if (!(error instanceof ProfileRoutingUnavailableError)) throw error;
+      const timer =
+        error.resetsAt ??
+        (failure === "capacity" && !this.capacityTimedWait.has(agent.id)
+          ? new Date(Date.now() + 30_000).toISOString()
+          : null);
+      if (failure === "capacity") this.capacityTimedWait.add(agent.id);
+      this.setRoutingNotice(agent, "waiting", error.message, timer);
+      await this.persistSnapshot(agent);
+      if (await this.waitForRecovery(agent.id, timer)) {
+        // A reset or fresh usage/catalog event starts a new availability epoch.
+        attempted.clear();
+        routes.clear();
+      }
+      return null;
     }
   }
 
@@ -4984,16 +5325,23 @@ export class AgentManager {
     model: string | undefined,
   ): Promise<void> {
     if (profile.provider === agent.provider) {
-      if (agent.session.setModel && model !== agent.config.model) {
+      if (model !== agent.config.model) {
+        if (!agent.session.setModel)
+          throw new Error("Provider cannot change model in this session");
         await agent.session.setModel(model ?? null);
       }
       if (profile.modeId && agent.session.setMode && profile.modeId !== agent.config.modeId) {
         await agent.session.setMode(profile.modeId);
       }
+      if (profile.thinkingOptionId !== agent.config.thinkingOptionId) {
+        if (!agent.session.setThinkingOption)
+          throw new Error("Provider cannot change effort in this session");
+        await agent.session.setThinkingOption(profile.thinkingOptionId ?? null);
+      }
       agent.config.model = model;
-      agent.config.modeId = profile.modeId;
+      if (profile.modeId) agent.config.modeId = profile.modeId;
       agent.config.thinkingOptionId = profile.thinkingOptionId;
-      agent.config.featureValues = profile.featureValues;
+      if (profile.featureValues) agent.config.featureValues = profile.featureValues;
       if (agent.runtimeInfo) {
         agent.runtimeInfo = {
           ...agent.runtimeInfo,
@@ -5017,7 +5365,10 @@ export class AgentManager {
     const client = await this.requireAvailableClient({ provider: profile.provider });
     const { storedConfig, launchConfig, paseoToolPolicy } = await this.prepareSessionConfig(
       {
-        ...agent.config,
+        cwd: agent.cwd,
+        systemPrompt: agent.config.systemPrompt,
+        mcpServers: agent.config.mcpServers,
+        toolPolicy: agent.config.toolPolicy,
         provider: profile.provider,
         model,
         modeId: profile.modeId,
@@ -5112,6 +5463,7 @@ export class AgentManager {
       agent.lifecycle = "idle";
     }
     agent.lastError = undefined;
+    if (agent.config.routingNotice?.status !== "selected") agent.config.routingNotice = undefined;
     this.resolvePendingPermissionsForAgent(agent, event.provider, options, "Interrupted");
     if (!isForegroundEvent && !agent.activeForegroundTurnId) {
       this.emitState(agent);
@@ -5210,6 +5562,10 @@ export class AgentManager {
     turnId?: string,
     options?: { providerMessageId?: string },
   ): AgentStreamEvent {
+    if (item.type === "tool_call" && this.activeForegroundPrompts.has(agentId)) {
+      this.foregroundToolCalls.add(agentId);
+      if (item.status !== "running") this.recoveryWake.get(agentId)?.();
+    }
     const row = this.recordTimeline(agentId, item, { ...options, turnId });
     const event: AgentStreamEvent = {
       type: "timeline",

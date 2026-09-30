@@ -95,6 +95,97 @@ test("session create forwards clientMessageId to the initial prompt run options"
   });
 });
 
+test.each(["session", "mcp human", "mcp delegated"] as const)(
+  "%s create routes the task before runtime creation and clears unsupported effort",
+  async (kind) => {
+    const snapshot = {
+      id: "agent-1",
+      provider: "claude",
+      cwd: "/private-project",
+      workspaceId: "workspace",
+      runtimeInfo: null,
+    } as ManagedAgent;
+    const createAgent = vi.fn(async () => snapshot);
+    const createRouter = vi.fn(async () => ({
+      provider: "claude",
+      model: "claude-sonnet-5-5",
+      thinkingOptionId: undefined,
+    }));
+    const stub = createProviderSnapshotManagerStub();
+    const dependencies: Parameters<typeof createAgentCommand>[0] = {
+      agentManager: {
+        createAgent,
+        getAgent: vi.fn(() => snapshot),
+        tryRunOutOfBand: vi.fn(() => false),
+        hasInFlightRun: vi.fn(() => false),
+        streamAgent: vi.fn(() => (async function* noop() {})()),
+        waitForAgentRunStart: vi.fn(async () => undefined),
+      } as unknown as Parameters<typeof createAgentCommand>[0]["agentManager"],
+      agentStorage: {} as Parameters<typeof createAgentCommand>[0]["agentStorage"],
+      providerSnapshotManager: stub.manager,
+      logger,
+      createRouter,
+    };
+    const config = {
+      provider: "codex",
+      cwd: "/private-project",
+      model: "gpt-6.1-sol",
+      thinkingOptionId: "xhigh",
+      modeId: "codex-only-mode",
+    };
+    await createAgentCommand(
+      dependencies,
+      kind === "session"
+        ? {
+            kind: "session",
+            config,
+            workspaceId: "workspace",
+            initialPrompt: "Implement the task",
+            labels: {},
+            provisionalTitle: null,
+            firstAgentContext: { attachments: [] },
+            buildSessionConfig: async (value) => ({ sessionConfig: value }),
+          }
+        : {
+            kind: "mcp",
+            provider: "codex/gpt-6.1-sol",
+            config,
+            cwd: "/private-project",
+            workspaceId: "workspace",
+            title: "Task",
+            initialPrompt: "Implement the task",
+            background: true,
+            notifyOnFinish: false,
+            ...(kind === "mcp delegated" ? { callerAgentId: "parent" } : {}),
+          },
+    );
+    expect(createRouter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "Implement the task",
+        requestedProvider: "codex",
+        requestedThinking: "xhigh",
+        isAgentScoped: kind === "mcp delegated",
+      }),
+    );
+    expect(stub.resolveCreateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "claude",
+        requestedMode: undefined,
+      }),
+    );
+    expect(createAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "claude",
+        model: "claude-sonnet-5-5",
+        thinkingOptionId: undefined,
+        modeId: undefined,
+      }),
+      undefined,
+      expect.any(Object),
+    );
+  },
+);
+
 test("session create validates the requested mode against the provider's modes", async () => {
   const snapshot = {
     id: "agent-1",
