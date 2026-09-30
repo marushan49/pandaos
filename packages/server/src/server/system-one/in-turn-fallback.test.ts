@@ -23,7 +23,7 @@ describe("in-turn quota fallback", () => {
     expect(isQuotaOrRateLimitError({ code: "invalid_request", message: "bad prompt" })).toBe(false);
   });
 
-  it("selects the next existing profile before switching provider", () => {
+  it("prioritizes Sol over a same-provider Sonnet profile", () => {
     const result = selectNextInTurnFallback({
       currentProfileId: "claude-work",
       currentProvider: "claude",
@@ -33,7 +33,83 @@ describe("in-turn quota fallback", () => {
         profile("codex-work", "codex", "gpt-6-sol"),
       ],
     });
-    expect(result?.profile.id).toBe("claude-fast");
+    expect(result?.profile.id).toBe("codex-work");
+  });
+
+  it("continues from Sol to Opus then Sonnet regardless of configuration order", () => {
+    const profiles = [
+      profile("sonnet-profile", "claude", "claude-sonnet-5-5"),
+      profile("opus-profile", "claude", "claude-opus-5-5"),
+      profile("sol-profile", "codex", "gpt-6.1-sol"),
+      profile("codex-plus", "codex-plus", "provider-default"),
+    ];
+    const opus = selectNextInTurnFallback({
+      currentProfileId: "sol-profile",
+      currentProvider: "codex",
+      currentModel: "gpt-6.1-sol",
+      profiles,
+    });
+    expect(opus?.profile.id).toBe("opus-profile");
+    expect(opus?.model).toBe("claude-opus-5-5");
+
+    const sonnet = selectNextInTurnFallback({
+      currentProfileId: "opus-profile",
+      currentProvider: "claude",
+      profiles,
+      attemptedProfileIds: ["sol-profile"],
+    });
+    expect(sonnet?.profile.id).toBe("sonnet-profile");
+    expect(sonnet?.model).toBe("claude-sonnet-5-5");
+  });
+
+  it("uses configuration order for equal ranks, with Luna ahead of unknown models", () => {
+    const profiles = [
+      profile("unknown", "codex", "provider-default"),
+      profile("luna", "codex", "gpt-6-luna"),
+      profile("opus-first", "claude", "claude-opus-5-5"),
+      profile("opus-second", "claude", "claude-opus-5-5"),
+    ];
+    const input = { currentProvider: "codex", profiles };
+    expect(selectNextInTurnFallback(input)?.profile.id).toBe("opus-first");
+    expect(
+      selectNextInTurnFallback({
+        ...input,
+        attemptedProfileIds: ["opus-first", "opus-second"],
+      })?.profile.id,
+    ).toBe("luna");
+  });
+
+  it("reports exhaustion when every profile was attempted or none are configured", () => {
+    const profiles = [profile("sol", "codex", "gpt-6.1-sol")];
+    expect(selectNextInTurnFallback({ currentProvider: "codex", profiles: [] })).toBeNull();
+    expect(
+      selectNextInTurnFallback({ currentProvider: "codex", currentProfileId: "sol", profiles }),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["gpt-6.1-sol", "claude-opus-5-5", "claude-sonnet-5-5", "gpt-6-luna"],
+    ["claude-opus-5-5", "claude-sonnet-5-5", "gpt-6-luna"],
+    ["claude-sonnet-5-5", "gpt-6-luna"],
+    ["gpt-6-luna"],
+  ])("resolves an unavailable model by family rank: %s", (...models) => {
+    expect(
+      resolveFallbackModel({
+        requestedModel: "missing-model",
+        availableModels: models.toReversed().map((id) => ({ id })),
+      }),
+    ).toBe(models[0]);
+  });
+
+  it("honors a configured model when available or when no discovery catalog is supplied", () => {
+    const requestedModel = "claude-sonnet-5-5";
+    expect(resolveFallbackModel({ requestedModel })).toBe(requestedModel);
+    expect(
+      resolveFallbackModel({
+        requestedModel,
+        availableModels: [{ id: "gpt-6.1-sol" }, { id: requestedModel }],
+      }),
+    ).toBe(requestedModel);
   });
 
   it("falls back from Opus or Sonnet to an available Sol-class model", () => {

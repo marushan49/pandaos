@@ -1588,6 +1588,7 @@ test("preserves the handoff context and old session during a cross-provider fall
   let oldSessionClosed = false;
   let fallbackCreatedBeforeClose = false;
   const fallbackPrompts: AgentPromptInput[] = [];
+  const fallbackModels: Array<string | undefined> = [];
 
   const initialSession = new (class extends TestAgentSession {
     override async startTurn(): Promise<{ turnId: string }> {
@@ -1608,7 +1609,7 @@ test("preserves the handoff context and old session during a cross-provider fall
     override async close(): Promise<void> {
       oldSessionClosed = true;
     }
-  })({ provider: "codex", cwd: workdir, model: "codex-opus" });
+  })({ provider: "codex", cwd: workdir, model: "gpt-6.1-sol" });
 
   class FallbackSession extends TestAgentSession {
     override readonly provider = "claude" as const;
@@ -1635,6 +1636,7 @@ test("preserves the handoff context and old session during a cross-provider fall
 
     override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
       fallbackCreatedBeforeClose = !oldSessionClosed;
+      fallbackModels.push(config.model);
       return new FallbackSession(config);
     }
   }
@@ -1649,20 +1651,22 @@ test("preserves the handoff context and old session during a cross-provider fall
       claude: new FallbackClient(),
     },
     getAgentProfiles: () => [
-      { id: "codex-profile", name: "Codex", provider: "codex", model: "codex-opus" },
-      { id: "claude-profile", name: "Claude", provider: "claude", model: "claude-sonnet" },
+      { id: "sonnet-profile", name: "Sonnet", provider: "claude", model: "claude-sonnet-5-5" },
+      { id: "opus-profile", name: "Opus", provider: "claude", model: "claude-opus-5-5" },
+      { id: "sol-profile", name: "Sol", provider: "codex", model: "gpt-6.1-sol" },
     ],
     logger,
   });
 
   const agent = await manager.createAgent(
-    { provider: "codex", cwd: workdir, model: "codex-opus", title: "Continue the quota test" },
+    { provider: "codex", cwd: workdir, model: "gpt-6.1-sol", title: "Continue the quota test" },
     undefined,
     { workspaceId: undefined },
   );
   const result = await manager.runAgent(agent.id, "Keep the original prompt");
 
   expect(result.finalText).toBe("continued");
+  expect(fallbackModels).toEqual(["claude-opus-5-5"]);
   expect(fallbackCreatedBeforeClose).toBe(true);
   expect(oldSessionClosed).toBe(true);
   expect(fallbackPrompts).toHaveLength(1);

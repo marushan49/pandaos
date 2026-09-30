@@ -18,6 +18,7 @@ export interface InTurnFallbackInput {
   currentProvider: string;
   currentModel?: string;
   profiles: readonly AgentProfile[];
+  /** AgentManager omits discovery catalogs so retries honor configured profile models. */
   availableModels?: readonly FallbackModel[];
   attemptedProfileIds?: readonly string[];
 }
@@ -32,8 +33,7 @@ export interface InTurnRetryPlan {
   };
 }
 
-/** Providers with independent configured accounts are tried before less common profiles. */
-export const DEFAULT_FALLBACK_PROVIDER_ORDER = ["claude", "codex"] as const;
+const FALLBACK_MODEL_FAMILIES = ["sol", "opus", "sonnet", "luna"];
 
 const QUOTA_ERROR_PATTERN =
   /(?:rate\s*limit|rate_limit|too many requests|quota|usage limit|limit exceeded|resource exhausted|429)/i;
@@ -50,7 +50,7 @@ export function isQuotaOrRateLimitError(error: unknown): boolean {
 
 /**
  * Pick the next configured profile only. This never invents an account or a provider.
- * The current provider gets its next configured profile first, then the stable provider order.
+ * Model-family priority takes precedence over provider affinity and configuration order.
  */
 export function selectNextInTurnFallback(
   input: InTurnFallbackInput,
@@ -63,15 +63,9 @@ export function selectNextInTurnFallback(
     .map((profile, index) => ({
       profile,
       index,
-      sameProvider: profile.provider === input.currentProvider,
-      providerRank: providerRank(profile.provider),
+      modelRank: modelRank(profile.model),
     }))
-    .sort(
-      (a, b) =>
-        Number(b.sameProvider) - Number(a.sameProvider) ||
-        a.providerRank - b.providerRank ||
-        a.index - b.index,
-    );
+    .sort((a, b) => a.modelRank - b.modelRank || a.index - b.index);
 
   const selected = candidates[0]?.profile;
   if (!selected) return null;
@@ -137,10 +131,7 @@ export function resolveFallbackModel(input: {
   }
   if (available.length === 0) return input.requestedModel;
 
-  const currentFamily = modelFamily(input.currentModel);
-  const preferredFamilies =
-    currentFamily === "opus" || currentFamily === "sonnet" ? ["sol", "luna"] : ["sol", "luna"];
-  for (const family of preferredFamilies) {
+  for (const family of FALLBACK_MODEL_FAMILIES) {
     const match = available.find((model) => modelFamily(model.id) === family);
     if (match) return match.id;
   }
@@ -160,9 +151,7 @@ function modelFamily(model: string | undefined): string {
   return "unknown";
 }
 
-function providerRank(provider: string): number {
-  const index = DEFAULT_FALLBACK_PROVIDER_ORDER.indexOf(
-    provider as (typeof DEFAULT_FALLBACK_PROVIDER_ORDER)[number],
-  );
-  return index === -1 ? DEFAULT_FALLBACK_PROVIDER_ORDER.length : index;
+function modelRank(model: string | undefined): number {
+  const index = FALLBACK_MODEL_FAMILIES.indexOf(modelFamily(model));
+  return index === -1 ? FALLBACK_MODEL_FAMILIES.length : index;
 }
