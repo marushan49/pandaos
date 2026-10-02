@@ -1344,9 +1344,7 @@ export class VoiceAssistantWebSocketServer {
     ) {
       try {
         ws.close(WS_CLOSE_SERVER_SHUTDOWN, "Server shutting down");
-      } catch {
-        // ignore close errors
-      }
+      } catch {}
       return;
     }
 
@@ -1374,9 +1372,7 @@ export class VoiceAssistantWebSocketServer {
       );
       try {
         ws.close(WS_CLOSE_HELLO_TIMEOUT, "Hello timeout");
-      } catch {
-        // ignore close errors
-      }
+      } catch {}
     }, HELLO_TIMEOUT_MS);
     pending.helloTimeout = timeout;
     (timeout as unknown as { unref?: () => void }).unref?.();
@@ -1620,9 +1616,7 @@ export class VoiceAssistantWebSocketServer {
       pending.connectionLogger.warn("Rejected hello with empty clientId");
       try {
         ws.close(WS_CLOSE_INVALID_HELLO, "Invalid hello");
-      } catch {
-        // ignore close errors
-      }
+      } catch {}
       return;
     }
 
@@ -1694,13 +1688,10 @@ export class VoiceAssistantWebSocketServer {
           log: params.pending.connectionLogger,
         });
       } catch {
-        // The error reporter must not turn a connection failure into a process failure.
       } finally {
         try {
           params.ws.close(WS_CLOSE_INVALID_HELLO, "Invalid hello");
-        } catch {
-          // The transport may already be closed.
-        }
+        } catch {}
       }
     });
   }
@@ -1744,9 +1735,7 @@ export class VoiceAssistantWebSocketServer {
     if (hello.auth || hello.capabilities?.[CLIENT_CAPS.helloRejection] === true) {
       try {
         await ws.send(JSON.stringify({ type: "hello.rejected", reason, accepts: ["password"] }));
-      } catch {
-        // The close reason remains the compatibility signal.
-      }
+      } catch {}
     }
     const closeReason = {
       password_required: "Password required",
@@ -1760,9 +1749,7 @@ export class VoiceAssistantWebSocketServer {
           : WS_CLOSE_DAEMON_AUTH_FAILED,
         closeReason,
       );
-    } catch {
-      // Ignore a transport that closed while the rejection was sent.
-    }
+    } catch {}
   }
 
   private resumeSession(params: {
@@ -1870,7 +1857,9 @@ export class VoiceAssistantWebSocketServer {
         verifyRecipes: true,
         // COMPAT(agentHistory): added in v0.9.1, remove gate after 2027-03-29.
         agentHistory: true,
-        ...(this.verifyHost ? { browserCookieImport: true, browserScreencast: true } : {}),
+        ...(this.verifyHost
+          ? { browserCookieImport: true, browserProfileImport: true, browserScreencast: true }
+          : {}),
         ...(this.browserActivity
           ? {
               browserActivity: true,
@@ -2222,9 +2211,7 @@ export class VoiceAssistantWebSocketServer {
       this.clearPendingConnection(ws);
       try {
         ws.close(WS_CLOSE_INVALID_HELLO, "Invalid hello");
-      } catch {
-        // ignore close errors
-      }
+      } catch {}
       return;
     }
 
@@ -2276,9 +2263,7 @@ export class VoiceAssistantWebSocketServer {
       this.clearPendingConnection(ws);
       try {
         ws.close(WS_CLOSE_INVALID_HELLO, "Session message before hello");
-      } catch {
-        // ignore close errors
-      }
+      } catch {}
       return true;
     }
     void Promise.resolve(activeConnection.session.handleBinaryFrame(decodedFrame, ws)).catch(
@@ -2319,9 +2304,7 @@ export class VoiceAssistantWebSocketServer {
     this.clearPendingConnection(ws);
     try {
       ws.close(WS_CLOSE_INVALID_HELLO, "Session message before hello");
-    } catch {
-      // ignore close errors
-    }
+    } catch {}
   }
 
   private handleRawMessage(
@@ -2403,9 +2386,7 @@ export class VoiceAssistantWebSocketServer {
         activeConnection.connectionLogger.warn("Received hello on active connection");
         try {
           ws.close(WS_CLOSE_INVALID_HELLO, "Unexpected hello");
-        } catch {
-          // ignore close errors
-        }
+        } catch {}
         return;
       }
 
@@ -2474,9 +2455,7 @@ export class VoiceAssistantWebSocketServer {
       this.clearPendingConnection(ws);
       try {
         ws.close(WS_CLOSE_INVALID_HELLO, "Invalid hello");
-      } catch {
-        // ignore close errors
-      }
+      } catch {}
       return;
     }
 
