@@ -2,6 +2,7 @@ import { stat } from "node:fs/promises";
 import type { CreationSnapshot } from "@getpaseo/protocol/messages";
 import { CreationService } from "./creation/index.js";
 import { MessageReceipts } from "./message-receipts/index.js";
+import { SidebarOrderStore } from "./sidebar-order.js";
 import { WebSocket, WebSocketServer } from "ws";
 import type { IncomingMessage, Server as HTTPServer } from "http";
 import { join } from "path";
@@ -555,6 +556,7 @@ export class VoiceAssistantWebSocketServer {
   private readonly agentManager: AgentManager;
   private readonly agentStorage: AgentStorage;
   private readonly messageReceipts: MessageReceipts;
+  private readonly sidebarOrder: SidebarOrderStore;
   private readonly creationService: CreationService;
   private readonly projectRegistry: ProjectRegistry;
   private readonly workspaceRegistry: WorkspaceRegistry;
@@ -711,6 +713,10 @@ export class VoiceAssistantWebSocketServer {
     this.agentManager = agentManager;
     this.agentStorage = agentStorage;
     this.messageReceipts = new MessageReceipts(join(paseoHome, "agent-requests"));
+    this.sidebarOrder = new SidebarOrderStore(paseoHome);
+    this.sidebarOrder.subscribe((payload) =>
+      this.broadcast({ type: "session", message: { type: "sidebar.order.changed", payload } }),
+    );
     this.creationService = new CreationService(
       join(paseoHome, "creations"),
       this.logger.child({ module: "creation" }),
@@ -1487,6 +1493,7 @@ export class VoiceAssistantWebSocketServer {
     return new Session({
       browserToolsBroker: this.browserToolsBroker,
       browserActivity: this.browserActivity,
+      sidebarOrder: this.sidebarOrder,
       verifyHost: this.verifyHost,
       verifyEvidence: this.verifyEvidence,
       trustedPluginId: options.trustedPluginId,
@@ -2029,6 +2036,8 @@ export class VoiceAssistantWebSocketServer {
         workspacePinning: true,
         // COMPAT(workspaceTopics): added in v0.9.2, remove gate after 2027-04-01.
         workspaceTopics: true,
+        // COMPAT(sidebarOrder): added in v0.11.0, remove gate after 2027-04-07.
+        sidebarOrder: true,
         // COMPAT(systemOneUsage): added in v0.9.2, remove gate after 2027-04-01.
         systemOneUsage: true,
         // COMPAT(workspaceDone): added in v0.9.3, remove gate after 2027-04-01.
