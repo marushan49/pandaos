@@ -1,22 +1,5 @@
 #!/usr/bin/env npx tsx
 
-/**
- * Phase 6: Stop Command Tests
- *
- * Tests the stop command - interrupting agents (no-op if idle) (top-level command).
- * Since daemon may not be running, we test both:
- * - Help and argument parsing
- * - Graceful error handling when daemon not running
- * - All flags are accepted
- *
- * Tests:
- * - stop --help shows options
- * - stop requires ID, --all, or --cwd
- * - stop handles daemon not running
- * - stop --all flag is accepted
- * - stop --cwd flag is accepted
- */
-
 import assert from "node:assert";
 import { getAvailablePort } from "./helpers/network.ts";
 import { runPaseoCli, startTestDaemon } from "./helpers/test-daemon.ts";
@@ -29,12 +12,10 @@ $.verbose = false;
 
 console.log("=== Stop Command Tests ===\n");
 
-// Allocate an unused endpoint for connection-error and argument-validation checks.
 const port = await getAvailablePort();
 const paseoHome = await mkdtemp(join(tmpdir(), "paseo-test-home-"));
 
 try {
-  // Test 1: stop --help shows options
   {
     console.log("Test 1: stop --help shows options");
     const result = await $`npx pandaos stop --help`.nothrow();
@@ -46,7 +27,6 @@ try {
     console.log("✓ stop --help shows options\n");
   }
 
-  // Test 2: stop requires ID, --all, or --cwd
   {
     console.log("Test 2: stop requires ID, --all, or --cwd");
     const result =
@@ -146,7 +126,7 @@ try {
       assert.notStrictEqual(result.exitCode, 0, "stop should fail for an unknown ID");
       const { error } = JSON.parse(result.stderr);
       assert.strictEqual(error.code, "AGENT_NOT_FOUND", result.stderr);
-      assert.match(error.details, /paseo ls/);
+      assert.match(error.details, /pandaos ls/);
     } finally {
       await daemon.stop();
     }

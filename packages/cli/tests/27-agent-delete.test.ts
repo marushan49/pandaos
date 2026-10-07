@@ -1,15 +1,5 @@
 #!/usr/bin/env npx tsx
 
-/**
- * Delete Command Tests
- *
- * Tests the delete command - hard-deleting agents (interrupt if running first).
- * Since daemon may not be running, we test both:
- * - Help and argument parsing
- * - Graceful error handling when daemon not running
- * - All flags are accepted
- */
-
 import assert from "node:assert";
 import { runLocalPaseo } from "./helpers/local-cli.ts";
 import { getAvailablePort } from "./helpers/network.ts";
@@ -129,7 +119,7 @@ try {
       assert.notStrictEqual(result.exitCode, 0, "delete should fail for an unknown ID");
       const { error } = JSON.parse(result.stderr);
       assert.strictEqual(error.code, "AGENT_NOT_FOUND", result.stderr);
-      assert.match(error.details, /paseo ls/);
+      assert.match(error.details, /pandaos ls/);
     } finally {
       await daemon.stop();
     }

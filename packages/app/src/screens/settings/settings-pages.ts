@@ -62,7 +62,6 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
     sectionKeys: [
       "settings.appearance.theme.title",
       "settings.appearance.detailLevel.title",
-      "settings.appearance.sidebar.title",
       "settings.appearance.cards.title",
       "settings.appearance.fonts.title",
       "settings.appearance.syntax.title",
@@ -84,7 +83,10 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
     id: "sidebar",
     group: "you",
     labelKey: "settings.sections.sidebar",
-    sectionKeys: ["settings.appearance.sidebar.title"],
+    sectionKeys: [
+      "settings.appearance.sidebar.header.title",
+      "settings.appearance.sidebar.footer.title",
+    ],
     hintsKey: "settings.search.hints.appearance",
     availability: "everywhere",
   },
