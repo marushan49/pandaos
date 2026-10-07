@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://paseo.sh/sitemap-index.xml
+Sitemap: https://pandaos.dev/sitemap-index.xml

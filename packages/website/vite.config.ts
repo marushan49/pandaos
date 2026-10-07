@@ -6,9 +6,10 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { SITE_ORIGIN } from "./src/meta";
 
 const repoRoot = path.resolve(__dirname, "../..");
-const siteHost = "https://paseo.sh";
+const siteHost = SITE_ORIGIN;
 
 function discoverDocsRoutes(): string[] {
   const docsDir = path.join(repoRoot, "public-docs");
@@ -80,7 +81,6 @@ function discoverBlogRoutes(): string[] {
   return ["/blog", ...slugs.map((slug) => `/blog/${slug}`)];
 }
 
-// Author and detail URLs are served by /sitemap-plugins.xml as the registry changes.
 function discoverPluginRoutes(): string[] {
   return ["/plugins"];
 }

@@ -11,6 +11,6 @@ describe("getCanonicalRedirect", () => {
   it("redirects production requests to the canonical origin", () => {
     const url = new URL("http://www.paseo.sh/download");
 
-    expect(getCanonicalRedirect(url, "production")).toBe("https://paseo.sh/download");
+    expect(getCanonicalRedirect(url, "production")).toBe("https://pandaos.dev/download");
   });
 });

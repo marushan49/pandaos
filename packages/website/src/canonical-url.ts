@@ -1,4 +1,6 @@
-const CANONICAL_HOST = "paseo.sh";
+import { SITE_ORIGIN } from "./meta";
+
+const CANONICAL_HOST = new URL(SITE_ORIGIN).hostname;
 
 export function getCanonicalRedirect(
   url: URL,
