@@ -26,3 +26,21 @@ export function getBrowserPaneKind(input: {
     ? "desktop"
     : "host";
 }
+
+export function closedRemoteBrowserTabIds(input: {
+  snapshot: ReadonlyMap<string, string | null>;
+  current: ReadonlyMap<string, string | null>;
+  listedIds: ReadonlySet<string>;
+}): string[] {
+  const closed: string[] = [];
+  for (const [browserId, remoteBrowserId] of input.current) {
+    if (
+      remoteBrowserId &&
+      input.snapshot.get(browserId) === remoteBrowserId &&
+      !input.listedIds.has(remoteBrowserId)
+    ) {
+      closed.push(browserId);
+    }
+  }
+  return closed;
+}

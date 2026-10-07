@@ -83,7 +83,7 @@ describe("daemon browser tab reconciliation", () => {
     useWorkspaceLayoutStore.setState({ layoutByWorkspace: {} });
   });
 
-  it("removes closed daemon mirrors from the layout and store while preserving other tabs", () => {
+  it("removes closed daemon tabs, mirrored or requested, while preserving other tabs", () => {
     openMirror("closed");
     openMirror("live");
     openMirror("other", "server:other-workspace");
@@ -108,13 +108,28 @@ describe("daemon browser tab reconciliation", () => {
       workspaceKey,
       request: beginRemoteBrowserTabSync(workspaceKey),
     });
-    expect(openIds()).toEqual(["live", "local", "requested"]);
+    expect(openIds()).toEqual(["live", "local"]);
     expect(Object.keys(useBrowserStore.getState().browsersById).sort()).toEqual([
       "live",
       "local",
       "other",
-      "requested",
     ]);
+  });
+
+  it("keeps a requested tab that was attached after the listing request started", () => {
+    const requested = createBrowserRecord({ browserId: "requested", initialUrl: null, now: 1 });
+    useBrowserStore.setState((state) => ({
+      browsersById: { ...state.browsersById, requested },
+    }));
+    useWorkspaceLayoutStore.getState().openTab({
+      workspaceKey,
+      target: { kind: "browser", browserId: "requested" },
+      intent: "background",
+    });
+    const request = beginRemoteBrowserTabSync(workspaceKey);
+    useBrowserStore.getState().updateBrowser("requested", { remoteBrowserId: "remote-new" });
+    syncRemoteBrowserTabs({ tabs: [], workspaceId, workspaceKey, request });
+    expect(openIds()).toEqual(["requested"]);
   });
 
   it("ignores an older listing after a newer listing removed a tab", () => {
