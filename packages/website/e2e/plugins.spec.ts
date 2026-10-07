@@ -19,7 +19,6 @@ test("browses from the directory into a category, a plugin, and its author", asy
   page,
   context,
 }) => {
-  // WebKit has no clipboard permission to grant; record what the page writes instead.
   await context.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -265,7 +264,7 @@ test.describe("search engine visits without JavaScript", () => {
     await expectPageMetadata(page, "Graphite – Paseo plugin", "/plugins/tomgrin10/graphite");
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
       "content",
-      "https://paseo.sh/og-image.png",
+      "https://pandaos.dev/og-image.png",
     );
   });
 
@@ -319,21 +318,20 @@ test.describe("search engine visits without JavaScript", () => {
     request,
   }) => {
     const robots = await request.get("/robots.txt");
-    expect(await robots.text()).toContain("Sitemap: https://paseo.sh/sitemap-index.xml");
+    expect(await robots.text()).toContain("Sitemap: https://pandaos.dev/sitemap-index.xml");
     const index = await request.get("/sitemap-index.xml");
-    expect(await index.text()).toContain("https://paseo.sh/sitemap-plugins.xml");
+    expect(await index.text()).toContain("https://pandaos.dev/sitemap-plugins.xml");
     const plugins = await request.get("/sitemap-plugins.xml");
     expect(plugins.status()).toBe(200);
     expect(plugins.headers()["content-type"]).toContain("application/xml");
     const sitemap = await plugins.text();
-    expect(sitemap).toContain("<loc>https://paseo.sh/plugins/all</loc>");
-    expect(sitemap).toContain("<loc>https://paseo.sh/plugins/category/git</loc>");
-    expect(sitemap).toContain("<loc>https://paseo.sh/plugins/omercnet</loc>");
-    expect(sitemap).toContain("<loc>https://paseo.sh/plugins/omercnet/fresh-worktrees</loc>");
+    expect(sitemap).toContain("<loc>https://pandaos.dev/plugins/all</loc>");
+    expect(sitemap).toContain("<loc>https://pandaos.dev/plugins/category/git</loc>");
+    expect(sitemap).toContain("<loc>https://pandaos.dev/plugins/omercnet</loc>");
+    expect(sitemap).toContain("<loc>https://pandaos.dev/plugins/omercnet/fresh-worktrees</loc>");
   });
 });
 
-/** Holds the page's scripts so typing lands before hydration; the returned function loads them. */
 async function holdScripts(page: Page): Promise<() => Promise<void>> {
   let release!: () => void;
   const held = new Promise<void>((resolve) => (release = resolve));
@@ -368,12 +366,12 @@ async function expectPageMetadata(page: Page, title: string, path: string) {
   await expect(page).toHaveTitle(title);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
-    `https://paseo.sh${path}`,
+    `https://pandaos.dev${path}`,
   );
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", title);
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
     "content",
-    `https://paseo.sh${path}`,
+    `https://pandaos.dev${path}`,
   );
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "website");
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
@@ -406,7 +404,6 @@ test("keeps the directory unlinked until the coordinated announcement", async ({
   await expect(page.getByRole("heading", { level: 1, name: /^Plugins/ })).toBeVisible();
 });
 
-// External deployments own their registry contents; these assertions use the local fixture.
 test.describe("registry fixture layout", () => {
   test.skip(Boolean(process.env.WEBSITE_TEST_URL), "Requires the local registry fixture");
 
@@ -453,7 +450,6 @@ test.describe("registry fixture layout", () => {
     await expect(playing).toHaveAttribute("src", video);
     await expect(playing).toHaveAttribute("controls", "");
     await expect.poll(() => playing.evaluate(isPaused)).toBe(false);
-    // The fixture video is 320x240, so it has to scale up to fill the viewer.
     await expect.poll(() => playing.evaluate(viewerFill)).toBeCloseTo(1, 2);
     await page.keyboard.press("Escape");
     await expect(viewer).toBeHidden();
@@ -477,7 +473,6 @@ test.describe("registry fixture layout", () => {
   test("peeks the next gallery tile at the strip's edge, and fills the row with two", async ({
     page,
   }) => {
-    // Wide screens show two tiles and part of the third; phones show one and part of the second.
     for (const [width, expected] of [
       [1280, [1, 1, "peeks"]],
       [375, [1, "peeks", 0]],
@@ -586,7 +581,6 @@ function galleryTiles(links: Element[]) {
   }));
 }
 
-/** How much of each tile's width the gallery strip shows, rounded to hundredths. */
 function visibleShares(links: Element[]) {
   const strip = links[0].parentElement!.getBoundingClientRect();
   return links.map((link) => {
@@ -596,7 +590,6 @@ function visibleShares(links: Element[]) {
   });
 }
 
-/** The share of the viewer's room the media fills along its limiting axis; 1 fills it. */
 function viewerFill(media: HTMLElement) {
   const box = media.getBoundingClientRect();
   return Math.max(box.width / (window.innerWidth * 0.9), box.height / (window.innerHeight * 0.85));
@@ -607,7 +600,6 @@ function isPaused(video: HTMLVideoElement) {
 }
 
 async function expectThumbnailCard(card: Locator, source: string, id: string) {
-  // Card screenshots are decorative and hidden from the accessibility tree.
   const image = card.locator("img").first();
   const path = (width: number) =>
     `/plugins/thumb/${width}/${encodeURIComponent(source)}?plugin=${encodeURIComponent(id)}`;
@@ -663,7 +655,6 @@ async function expectPluginOverviewSafe(page: Page) {
   expect(
     await page.evaluate(() => (globalThis as { __overviewExecuted?: number }).__overviewExecuted),
   ).toBeUndefined();
-  // Security assertions inspect every emitted attribute, including inaccessible injected elements.
   const violations = await page.locator(".docs-prose").evaluate((root) => {
     const bad: string[] = [];
     for (const element of root.querySelectorAll("*")) {
