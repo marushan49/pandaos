@@ -39,7 +39,7 @@ async function createClaudeConfigDirWithRawSettings(settings: string): Promise<s
   return configDir;
 }
 
-function createCatalogClient(claudeCodeVersion = "2.1.284"): ClaudeAgentClient {
+function createCatalogClient(claudeCodeVersion = "2.1.293"): ClaudeAgentClient {
   return new ClaudeAgentClient({
     logger: createTestLogger(),
     resolveVersion: async () => claudeCodeVersion,
@@ -66,6 +66,7 @@ describe("getClaudeModels", () => {
       "claude-opus-4-6",
       "claude-sonnet-4-6[1m]",
       "claude-sonnet-4-6",
+      "claude-haiku-5-5",
       "claude-haiku-4-5",
     ]);
   });
@@ -100,6 +101,7 @@ describe("getClaudeModels", () => {
         ["claude-opus-4-6", 200_000],
         ["claude-sonnet-4-6[1m]", 1_000_000],
         ["claude-sonnet-4-6", 200_000],
+        ["claude-haiku-5-5", 1_000_000],
         ["claude-haiku-4-5", 200_000],
       ]),
     );
@@ -123,6 +125,11 @@ describe("getClaudeModels", () => {
     const sonnet55 = getClaudeModels("2.1.284").find((model) => model.id === "claude-sonnet-5-5");
     expect(sonnet55?.defaultThinkingOptionId).toBe("medium");
     expect(sonnet55?.thinkingOptions?.map((option) => option.id)).not.toContain("off");
+    expect(getClaudeModels("2.1.292").map((model) => model.id)).not.toContain("claude-haiku-5-5");
+    expect(getClaudeModels("2.1.293").map((model) => model.id)).toContain("claude-haiku-5-5");
+    const haiku55 = getClaudeModels("2.1.293").find((model) => model.id === "claude-haiku-5-5");
+    expect(haiku55?.defaultThinkingOptionId).toBe("medium");
+    expect(haiku55?.isDefault).toBeUndefined();
   });
 
   it("derives thinking options from model effort capabilities", () => {
@@ -194,6 +201,7 @@ describe("getClaudeModels", () => {
     ["claude-sonnet-5-20260101", true, "high"],
     ["claude-fable-5", false, "high"],
     ["claude-fable-5-1", false, "high"],
+    ["claude-haiku-5-5", false, "medium"],
     ["claude-haiku-4-5", false, undefined],
     ["openrouter/anthropic/claude-opus-4-8", false, undefined],
     [null, false, undefined],
@@ -289,7 +297,7 @@ describe("ClaudeAgentClient.fetchCatalog", () => {
     vi.stubEnv("CLAUDE_CONFIG_DIR", daemonConfigDir);
     const client = new ClaudeAgentClient({
       logger: createTestLogger(),
-      resolveVersion: async () => "2.1.280",
+      resolveVersion: async () => "2.1.293",
       runtimeSettings: { env: { CLAUDE_CONFIG_DIR: providerConfigDir } },
     });
 
