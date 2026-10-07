@@ -2276,6 +2276,8 @@ export const ru: TranslationResources = {
       other: "выполнены вызовы PandaOS ({{count}})",
     },
     and: "и",
+    workedFor: "Работал {{duration}}",
+    failed: "Сбоев: {{count}}",
   },
   renameModal: {
     rename: "Переименовать",

@@ -133,6 +133,7 @@ function ComposerTrackPillTrigger({
     ({ hovered, pressed, open: isOpen }: MenuTriggerState) => [
       composerPillStyles.body,
       (hovered || pressed || isOpen) && composerPillStyles.bodyActive,
+      pressed && composerPillStyles.bodyPressed,
     ],
     [],
   );

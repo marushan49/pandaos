@@ -2,6 +2,8 @@ import React, { memo, useCallback, useMemo, useRef, type ReactNode } from "react
 import { ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Wrench } from "@/components/icons/ui-icons";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { formatDuration } from "@/utils/time";
 import { StyleSheet } from "react-native-unistyles";
 import { ExpandableBadge } from "@/components/message";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -18,7 +20,7 @@ interface OverviewGroupProps {
 
 const TOOL_CALL_GROUP_MAX_HEIGHT = 400;
 
-function joinSummaryParts(parts: string[], conjunction: string): string {
+function joinSummaryParts(parts: string[], conjunction: string, capitalize: boolean): string {
   if (parts.length === 0) {
     return "";
   }
@@ -29,10 +31,16 @@ function joinSummaryParts(parts: string[], conjunction: string): string {
     joined = `${parts.slice(0, -1).join(", ")}, ${conjunction} ${parts.at(-1)}`;
   }
   const firstCharacter = joined[0];
-  return firstCharacter ? `${firstCharacter.toLocaleUpperCase()}${joined.slice(1)}` : joined;
+  if (!firstCharacter) {
+    return joined;
+  }
+  const first = capitalize
+    ? firstCharacter.toLocaleUpperCase()
+    : firstCharacter.toLocaleLowerCase();
+  return `${first}${joined.slice(1)}`;
 }
 
-function useOverviewSummary(summary: OverviewSummary): string {
+function useOverviewSummary(summary: OverviewSummary, capitalize: boolean): string {
   const { t } = useTranslation();
   return useMemo(() => {
     const parts: string[] = [];
@@ -49,8 +57,21 @@ function useOverviewSummary(summary: OverviewSummary): string {
         parts.push(t(`${key}.${count === 1 ? "one" : "other"}`, { count }));
       }
     }
-    return joinSummaryParts(parts, t("toolCallGroup.and"));
-  }, [summary, t]);
+    return joinSummaryParts(parts, t("toolCallGroup.and"), capitalize);
+  }, [capitalize, summary, t]);
+}
+
+const MIN_REPORTED_DURATION_MS = 1000;
+
+function useOverviewLabel(group: OverviewToolCallGroup): string {
+  const { t } = useTranslation();
+  const showsDuration = !group.isLoading && group.durationMs >= MIN_REPORTED_DURATION_MS;
+  const summary = useOverviewSummary(group.summary, !showsDuration);
+  if (!showsDuration) {
+    return summary;
+  }
+  const workedFor = t("toolCallGroup.workedFor", { duration: formatDuration(group.durationMs) });
+  return `${workedFor} · ${summary}`;
 }
 
 export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView({
@@ -62,7 +83,20 @@ export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView
 }: OverviewGroupProps) {
   const scrollRef = useRef<ScrollView>(null);
   const isCompact = useIsCompactFormFactor();
-  const aggregateSummary = useOverviewSummary(group.summary);
+  const { t } = useTranslation();
+  const aggregateSummary = useOverviewLabel(group);
+  const failedCount = group.summary.failedCount;
+  const failedBadge = useMemo(
+    () =>
+      failedCount > 0 ? (
+        <StatusBadge
+          variant="error"
+          size="xs"
+          label={t("toolCallGroup.failed", { count: failedCount })}
+        />
+      ) : null,
+    [failedCount, t],
+  );
   const originTags = useMemo(
     () =>
       group.summary.origins.map(({ origin, count }) => ({
@@ -108,6 +142,8 @@ export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView
           isExpanded={false}
           isLastInSequence={isLastInSequence}
           onToggle={toggle}
+          pill
+          pillTrailing={failedBadge}
         />
         <OverviewToolCallGroupSheet visible={expanded} summary={aggregateSummary} onClose={close}>
           {children}
@@ -128,6 +164,9 @@ export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView
       onToggle={toggle}
       renderDetails={renderDetails}
       borderlessWhenExpanded
+      pill
+      pillTrailing={failedBadge}
+      animateDetails
     />
   );
 });

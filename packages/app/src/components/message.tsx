@@ -45,12 +45,14 @@ import {
   FileSymlink,
 } from "@/components/icons/ui-icons";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { ICON_SIZE, type Theme } from "@/styles/theme";
+import { ICON_SIZE, MOTION, webTransition, type Theme } from "@/styles/theme";
+import { AnimatedDisclosure } from "@/components/ui/animated-disclosure";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import Animated, {
   Easing,
   cancelAnimation,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -357,9 +359,11 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     marginBottom: theme.spacing[4],
   },
   bubble: {
-    backgroundColor: theme.colors.surface3,
+    backgroundColor: theme.colors.surface2,
     borderRadius: theme.borderRadius["2xl"],
-    borderTopRightRadius: theme.borderRadius.sm,
+    borderWidth: theme.borderWidth[1],
+    borderColor: theme.colors.hairline,
+    boxShadow: `inset 0 1px 0 ${theme.colors.surfaceHighlightTop}`,
     paddingHorizontal: theme.spacing[4],
     paddingVertical: theme.spacing[4],
     minWidth: 0,
@@ -1126,6 +1130,27 @@ const expandableBadgeStylesheet = StyleSheet.create((theme) => ({
   containerLastInSequence: {
     marginBottom: theme.spacing[4],
   },
+  containerPill: {
+    marginHorizontal: 0,
+    alignItems: "flex-start",
+  },
+  pressablePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 28,
+    maxWidth: "100%",
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[0.5],
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.surfaceSoft,
+    ...webTransition(["background-color", "transform"]),
+  },
+  pressablePillHovered: {
+    backgroundColor: theme.colors.interactionHighlight,
+  },
+  pressablePillPressed: {
+    transform: [{ scale: MOTION.pressScale }],
+  },
   pressable: {
     borderRadius: theme.borderRadius.lg,
     borderWidth: theme.borderWidth[1],
@@ -1146,6 +1171,18 @@ const expandableBadgeStylesheet = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
+  },
+  labelRowPill: {
+    flexShrink: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  pillTrailingSlot: {
+    marginLeft: theme.spacing[2],
+  },
+  pillChevron: {
+    marginLeft: theme.spacing[2],
   },
   iconBadge: {
     width: 22,
@@ -1206,7 +1243,7 @@ const expandableBadgeStylesheet = StyleSheet.create((theme) => ({
     borderBottomRightRadius: theme.borderRadius.lg,
     borderWidth: theme.borderWidth[1],
     borderTopWidth: 0,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.hairline,
     padding: 0,
     gap: 0,
     flexShrink: 1,
@@ -1218,12 +1255,21 @@ const expandableBadgeStylesheet = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.surface1,
   },
   pressableExpandedAttached: {
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.hairline,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
   detailWrapperBorderless: {
     borderWidth: 0,
+  },
+  detailWrapperPill: {
+    alignSelf: "stretch",
+    marginTop: theme.spacing[2],
+    marginLeft: theme.spacing[3],
+    borderLeftWidth: theme.borderWidth[1],
+    borderLeftColor: theme.colors.hairline,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   shimmerOverlay: {
     position: "absolute",
@@ -2351,6 +2397,9 @@ interface ExpandableBadgeProps {
   isLastInSequence?: boolean;
   disableOuterSpacing?: boolean;
   borderlessWhenExpanded?: boolean;
+  pill?: boolean;
+  pillTrailing?: ReactNode;
+  animateDetails?: boolean;
   testID?: string;
 }
 
@@ -2419,6 +2468,7 @@ function ExpandableBadgeWebShimmerOverlay({
 }
 
 interface ExpandableBadgeLabelRowProps {
+  pill?: boolean;
   label: string;
   labelStyle: StyleProp<TextStyle>;
   secondaryLabel?: string;
@@ -2445,6 +2495,7 @@ interface ExpandableBadgeLabelRowProps {
 }
 
 function ExpandableBadgeLabelRow({
+  pill,
   label,
   labelStyle,
   secondaryLabel,
@@ -2472,7 +2523,7 @@ function ExpandableBadgeLabelRow({
   const { t } = useTranslation();
   return (
     <View
-      style={expandableBadgeStylesheet.labelRow}
+      style={pill ? expandableBadgeStylesheet.labelRowPill : expandableBadgeStylesheet.labelRow}
       onLayout={shouldMeasureNativeShimmer ? onLabelRowLayout : undefined}
     >
       <Text
@@ -2699,6 +2750,77 @@ function buildShimmerTextStyle(input: {
   });
 }
 
+const PILL_CHEVRON_EASING = Easing.bezier(...MOTION.easing.out);
+
+function PillChevron({ expanded }: { expanded: boolean }) {
+  const reduceMotion = useReducedMotion();
+  const rotation = useSharedValue(expanded ? 90 : 0);
+  useEffect(() => {
+    const target = expanded ? 90 : 0;
+    rotation.value = reduceMotion
+      ? target
+      : withTiming(target, { duration: MOTION.duration.fast, easing: PILL_CHEVRON_EASING });
+  }, [expanded, reduceMotion, rotation]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+  return (
+    <Animated.View style={[expandableBadgeStylesheet.pillChevron, animatedStyle]}>
+      <ThemedChevronRightIcon size={12} uniProps={foregroundMutedColorMapping} />
+    </Animated.View>
+  );
+}
+
+function PillHeaderTail({
+  enabled,
+  trailing,
+  interactive,
+  expanded,
+}: {
+  enabled?: boolean;
+  trailing?: ReactNode;
+  interactive: boolean;
+  expanded: boolean;
+}) {
+  if (!enabled) {
+    return null;
+  }
+  return (
+    <>
+      {trailing ? <View style={expandableBadgeStylesheet.pillTrailingSlot}>{trailing}</View> : null}
+      {interactive ? <PillChevron expanded={expanded} /> : null}
+    </>
+  );
+}
+
+function ExpandableBadgeDetails({
+  animate,
+  open,
+  content,
+  wrapperRef,
+  style,
+  onHoverIn,
+  onHoverOut,
+}: {
+  animate?: boolean;
+  open: boolean;
+  content: ReactNode;
+  wrapperRef: React.RefObject<View | null>;
+  style: StyleProp<ViewStyle>;
+  onHoverIn: () => void;
+  onHoverOut: () => void;
+}) {
+  if (!content && !animate) {
+    return null;
+  }
+  const wrapper = (
+    <Pressable ref={wrapperRef} style={style} onHoverIn={onHoverIn} onHoverOut={onHoverOut}>
+      {content}
+    </Pressable>
+  );
+  return animate ? <AnimatedDisclosure open={open}>{wrapper}</AnimatedDisclosure> : wrapper;
+}
+
 export const ExpandableBadge = memo(function ExpandableBadge({
   label,
   style,
@@ -2714,6 +2836,9 @@ export const ExpandableBadge = memo(function ExpandableBadge({
   isLastInSequence = false,
   disableOuterSpacing,
   borderlessWhenExpanded = false,
+  pill,
+  pillTrailing,
+  animateDetails,
   testID,
   originTags,
 }: ExpandableBadgeProps) {
@@ -2871,31 +2996,42 @@ export const ExpandableBadge = memo(function ExpandableBadge({
   const containerStyle = useMemo(
     () => [
       expandableBadgeStylesheet.container,
+      pill && expandableBadgeStylesheet.containerPill,
       !resolvedDisableOuterSpacing &&
         (isLastInSequence
           ? expandableBadgeStylesheet.containerLastInSequence
           : expandableBadgeStylesheet.containerSpacing),
       style,
     ],
-    [isLastInSequence, resolvedDisableOuterSpacing, style],
+    [isLastInSequence, pill, resolvedDisableOuterSpacing, style],
   );
 
   const pressableStyle = useMemo(
-    () => [
-      expandableBadgeStylesheet.pressable,
-      isPressed && isInteractive ? expandableBadgeStylesheet.pressablePressed : null,
-      isExpanded && expandableBadgeStylesheet.pressableExpanded,
-      isExpanded && !borderlessWhenExpanded && expandableBadgeStylesheet.pressableExpandedAttached,
-    ],
-    [borderlessWhenExpanded, isExpanded, isInteractive, isPressed],
+    () =>
+      pill
+        ? [
+            expandableBadgeStylesheet.pressablePill,
+            isHovered && expandableBadgeStylesheet.pressablePillHovered,
+            isPressed && isInteractive ? expandableBadgeStylesheet.pressablePillPressed : null,
+          ]
+        : [
+            expandableBadgeStylesheet.pressable,
+            isPressed && isInteractive ? expandableBadgeStylesheet.pressablePressed : null,
+            isExpanded && expandableBadgeStylesheet.pressableExpanded,
+            isExpanded &&
+              !borderlessWhenExpanded &&
+              expandableBadgeStylesheet.pressableExpandedAttached,
+          ],
+    [borderlessWhenExpanded, isExpanded, isHovered, isInteractive, isPressed, pill],
   );
 
   const detailWrapperStyle = useMemo(
     () => [
       expandableBadgeStylesheet.detailWrapper,
       borderlessWhenExpanded && expandableBadgeStylesheet.detailWrapperBorderless,
+      pill && expandableBadgeStylesheet.detailWrapperPill,
     ],
-    [borderlessWhenExpanded],
+    [borderlessWhenExpanded, pill],
   );
 
   const accessibilityState = useMemo(
@@ -2955,7 +3091,7 @@ export const ExpandableBadge = memo(function ExpandableBadge({
   const ThemedIcon = useMemo(() => (icon ? withUnistyles(icon) : null), [icon]);
   const iconNode = renderExpandableBadgeIcon({ isError, isActive, ThemedIcon });
   const iconSlotNode = renderExpandableBadgeIconSlot({
-    showChevron: isInteractive && (isHovered || isExpanded),
+    showChevron: !pill && isInteractive && (isHovered || isExpanded),
     chevronStyle,
     iconNode,
   });
@@ -2986,6 +3122,7 @@ export const ExpandableBadge = memo(function ExpandableBadge({
           {originTags ? <ToolCallOriginIndicator origins={originTags} /> : null}
           <View style={expandableBadgeStylesheet.iconBadge}>{iconSlotNode}</View>
           <ExpandableBadgeLabelRow
+            pill={pill}
             label={label}
             labelStyle={labelStyle}
             secondaryLabel={secondaryLabel}
@@ -3010,18 +3147,23 @@ export const ExpandableBadge = memo(function ExpandableBadge({
             onOpenFileHoverIn={handleOpenFileHoverIn}
             onOpenFileHoverOut={handleOpenFileHoverOut}
           />
+          <PillHeaderTail
+            enabled={pill}
+            trailing={pillTrailing}
+            interactive={isInteractive}
+            expanded={isExpanded}
+          />
         </View>
       </Pressable>
-      {detailContent ? (
-        <Pressable
-          ref={detailWrapperRef}
-          style={detailWrapperStyle}
-          onHoverIn={handleDetailHoverIn}
-          onHoverOut={handleDetailHoverOut}
-        >
-          {detailContent}
-        </Pressable>
-      ) : null}
+      <ExpandableBadgeDetails
+        animate={animateDetails && hasDetailContent}
+        open={isExpanded}
+        content={detailContent}
+        wrapperRef={detailWrapperRef}
+        style={detailWrapperStyle}
+        onHoverIn={handleDetailHoverIn}
+        onHoverOut={handleDetailHoverOut}
+      />
     </View>
   );
 }, areExpandableBadgePropsEqual);
@@ -3038,6 +3180,9 @@ function areExpandableBadgePropsEqual(previous: ExpandableBadgeProps, next: Expa
   if (previous.isLastInSequence !== next.isLastInSequence) return false;
   if (previous.disableOuterSpacing !== next.disableOuterSpacing) return false;
   if (previous.borderlessWhenExpanded !== next.borderlessWhenExpanded) return false;
+  if (previous.pill !== next.pill) return false;
+  if (previous.pillTrailing !== next.pillTrailing) return false;
+  if (previous.animateDetails !== next.animateDetails) return false;
   if (previous.testID !== next.testID) return false;
   if (previous.onToggle !== next.onToggle) return false;
   if (previous.onOpenFile !== next.onOpenFile) return false;

@@ -2263,6 +2263,8 @@ export const ja: TranslationResources = {
       other: "PandaOSを{{count}}回呼び出し",
     },
     and: "および",
+    workedFor: "{{duration}}作業しました",
+    failed: "{{count}}件失敗",
   },
   renameModal: {
     rename: "名前を変更",

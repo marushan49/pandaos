@@ -88,7 +88,9 @@ A list that is itself the page content — sidebar items in `sidebar-workspace-l
 
 Pane chrome — the workspace pane header, the file-explorer header, the diff pane header — uses a single bottom border to separate the header from the content (`packages/app/src/components/git-diff-pane.tsx:2328-2331`). One border, no shadow.
 
-`borderAccent` is reserved for the outline button. Inputs use `border`. Single-thing borders are wrong; a single bordered element is either a card with one row (use the card) or it does not need a border.
+`borderAccent` is reserved for the outline button. Single-thing borders are wrong; a single bordered element is either a card with one row (use the card) or it does not need a border.
+
+Floating surfaces — the composer, the user message bubble, queue cards, the pills above the composer — are outlined by `hairline`, a translucent 1px line, instead of `border` or `borderAccent`. Their fill is `surfaceSoft` (a translucent wash) or a surface token, and a surface that carries content has `surfaceHighlightTop` as `inset 0 1px 0` on its top edge. The composer is two layers: a `surfaceSoft` shell with a `hairline` line and `spacing[1]` padding around an input surface with `borderRadius.xl`, so the radii are concentric (`2xl` outside, `xl` inside). The prototype's 5px shell padding and 26/21px radii are off the scale; the scale values replace them. Hairline, wash, and highlight are generated per theme in `theme.ts`, so every tint gets them.
 
 ---
 
@@ -249,7 +251,19 @@ New status pills use `<StatusBadge>`. Identity, shortcut, and interactive link b
 
 ---
 
-## 14. Forbidden
+## 14. Motion
+
+Durations and curves live in `MOTION` in `theme.ts`; web transitions come from `webTransition()` in the same file. Never write a duration or `cubic-bezier` inline.
+
+Hover, press, and color changes take `MOTION.duration.fast` (180ms) on `MOTION.easing.out`, a strong ease-out. Pressing a `<Button>`, a composer pill, or the summary pill scales to `MOTION.pressScale` (0.97). Disclosures — the tool-call summary on desktop — slide open over `MOTION.duration.disclosure` (280ms) on `MOTION.easing.drawer` through `<AnimatedDisclosure>` (`packages/app/src/components/ui/animated-disclosure.tsx`), and the chevron turns with them.
+
+Animate what the user does a few times per turn: opening a summary, pressing a pill. Do not animate what happens dozens of times a day, such as row hover changes; those stay instant or use the fast transition only. Keyboard actions do not animate: a shortcut that toggles something lands in the final state at once.
+
+Reduced motion is honored in both layers. JS-driven motion reads `useReducedMotion()` from Reanimated and jumps to the end state. CSS transitions are switched off by one `prefers-reduced-motion` rule installed by `installWebMotionStyles` (`packages/app/src/styles/install-web-motion-styles.web.ts`), so a new web transition needs no extra handling. Native press scale is not animated; it snaps.
+
+---
+
+## 15. Forbidden
 
 - `fontWeight.medium` on row titles, body text, button labels, badge text, or `<SidebarCallout>` titles. Medium is reserved for the structural-label tier described in §3 — section labels, modal/sheet titles, dense metadata emphasis, and tight action labels. Anything else is `normal`. `<ScreenTitle>` is responsive `400/300` and is never overridden except by its own `hub` variant.
 - `<Pressable>` wrapping `<Text>` to make a button. `<Button>` exists.
@@ -257,11 +271,12 @@ New status pills use `<StatusBadge>`. Identity, shortcut, and interactive link b
 - A muted paragraph between a section header and its card. Section-level explanation is the header's `info` tooltip (§7).
 - A "Settings" CTA on a detail page. Detail pages are settings; settings is reached from the sidebar, the host entry, or a row's kebab menu.
 - The word "checkout" in UI strings or identifiers. The term is "workspace".
-- New color tokens or hardcoded hex outside the palette. The identity color table is the documented exception (§13), not a license.
+- New color tokens outside `theme.ts`, or hardcoded hex outside the palette. The identity color table is the documented exception (§13), not a license.
 - Placeholder text dimmed beyond `foregroundMuted`. No extra opacity, no italics, no ghost-text. The composer placeholder uses `foregroundMuted`.
 - `onPointerEnter` and `onPointerLeave`. They do not fire on native iOS. Hover uses Pressable's `onHoverIn`/`onHoverOut` gated with `isHovered || isCompact || isNative`.
 - Raw DOM APIs without an `isWeb` guard.
 - Spacing values outside the scale. `padding: 20` and `gap: 10` are wrong.
+- Durations, easings, or `cubic-bezier` strings written inline in new UI motion. They come from `MOTION` (§14). Gesture-driven worklets such as the mobile panels keep their own curves.
 - Color changes for disabled state. Opacity only.
 - Destructive actions without `confirmDialog`. Restart, remove, and future destructive actions are confirmed. Archive workspace is confirmed only when its worktree backing reports uncommitted changes or unpushed commits; otherwise it archives immediately.
 - Bespoke status pills. `<StatusBadge>` is the pill primitive.
@@ -270,7 +285,7 @@ New status pills use `<StatusBadge>`. Identity, shortcut, and interactive link b
 
 ---
 
-## 15. Canonical surfaces by pattern
+## 16. Canonical surfaces by pattern
 
 | Pattern                                             | Reference                                                                                                                                                                                                                                                                                                |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

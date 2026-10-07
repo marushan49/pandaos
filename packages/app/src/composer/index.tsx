@@ -2556,9 +2556,9 @@ const styles = StyleSheet.create((theme: Theme) => ({
     paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[2],
     backgroundColor: theme.colors.surface1,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.xl,
     borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.hairline,
     gap: theme.spacing[2],
   },
   queueText: {

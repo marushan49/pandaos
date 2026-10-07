@@ -271,6 +271,9 @@ export function buildLightSemanticColors(tint: LightThemeConfig) {
     surfaceSidebarSelected: tint.border,
     surfaceWorkspace: tint.surface0,
     interactionHighlight: "rgba(21, 20, 15, 0.05)",
+    hairline: "rgba(21, 20, 15, 0.08)",
+    surfaceSoft: "rgba(21, 20, 15, 0.04)",
+    surfaceHighlightTop: "rgba(255, 255, 255, 0.7)",
 
     foreground: tint.foreground,
     foregroundMuted: tint.foregroundMuted,
@@ -404,6 +407,9 @@ export function buildDarkSemanticColors(tint: DarkThemeConfig) {
     surfaceSidebarSelected: tint.surface2,
     surfaceWorkspace: tint.surface1,
     interactionHighlight: "rgba(255, 255, 255, 0.08)",
+    hairline: "rgba(255, 255, 255, 0.08)",
+    surfaceSoft: "rgba(255, 255, 255, 0.05)",
+    surfaceHighlightTop: "rgba(255, 255, 255, 0.05)",
 
     foreground,
     foregroundMuted: tint.foregroundMuted,
@@ -647,6 +653,23 @@ export const BORDER_RADIUS = {
   full: 9999,
 } as const;
 
+export const MOTION = {
+  duration: { fast: 180, disclosure: 280 },
+  easing: { out: [0.23, 1, 0.32, 1], drawer: [0.32, 0.72, 0, 1] },
+  cssEasing: { out: "cubic-bezier(0.23, 1, 0.32, 1)" },
+  pressScale: 0.97,
+} as const;
+
+export function webTransition(properties: readonly string[]) {
+  return Platform.OS === "web"
+    ? {
+        transitionProperty: properties.join(", "),
+        transitionDuration: `${MOTION.duration.fast}ms`,
+        transitionTimingFunction: MOTION.cssEasing.out,
+      }
+    : {};
+}
+
 export const BORDER_WIDTH = {
   0: 0,
   1: 1,
@@ -702,6 +725,7 @@ interface CommonTheme {
   borderRadius: typeof BORDER_RADIUS;
   borderWidth: typeof BORDER_WIDTH;
   opacity: typeof OPACITY;
+  motion: typeof MOTION;
 }
 
 const commonTheme: CommonTheme = {
@@ -719,6 +743,7 @@ const commonTheme: CommonTheme = {
   borderRadius: BORDER_RADIUS,
   borderWidth: BORDER_WIDTH,
   opacity: OPACITY,
+  motion: MOTION,
 };
 
 const darkShadow = {

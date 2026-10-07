@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native-unistyles";
-import { SPACING } from "@/styles/theme";
+import { MOTION, SPACING, webTransition } from "@/styles/theme";
 
 export const COMPOSER_PILL_CLEARANCE = {
   compact: SPACING[2],
@@ -35,11 +35,15 @@ export const composerPillStyles = StyleSheet.create((theme) => ({
     // clamping the radius and pulling the point where the curve meets the straight edge inward.
     borderRadius: theme.borderRadius["2xl"],
     borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.borderAccent,
+    borderColor: theme.colors.hairline,
     backgroundColor: theme.colors.surface1,
+    ...webTransition(["background-color", "transform"]),
   },
   bodyActive: {
     backgroundColor: theme.colors.surface2,
+  },
+  bodyPressed: {
+    transform: [{ scale: MOTION.pressScale }],
   },
   label: {
     fontSize: theme.fontSize.sm,
