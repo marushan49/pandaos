@@ -3,6 +3,7 @@ import {
   beginRemoteBrowserTabSync,
   syncRemoteBrowserTabs,
 } from "@/desktop/browser/remote-tab-sync";
+import { subscribeWorkspaceBrowserMirror } from "@/desktop/browser/mirror";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { JsonValue } from "@getpaseo/protocol/agent-types";
 import { getOpenAgentTabLabel } from "@getpaseo/protocol/agent-labels";
@@ -223,6 +224,9 @@ import { useWorkspaceCheckoutStatus } from "@/screens/workspace/use-workspace-ch
 import { useHasPullRequest, usePullRequestAutoAdd } from "@/panels/pull-request";
 
 const WORKSPACE_FLOATING_PANEL_PORTAL_HOST_PREFIX = "workspace-floating-panels";
+const REMOTE_TAB_POLL_MS = 1_000;
+const REMOTE_TAB_SAFETY_POLL_MS = 5_000;
+const REMOTE_TAB_PUSH_DEBOUNCE_MS = 150;
 const EMPTY_UI_TABS: WorkspaceTab[] = [];
 const EMPTY_WORKSPACE_SCRIPTS: WorkspaceDescriptor["scripts"] = [];
 const EMPTY_PINNED_AGENT_IDS = new Set<string>();
@@ -1661,6 +1665,7 @@ function WorkspaceScreenContent({
   useFinishedAgentTabsToFront({ serverId: normalizedServerId, workspaceKey: persistenceKey });
   const openTab = useWorkspaceLayoutStore((state) => state.openTab);
   const canOpenRemoteBrowserTabs = useHostFeature(normalizedServerId, "remoteBrowser");
+  const mirrorPushesTabChanges = useHostFeature(normalizedServerId, "browserMirror");
   useEffect(() => {
     if (
       !isRouteFocused ||
@@ -1694,12 +1699,25 @@ function WorkspaceScreenContent({
     };
 
     void syncRemoteTabs();
-    const interval = setInterval(() => void syncRemoteTabs(), 1_000);
+    const interval = setInterval(
+      () => void syncRemoteTabs(),
+      mirrorPushesTabChanges ? REMOTE_TAB_SAFETY_POLL_MS : REMOTE_TAB_POLL_MS,
+    );
+    let pushTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribeMirror = mirrorPushesTabChanges
+      ? subscribeWorkspaceBrowserMirror(normalizedServerId, normalizedWorkspaceId, () => {
+          if (pushTimer) clearTimeout(pushTimer);
+          pushTimer = setTimeout(() => void syncRemoteTabs(), REMOTE_TAB_PUSH_DEBOUNCE_MS);
+        })
+      : null;
     return () => {
       cancelled = true;
       clearInterval(interval);
+      if (pushTimer) clearTimeout(pushTimer);
+      unsubscribeMirror?.();
     };
   }, [
+    mirrorPushesTabChanges,
     canOpenRemoteBrowserTabs,
     client,
     isConnected,
