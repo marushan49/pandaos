@@ -1487,6 +1487,15 @@ export const ar: TranslationResources = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "بدء {{count}} محادثات",
+      confirmTitle: "هل تريد بدء {{count}} محادثات؟",
+      confirmMessage:
+        "يحصل كل نموذج من النماذج الـ {{count}} على محادثة وworktree خاصين به وينفّذ الطلب نفسه. تستهلك كل محادثة حصة نموذجها.",
+      failed: "تعذّر البدء: {{models}} ({{message}})",
+      promptRequired: "أدخل طلبًا لبدء عدة محادثات",
+      needsWorktree: "بدء عدة محادثات يتطلب git worktree",
+    },
     title: "مساحة عمل جديدة",
     create: "يخلق",
     isolation: {
@@ -1793,6 +1802,11 @@ export const ar: TranslationResources = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "حدّد عدة نماذج: يحصل كل نموذج على محادثته وworktree الخاصين به",
+      triggerLabel: "{{count}} نماذج",
+      toggle: "ابدأ محادثة أيضًا مع {{model}}",
+    },
     auto: "تلقائي",
     autoDescription: "يختار Jev حسب الحصة المتاحة · خلال ثانيتين",
     title: "حدد المزود",

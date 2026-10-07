@@ -1498,6 +1498,15 @@ export const ko: TranslationResources = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "채팅 {{count}}개 시작",
+      confirmTitle: "채팅 {{count}}개를 시작할까요?",
+      confirmMessage:
+        "{{count}}개 모델 각각에 별도의 채팅과 worktree가 만들어지고 같은 프롬프트가 실행됩니다. 각 채팅은 해당 모델의 사용량을 소모합니다.",
+      failed: "시작하지 못했습니다: {{models}} ({{message}})",
+      promptRequired: "여러 채팅을 시작하려면 프롬프트를 입력하세요",
+      needsWorktree: "여러 채팅을 시작하려면 git worktree가 필요합니다",
+    },
     title: "새 워크스페이스",
     create: "생성",
     isolation: {
@@ -1808,6 +1817,11 @@ export const ko: TranslationResources = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "여러 개를 선택하세요: 모델마다 별도의 채팅과 worktree가 만들어집니다",
+      triggerLabel: "모델 {{count}}개",
+      toggle: "{{model}}로도 채팅 시작",
+    },
     auto: "자동",
     autoDescription: "Jev가 사용 가능한 한도로 선택 · 최대 2초",
     title: "프로바이더 선택",

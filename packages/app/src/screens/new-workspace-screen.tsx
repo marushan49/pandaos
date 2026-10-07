@@ -7,6 +7,15 @@ import { SubmissionCancelledError } from "@/plugins/submission-decision";
 import type { PluginSubmissionTarget } from "@getpaseo/plugin/client";
 import { useExecutionMode, buildExecutionControls } from "@/plugins/use-execution-mode";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
+import { confirmDialog } from "@/utils/confirm-dialog";
+import { fanoutNeedsConfirmation, type FanoutModelRef } from "@/provider-selection/model-fanout";
+import { useModelFanout } from "@/screens/new-workspace/use-model-fanout";
+import {
+  createFanoutExtras,
+  planFanoutExtras,
+  type ConfiguredAgent,
+  type FanoutVariant,
+} from "@/screens/new-workspace/fanout";
 import type {
   CreateAgentRequestOptions,
   CreateWorkspaceRequestOptions,
@@ -799,6 +808,47 @@ interface WorkspaceCreationResult {
   agent?: AgentSnapshotPayload;
 }
 
+function requestsWorktreeIsolation(input: {
+  supportsMultiplicity: boolean;
+  isFanout: boolean;
+  isolation: "local" | "worktree";
+}): boolean {
+  return !input.supportsMultiplicity || input.isFanout || input.isolation === "worktree";
+}
+
+function assertVariantHasWorktree(
+  variant: FanoutVariant | undefined,
+  createsWorktree: boolean,
+  message: string,
+): void {
+  if (variant && !createsWorktree) throw new Error(message);
+}
+
+function resolveCreationKeys(
+  variant: FanoutVariant | undefined,
+  identity: { draftId: string; worktreeSlug: string },
+): FanoutVariant {
+  return variant ?? { idempotencyKey: identity.draftId, worktreeSlug: identity.worktreeSlug };
+}
+
+async function confirmFanoutStart(input: {
+  count: number;
+  payload: MessagePayload;
+  t: TFunction;
+}): Promise<boolean> {
+  const { count, payload, t } = input;
+  if (count > 1 && isEmptyWorkspaceSubmission(payload)) {
+    throw new Error(t("newWorkspace.fanout.promptRequired"));
+  }
+  if (!fanoutNeedsConfirmation(count)) return true;
+  return confirmDialog({
+    title: t("newWorkspace.fanout.confirmTitle", { count }),
+    message: t("newWorkspace.fanout.confirmMessage", { count }),
+    confirmLabel: t("newWorkspace.fanout.start", { count }),
+    cancelLabel: t("common.actions.cancel"),
+  });
+}
+
 async function resolveSubmissionProjectId(client: DaemonClient, target: PluginSubmissionTarget) {
   const { projects } = await client.listProjects();
   return projects.find(
@@ -876,7 +926,11 @@ interface CreateChatAgentInput {
     withInitialAgent: boolean;
     agent?: CreateWorkspaceRequestOptions["agent"];
     onEvent?: (snapshot: CreationSnapshot) => void;
+    variant?: FanoutVariant;
   }) => Promise<WorkspaceCreationResult>;
+  fanoutExtras?: readonly FanoutModelRef[];
+  worktreeSlug?: string;
+  onFanoutFailed?: (failed: Array<{ model: FanoutModelRef; error: Error }>) => void;
   serverId: string;
   draftKey: string;
   clearDraft: (lifecycle: "sent" | "abandoned") => void;
@@ -976,7 +1030,7 @@ async function createWorkspaceChatAgent(input: CreateChatAgentInput): Promise<Su
   const images = await encodeImages(wirePayload.images);
   let navigated = false;
   let outcome: SubmitOutcome = "background";
-  const initialAgent: NonNullable<CreateWorkspaceRequestOptions["agent"]> = {
+  const initialAgent: ConfiguredAgent = {
     config: {
       provider,
       cwd,
@@ -1049,6 +1103,26 @@ async function createWorkspaceChatAgent(input: CreateChatAgentInput): Promise<Su
       }),
   };
   await agentCreation.result;
+  if (input.fanoutExtras && input.fanoutExtras.length > 0) {
+    const { failed } = await createFanoutExtras(
+      planFanoutExtras({
+        base: initialAgent,
+        extras: input.fanoutExtras,
+        draftId: input.draftId ?? "",
+        worktreeSlug: input.worktreeSlug ?? "",
+      }),
+      (plan) =>
+        ensureWorkspace({
+          cwd,
+          prompt: text,
+          attachments: workspaceNamingAttachments,
+          withInitialAgent: true,
+          agent: plan.agent,
+          variant: plan.variant,
+        }),
+    );
+    if (failed.length > 0) input.onFanoutFailed?.(failed);
+  }
   if (outcome === "background") clearConsumedDraft();
   return outcome;
 }
@@ -1918,6 +1992,17 @@ export function NewWorkspaceScreen({
       supportsMultiplicity: supportsWorkspaceMultiplicity,
       worktreeSupport,
     });
+  const {
+    controls: modelFanout,
+    extras: fanoutExtras,
+    count: fanoutCount,
+    submitLabel: fanoutSubmitLabel,
+  } = useModelFanout({
+    serverId: selectedServerId,
+    canCreateWorktree,
+    blockedBy: [execution.executionId, forkDraftSetup],
+    composerState,
+  });
 
   const branchSuggestionsQuery = useQuery({
     queryKey: [
@@ -2130,8 +2215,9 @@ export function NewWorkspaceScreen({
       agent?: CreateWorkspaceRequestOptions["agent"];
       onEvent?: (snapshot: CreationSnapshot) => void;
       target?: PluginSubmissionTarget;
+      variant?: FanoutVariant;
     }) => {
-      if (creationResult.workspace) {
+      if (creationResult.workspace && !input.variant) {
         return creationResult;
       }
       const sourceDirectoryForCreate = input.target?.cwd ?? selectedSourceDirectory;
@@ -2143,9 +2229,11 @@ export function NewWorkspaceScreen({
         ? await resolveSubmissionProjectId(connectedClient, input.target)
         : resolveExecutionProjectId(selectedProject, selectedServerId);
       if (!projectIdForCreate) throw new Error("The selected project is unavailable on this host");
-      const requestsWorktree =
-        !supportsWorkspaceMultiplicity ||
-        (input.target?.isolation ?? effectiveIsolation) === "worktree";
+      const requestsWorktree = requestsWorktreeIsolation({
+        supportsMultiplicity: supportsWorkspaceMultiplicity,
+        isFanout: fanoutExtras.length > 0,
+        isolation: input.target?.isolation ?? effectiveIsolation,
+      });
       const checkoutStatusForCreate = requestsWorktree
         ? await ensureCheckoutStatus({
             queryClient,
@@ -2156,6 +2244,11 @@ export function NewWorkspaceScreen({
         : null;
       const targetIsGit = checkoutStatusForCreate?.isGit === true;
       const createsWorktree = requestsWorktree && (!input.target || targetIsGit);
+      assertVariantHasWorktree(
+        input.variant,
+        createsWorktree,
+        t("newWorkspace.fanout.needsWorktree"),
+      );
       const checkoutRequest =
         createsWorktree && checkoutStatusForCreate
           ? pickerItemToCheckoutRequest(
@@ -2164,8 +2257,7 @@ export function NewWorkspaceScreen({
             )
           : undefined;
       const normalizedWorkspace = await createMultiplicityWorkspace({
-        idempotencyKey: creationIdentity.draftId,
-        worktreeSlug: creationIdentity.worktreeSlug,
+        ...resolveCreationKeys(input.variant, creationIdentity),
         client: connectedClient,
         isolation: createsWorktree ? "worktree" : "local",
         projectId: projectIdForCreate,
@@ -2180,13 +2272,14 @@ export function NewWorkspaceScreen({
         serverId: selectedServerId,
         createFailedMessage: t("newWorkspace.errors.createWorktreeFailed"),
       });
-      setCreationResult(normalizedWorkspace);
+      if (!input.variant) setCreationResult(normalizedWorkspace);
       return normalizedWorkspace;
     },
     [
       creationIdentity,
       creationResult,
       effectiveIsolation,
+      fanoutExtras.length,
       mergeWorkspaces,
       queryClient,
       selectedItem,
@@ -2246,6 +2339,7 @@ export function NewWorkspaceScreen({
       submissionInFlight.current = true;
       try {
         setErrorMessage(null);
+        if (!(await confirmFanoutStart({ count: fanoutCount, payload, t }))) return;
         const resolvedTarget = await resolveSubmissionTarget(payload);
         const checkedPayload = resolvedTarget ? { ...payload, cwd: resolvedTarget.cwd } : payload;
         const checkedEnsureWorkspace: CreateChatAgentInput["ensureWorkspace"] = (request) =>
@@ -2308,6 +2402,15 @@ export function NewWorkspaceScreen({
           supportsForgeSearch,
           resolveClient: withConnectedClient,
           isStillOnCreateScreen,
+          fanoutExtras,
+          worktreeSlug: creationIdentity.worktreeSlug,
+          onFanoutFailed: (failed) =>
+            toast.error(
+              t("newWorkspace.fanout.failed", {
+                models: failed.map((entry) => entry.model.modelId).join(", "),
+                message: failed[0].error.message,
+              }),
+            ),
           labels: {
             composerStateRequired: t("newWorkspace.errors.composerStateRequired"),
             selectModel: t("newWorkspace.errors.selectModel"),
@@ -2332,6 +2435,8 @@ export function NewWorkspaceScreen({
     [
       composerState,
       execution,
+      fanoutCount,
+      fanoutExtras,
       selectedProject,
       draftContextScopeKey,
       creationIdentity,
@@ -2463,9 +2568,10 @@ export function NewWorkspaceScreen({
         ? {
             ...composerState.agentControls,
             disabled: isPending,
+            modelFanout,
           }
         : undefined,
-    [composerState, isPending],
+    [composerState, isPending, modelFanout],
   );
 
   const executionControls = useMemo(
@@ -2601,6 +2707,7 @@ export function NewWorkspaceScreen({
       agentControls={agentControlsWithDisabled}
       controlsContent={executionControls}
       placeholder={execution.placeholder}
+      submitLabel={fanoutSubmitLabel}
     />
   );
   return (

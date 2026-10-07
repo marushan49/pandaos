@@ -1505,6 +1505,15 @@ export const en = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "Start {{count}} chats",
+      confirmTitle: "Start {{count}} chats?",
+      confirmMessage:
+        "Each of the {{count}} models gets its own chat and worktree and runs the same prompt. Every chat uses its own model quota.",
+      failed: "Could not start: {{models}} ({{message}})",
+      promptRequired: "Enter a prompt to start several chats",
+      needsWorktree: "Starting several chats needs a git worktree",
+    },
     title: "New workspace",
     create: "Create",
     isolation: {
@@ -1828,6 +1837,11 @@ export const en = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "Tick several: each model gets its own chat and worktree",
+      triggerLabel: "{{count}} models",
+      toggle: "Also start a chat with {{model}}",
+    },
     auto: "Auto",
     autoDescription: "Jev chooses using available quota · up to 2 seconds",
     title: "Select provider",

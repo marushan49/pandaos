@@ -52,6 +52,7 @@ import {
   type ProviderSelectionModelRow,
   type ProviderSelectorProvider,
 } from "@/provider-selection/provider-selection";
+import type { ModelFanoutControls } from "@/provider-selection/model-fanout";
 import { useProviderSettingsStore } from "@/stores/provider-settings-store";
 import { useCurrentOverlayLayer } from "@/lib/overlay-root";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
@@ -61,6 +62,8 @@ import {
   resolveModelBrowserAllView,
   type ModelBrowserView,
 } from "@/components/model-browser-view";
+
+const ModelFanoutContext = createContext<ModelFanoutControls | null>(null);
 
 const DESKTOP_PROVIDER_VIEW_MIN_HEIGHT = 220;
 const DESKTOP_PROVIDER_VIEW_MAX_HEIGHT = 400;
@@ -155,6 +158,7 @@ interface ModelBrowserInput {
 
   profiles?: AgentProfilePicker | null;
   serverId?: string | null;
+  fanout?: ModelFanoutControls;
 }
 
 export interface ModelBrowserState {
@@ -182,6 +186,7 @@ interface ModelBrowserProps {
   onSelectAuto?: () => void;
   state: ModelBrowserState;
   onSelect: (provider: string, modelId: string) => void;
+  fanout?: ModelFanoutControls;
 
   onApplyProfile?: (profileId: string) => void;
   onEditProfiles?: () => void;
@@ -276,6 +281,7 @@ export function useModelBrowser({
   autoFocusSearch = isWeb,
   profiles = null,
   serverId = null,
+  fanout,
 }: ModelBrowserInput): ModelBrowserState {
   const { t } = useTranslation();
   const [view, setView] = useState<ModelBrowserView>({ kind: "all" });
@@ -395,11 +401,14 @@ export function useModelBrowser({
   );
 
   const triggerLabel = useMemo(() => {
+    if (fanout && fanout.count > 1) {
+      return t("modelSelector.fanout.triggerLabel", { count: fanout.count });
+    }
     const isPlaceholder =
       selectedModelLabel === t("modelSelector.loading") ||
       selectedModelLabel === t("modelSelector.selectModel");
     return isPlaceholder ? selectedModelLabel : buildSelectedTriggerLabel(selectedModelLabel);
-  }, [selectedModelLabel, t]);
+  }, [fanout, selectedModelLabel, t]);
 
   const desktopFixedHeight = useMemo(
     () => resolveDesktopFixedHeight(view, providers),
@@ -657,6 +666,48 @@ function ModelRowProfileAction({
   );
 }
 
+const accentForegroundMapping = (theme: Theme) => ({
+  color: theme.colors.accentForeground,
+});
+
+function ModelRowFanoutToggle({ row }: { row: ProviderSelectionModelRow }) {
+  const { t } = useTranslation();
+  const fanout = useContext(ModelFanoutContext);
+  const { provider, modelId, modelLabel } = row;
+  const checked = fanout?.isChecked(provider, modelId) ?? false;
+  const disabled = fanout?.isDisabled(provider, modelId, modelLabel) ?? true;
+  const accessibilityState = useMemo(() => ({ checked, disabled }), [checked, disabled]);
+  const handlePress = useCallback(
+    () => fanout?.onToggle(provider, modelId),
+    [fanout, modelId, provider],
+  );
+  const pressableStyle = useCallback(
+    ({ hovered, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
+      styles.rowIconButton,
+      Boolean(hovered) && !disabled && styles.rowIconButtonHovered,
+      pressed && !disabled && styles.rowIconButtonPressed,
+      disabled && styles.fanoutToggleDisabled,
+    ],
+    [disabled],
+  );
+  return (
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      hitSlop={8}
+      style={pressableStyle}
+      accessibilityRole="checkbox"
+      accessibilityState={accessibilityState}
+      accessibilityLabel={t("modelSelector.fanout.toggle", { model: modelLabel })}
+      testID={`model-fanout-${provider}-${modelId}`}
+    >
+      <View style={[styles.fanoutBox, checked && styles.fanoutBoxChecked]}>
+        {checked ? <ThemedCheck size={ICON_SIZE.xs} uniProps={accentForegroundMapping} /> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 function ModelRow({
   row,
   serverId,
@@ -679,6 +730,7 @@ function ModelRow({
   onEditProfiles?: () => void;
 }) {
   const { t } = useTranslation();
+  const hasFanout = useContext(ModelFanoutContext) !== null;
   const [isHovered, setIsHovered] = useState(false);
   const leadingSlot = useMemo(
     () => <ModelProviderGlyph provider={row.provider} serverId={serverId} size={ICON_SIZE.sm} />,
@@ -809,14 +861,23 @@ function ModelRow({
               ) : null}
             </View>
             {profileAction ? <View style={styles.rowIconButton} /> : null}
+            {hasFanout ? <View style={styles.rowIconButton} /> : null}
           </View>
         </View>
       </ModelBrowserPressable>
       {/* The row renders a <button> on web, so its profile action sits beside it,
           over the slot reserved above, rather than inside it. */}
       {profileAction ? (
-        <View style={styles.modelRowProfileActionSlot} pointerEvents="box-none">
+        <View
+          style={[styles.modelRowProfileActionSlot, hasFanout && styles.modelRowShiftedActionSlot]}
+          pointerEvents="box-none"
+        >
           {profileAction}
+        </View>
+      ) : null}
+      {hasFanout ? (
+        <View style={styles.modelRowProfileActionSlot} pointerEvents="box-none">
+          <ModelRowFanoutToggle row={row} />
         </View>
       ) : null}
     </View>
@@ -1505,6 +1566,7 @@ export function ModelBrowser({
   onSelectAuto,
   state,
   onSelect,
+  fanout,
   onApplyProfile,
   onEditProfiles,
   onCreateProfile,
@@ -1522,7 +1584,10 @@ export function ModelBrowser({
     [],
   );
   return (
-    <>
+    <ModelFanoutContext.Provider value={fanout ?? null}>
+      {fanout && state.view.kind === "provider" ? (
+        <Text style={styles.fanoutHint}>{t("modelSelector.fanout.hint")}</Text>
+      ) : null}
       {onSelectAuto ? (
         <ModelBrowserRow
           label={t("modelSelector.auto")}
@@ -1556,7 +1621,7 @@ export function ModelBrowser({
         rootBrowseContent={rootBrowseContent}
         showProfilesSection={showProfilesSection}
       />
-    </>
+    </ModelFanoutContext.Provider>
   );
 }
 
@@ -1609,6 +1674,31 @@ const styles = StyleSheet.create((theme) => ({
     bottom: 0,
     right: isWeb ? theme.spacing[3] : theme.spacing[6],
     justifyContent: "center",
+  },
+  modelRowShiftedActionSlot: {
+    marginRight: 24 + theme.spacing[1],
+  },
+  fanoutHint: {
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.foregroundMuted,
+  },
+  fanoutBox: {
+    width: 16,
+    height: 16,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.foregroundMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fanoutBoxChecked: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accent,
+  },
+  fanoutToggleDisabled: {
+    opacity: 0.35,
   },
   browserModelRow: isWeb ? {} : { marginBottom: theme.spacing[1] },
   browserRowHovered: {
