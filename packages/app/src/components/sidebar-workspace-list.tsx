@@ -2753,12 +2753,11 @@ const styles = StyleSheet.create((theme) => ({
     userSelect: "none",
   },
   workspaceRowCard: {
-    backgroundColor: theme.colors.surface1,
-    borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.xl,
+    paddingVertical: theme.spacing[2],
     paddingLeft: theme.spacing[3],
-    paddingRight: theme.spacing[4],
+    paddingRight: theme.spacing[2],
+    marginBottom: theme.spacing[0.5],
   },
   workspaceRowMain: {
     flexDirection: "row",
