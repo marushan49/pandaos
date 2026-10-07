@@ -576,7 +576,8 @@ Simple set of Expo push notification tokens. Loaded with permissive parsing (fil
   "revision": 4,
   "projectOrder": ["github.com/acme/repo", "[\"srv_a\",\"prj_1\"]"],
   "pinnedWorkspaceOrder": ["srv_a:wks_1"],
-  "workspaceOrderByProject": { "github.com/acme/repo": ["srv_a:wks_1", "srv_b:wks_9"] }
+  "workspaceOrderByProject": { "github.com/acme/repo": ["srv_a:wks_1", "srv_b:wks_9"] },
+  "snoozedWorkspaceUntil": { "srv_b:wks_9": 1791622800000 }
 }
 ```
 
@@ -587,6 +588,13 @@ revision 0 with empty lists. Every `sidebar.order.set.request` replaces the whol
 pushes `sidebar.order.changed` to every session subscribed to it. A corrupt file fails get and set
 instead of resetting the order. Gated on `server_info.features.sidebarOrder`; the app side is
 [Sidebar order](#sidebar-order).
+
+`snoozedWorkspaceUntil` maps a workspace key to the epoch-millisecond deadline until which the
+sidebar keeps it out of the main list. It travels with the order, so it shares the order's
+last-write-wins rule. A set request without the field keeps the stored deadlines, so an app that
+predates snoozing cannot wipe them. Expired entries are harmless and are pruned by the next app
+write. Gated separately on `server_info.features.sidebarSnooze`. "Done" is not stored here: it is
+the workspace's own `doneAt` in the workspace registry, set by `workspace.done.set.request`.
 
 ---
 
@@ -620,7 +628,8 @@ Right-sidebar client state splits on whether it is determined by the directory o
 **AsyncStorage key:** `sidebar-project-workspace-order` (version 1)
 
 `useSidebarOrderStore` holds `projectOrder`, `pinnedWorkspaceOrder`, `workspaceOrderByProject`,
-the device-local `workspacePromotedAt`, and `syncMark`. The three order fields are a cache of the
+`snoozedWorkspaceUntil`, the device-local `workspacePromotedAt`, and `syncMark`. The synced fields
+are a cache of the
 [daemon sidebar order](#7-sidebar-order) on one canonical host: the lexicographically smallest
 `serverId` among the known hosts whose `server_info` reports `sidebarOrder`.
 `packages/app/src/sidebar-order-sync/sync.ts` owns the protocol:
@@ -632,7 +641,11 @@ the device-local `workspacePromotedAt`, and `syncMark`. The three order fields a
   `syncMark` and nothing local is pending or in flight; the pending edit then wins.
 - `syncMark` stores the host, revision, and a fingerprint of the last synced order. Applying a
   host order sets the fingerprint first, so applying never triggers an upload and devices cannot
-  ping-pong.
+  ping-pong. The fingerprint covers `snoozedWorkspaceUntil`; a field missing from it never
+  uploads.
+- Snoozing is offered only when the canonical host also reports `sidebarSnooze`
+  (`useSidebarSnoozeEnabled`). An older canonical host drops the field, and the next applied
+  snapshot would silently clear the snooze.
 
 Workspace keys are `serverId:workspaceId` and project keys are the cross-host `projectKey` or
 `JSON.stringify([serverId, projectId])`, so they mean the same on every device. Two exceptions:
