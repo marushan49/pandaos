@@ -125,3 +125,25 @@ describe("workspace promotion after moving or unpinning", () => {
     );
   });
 });
+
+describe("workspace snooze deadlines", () => {
+  it("sets and clears a deadline, drops expired ones, and persists the rest", () => {
+    const now = Date.now();
+    useSidebarOrderStore.setState({
+      snoozedWorkspaceUntil: { "srv:expired": now - 1, "srv:later": now + 60_000 },
+    });
+    useSidebarOrderStore.getState().setWorkspaceSnooze("srv:new", now + 120_000);
+    expect(useSidebarOrderStore.getState().snoozedWorkspaceUntil).toEqual({
+      "srv:later": now + 60_000,
+      "srv:new": now + 120_000,
+    });
+
+    useSidebarOrderStore.getState().setWorkspaceSnooze("srv:later", null);
+    const state = useSidebarOrderStore.getState();
+    expect(state.snoozedWorkspaceUntil).toEqual({ "srv:new": now + 120_000 });
+    expect(useSidebarOrderStore.persist.getOptions().partialize?.(state)).toHaveProperty(
+      "snoozedWorkspaceUntil",
+      state.snoozedWorkspaceUntil,
+    );
+  });
+});

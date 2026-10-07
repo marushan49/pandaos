@@ -17,6 +17,8 @@ interface SidebarOrderStoreState {
   setPinnedWorkspaceOrder: (keys: string[]) => void;
   getWorkspaceOrder: (projectViewKey: string) => string[];
   setWorkspaceOrder: (projectViewKey: string, keys: string[]) => void;
+  snoozedWorkspaceUntil: Record<string, number>;
+  setWorkspaceSnooze: (workspaceKey: string, until: number | null) => void;
   syncMark: SidebarOrderSyncMark | null;
 }
 
@@ -27,6 +29,7 @@ interface SidebarOrderPersistedState {
   workspaceOrderByProject?: Record<string, string[]>;
   projectOrderByServerId?: Record<string, string[]>;
   workspaceOrderByServerAndProject?: Record<string, string[]>;
+  snoozedWorkspaceUntil?: Record<string, number>;
   syncMark?: SidebarOrderSyncMark | null;
 }
 
@@ -38,6 +41,7 @@ const SidebarOrderPersistedStateSchema = z.strictObject({
   workspaceOrderByProject: StringArrayRecordSchema.optional(),
   projectOrderByServerId: StringArrayRecordSchema.optional(),
   workspaceOrderByServerAndProject: StringArrayRecordSchema.optional(),
+  snoozedWorkspaceUntil: z.record(z.string(), z.number()).optional(),
   syncMark: z
     .object({ serverId: z.string(), revision: z.number().int(), fingerprint: z.string() })
     .nullable()
@@ -207,6 +211,19 @@ export const useSidebarOrderStore = create<SidebarOrderStoreState>()(
           },
         }));
       },
+      snoozedWorkspaceUntil: {},
+      setWorkspaceSnooze: (workspaceKey, until) => {
+        if (!workspaceKey.trim()) return;
+        set((state) => {
+          const now = Date.now();
+          const next: Record<string, number> = {};
+          for (const [key, deadline] of Object.entries(state.snoozedWorkspaceUntil)) {
+            if (key !== workspaceKey && deadline > now) next[key] = deadline;
+          }
+          if (until !== null) next[workspaceKey] = until;
+          return { snoozedWorkspaceUntil: next };
+        });
+      },
       syncMark: null,
     }),
     {
@@ -217,6 +234,7 @@ export const useSidebarOrderStore = create<SidebarOrderStoreState>()(
         projectOrder: state.projectOrder,
         pinnedWorkspaceOrder: state.pinnedWorkspaceOrder,
         workspaceOrderByProject: state.workspaceOrderByProject,
+        snoozedWorkspaceUntil: state.snoozedWorkspaceUntil,
         syncMark: state.syncMark,
       }),
       version: 1,

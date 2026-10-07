@@ -15,16 +15,19 @@ const EMPTY: SidebarOrder = {
   projectOrder: [],
   pinnedWorkspaceOrder: [],
   workspaceOrderByProject: {},
+  snoozedWorkspaceUntil: {},
 };
 const LOCAL: SidebarOrder = {
   projectOrder: ["p1", "p2"],
   pinnedWorkspaceOrder: ["srv_a:w1"],
   workspaceOrderByProject: { p1: ["srv_a:w1", "srv_a:w2"] },
+  snoozedWorkspaceUntil: {},
 };
 const REMOTE: SidebarOrder = {
   projectOrder: ["p2", "p1"],
   pinnedWorkspaceOrder: [],
   workspaceOrderByProject: { p1: ["srv_a:w2", "srv_a:w1"] },
+  snoozedWorkspaceUntil: { "srv_a:w2": 1_791_000_000_000 },
 };
 
 class FakeDaemon {
@@ -223,9 +226,34 @@ describe("sidebar order sync", () => {
     expect(selectSidebarOrderHost(["srv_a"], () => false)).toBeNull();
   });
 
+  test("a snooze on one device is uploaded and reaches the other", async () => {
+    const daemon = new FakeDaemon();
+    const mac = createStore();
+    const phone = createStore();
+    const stopMac = start(mac, daemon);
+    const stopPhone = start(phone, daemon);
+    await vi.runAllTimersAsync();
+
+    phone.setState({ snoozedWorkspaceUntil: { "srv_a:w1": 1_791_000_000_000 } });
+    await vi.runAllTimersAsync();
+
+    expect(daemon.sets).toEqual([
+      { ...EMPTY, snoozedWorkspaceUntil: { "srv_a:w1": 1_791_000_000_000 } },
+    ]);
+    expect(orderOf(mac).snoozedWorkspaceUntil).toEqual({ "srv_a:w1": 1_791_000_000_000 });
+    stopMac();
+    stopPhone();
+  });
+
   test("the fingerprint ignores project key order in the workspace map", () => {
     expect(
       fingerprintSidebarOrder({ ...EMPTY, workspaceOrderByProject: { a: ["1"], b: ["2"] } }),
     ).toBe(fingerprintSidebarOrder({ ...EMPTY, workspaceOrderByProject: { b: ["2"], a: ["1"] } }));
+    expect(fingerprintSidebarOrder({ ...EMPTY, snoozedWorkspaceUntil: { a: 1, b: 2 } })).toBe(
+      fingerprintSidebarOrder({ ...EMPTY, snoozedWorkspaceUntil: { b: 2, a: 1 } }),
+    );
+    expect(fingerprintSidebarOrder({ ...EMPTY, snoozedWorkspaceUntil: { a: 1 } })).not.toBe(
+      fingerprintSidebarOrder(EMPTY),
+    );
   });
 });

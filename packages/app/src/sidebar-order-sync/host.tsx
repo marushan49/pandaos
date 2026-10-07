@@ -51,6 +51,18 @@ function SidebarOrderSyncConnection({ serverId }: { serverId: string }) {
   return null;
 }
 
+export function useSidebarSnoozeEnabled(): boolean {
+  const hosts = useHosts();
+  const serverIds = useMemo(() => hosts.map((host) => host.serverId), [hosts]);
+  const orderByServerId = useHostFeatureMap(serverIds, "sidebarOrder");
+  const snoozeByServerId = useHostFeatureMap(serverIds, "sidebarSnooze");
+  const serverId = selectSidebarOrderHost(
+    serverIds,
+    (candidate) => orderByServerId.get(candidate) === true,
+  );
+  return serverId !== null && snoozeByServerId.get(serverId) === true;
+}
+
 export function SidebarOrderSyncHost() {
   const hosts = useHosts();
   const serverIds = useMemo(() => hosts.map((host) => host.serverId), [hosts]);
