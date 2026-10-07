@@ -1366,6 +1366,22 @@ export const ko: TranslationResources = {
       description: "워크스페이스를 보려면 사이드바 필터를 변경하거나 지우세요.",
       clear: "필터 지우기",
     },
+    setAside: {
+      done: "완료",
+      snooze: "내일 9:00까지 미루기",
+      undo: "실행 취소",
+      doneToast: "완료: {{name}}",
+      snoozedToast: "내일 9:00까지 미룸: {{name}}",
+      restored: "목록으로 복귀: {{name}}",
+      needsYou_one: "{{count}}개가 확인 필요",
+      needsYou_other: "{{count}}개가 확인 필요",
+      settled: "정리됨 ({{count}})",
+      needsYouEmpty: {
+        title: "지금 확인할 항목이 없습니다",
+        description: "실패한 에이전트나 열린 질문이 있는 워크스페이스가 여기에 표시됩니다.",
+        showAll: "모두 보기",
+      },
+    },
     pinned: {
       title: "고정됨",
     },

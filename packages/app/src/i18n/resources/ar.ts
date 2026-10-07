@@ -1355,6 +1355,22 @@ export const ar: TranslationResources = {
       description: "غيّر عوامل تصفية الشريط الجانبي أو امسحها لعرض مساحات العمل.",
       clear: "مسح عوامل التصفية",
     },
+    setAside: {
+      done: "منتهٍ",
+      snooze: "تأجيل حتى الغد 9:00",
+      undo: "تراجع",
+      doneToast: "منتهٍ: {{name}}",
+      snoozedToast: "مؤجل حتى الغد 9:00: {{name}}",
+      restored: "عاد إلى القائمة: {{name}}",
+      needsYou_one: "{{count}} بحاجة إليك",
+      needsYou_other: "{{count}} بحاجة إليك",
+      settled: "مستقرة ({{count}})",
+      needsYouEmpty: {
+        title: "لا شيء بحاجة إليك الآن",
+        description: "تظهر هنا مساحات العمل التي فشل فيها وكيل أو بها سؤال مفتوح.",
+        showAll: "عرض الكل",
+      },
+    },
     pinned: {
       title: "المثبتة",
     },

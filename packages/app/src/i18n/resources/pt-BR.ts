@@ -1386,6 +1386,22 @@ export const ptBR: TranslationResources = {
       description: "Altere ou limpe os filtros da barra lateral para ver espaços de trabalho.",
       clear: "Limpar filtros",
     },
+    setAside: {
+      done: "Concluído",
+      snooze: "Adiar até amanhã às 9:00",
+      undo: "Desfazer",
+      doneToast: "Concluído: {{name}}",
+      snoozedToast: "Adiado até amanhã às 9:00: {{name}}",
+      restored: "De volta à lista: {{name}}",
+      needsYou_one: "{{count}} precisa de você",
+      needsYou_other: "{{count}} precisam de você",
+      settled: "Resolvidos ({{count}})",
+      needsYouEmpty: {
+        title: "Nada precisa de você agora",
+        description: "Workspaces com um agente com falha ou uma pergunta aberta aparecem aqui.",
+        showAll: "Mostrar tudo",
+      },
+    },
     pinned: {
       title: "Fixados",
     },

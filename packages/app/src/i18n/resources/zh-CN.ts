@@ -1347,6 +1347,22 @@ export const zhCN: TranslationResources = {
       description: "更改或清除侧边栏筛选以查看工作区。",
       clear: "清除筛选",
     },
+    setAside: {
+      done: "完成",
+      snooze: "推迟到明天 9:00",
+      undo: "撤销",
+      doneToast: "已完成：{{name}}",
+      snoozedToast: "已推迟到明天 9:00：{{name}}",
+      restored: "已回到列表：{{name}}",
+      needsYou_one: "{{count}} 个需要你处理",
+      needsYou_other: "{{count}} 个需要你处理",
+      settled: "已处理 ({{count}})",
+      needsYouEmpty: {
+        title: "目前没有需要你处理的内容",
+        description: "有失败代理或待回答问题的工作区会显示在这里。",
+        showAll: "显示全部",
+      },
+    },
     pinned: {
       title: "已置顶",
     },

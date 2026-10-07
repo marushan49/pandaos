@@ -1373,6 +1373,22 @@ export const en = {
       description: "Change or clear the sidebar filters to see workspaces.",
       clear: "Clear filters",
     },
+    setAside: {
+      done: "Done",
+      snooze: "Snooze until tomorrow 9:00",
+      undo: "Undo",
+      doneToast: "Done: {{name}}",
+      snoozedToast: "Snoozed until tomorrow 9:00: {{name}}",
+      restored: "Back in the list: {{name}}",
+      needsYou_one: "{{count}} needs you",
+      needsYou_other: "{{count}} need you",
+      settled: "Settled ({{count}})",
+      needsYouEmpty: {
+        title: "Nothing needs you right now",
+        description: "Workspaces with a failed agent or an open question show up here.",
+        showAll: "Show all",
+      },
+    },
     pinned: {
       title: "Pinned",
     },

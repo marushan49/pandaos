@@ -1374,6 +1374,22 @@ export const ja: TranslationResources = {
         "ワークスペースを表示するにはサイドバーのフィルターを変更またはクリアしてください。",
       clear: "フィルターをクリア",
     },
+    setAside: {
+      done: "完了",
+      snooze: "明日 9:00 まで後回し",
+      undo: "元に戻す",
+      doneToast: "完了: {{name}}",
+      snoozedToast: "明日 9:00 まで後回し: {{name}}",
+      restored: "リストに戻しました: {{name}}",
+      needsYou_one: "{{count}} 件が対応待ち",
+      needsYou_other: "{{count}} 件が対応待ち",
+      settled: "片付け済み ({{count}})",
+      needsYouEmpty: {
+        title: "今対応が必要なものはありません",
+        description: "失敗したエージェントや未回答の質問があるワークスペースがここに表示されます。",
+        showAll: "すべて表示",
+      },
+    },
     pinned: {
       title: "固定済み",
     },
