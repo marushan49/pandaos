@@ -1,21 +1,21 @@
 import { callPluginRpc } from "@getpaseo/plugin/client/host";
 import type {
   PluginOpenNewWorkspaceOptions,
-  PluginOpenSurfaceOptions,
   PluginAgentCommandContext,
   PluginCommandCapabilities,
   PluginPanelLocation,
+  PluginScreenParams,
   PluginWorkspaceCommandContext,
 } from "@getpaseo/plugin/client";
 import type { PluginClientStateSource } from "@getpaseo/plugin/client/host";
 import { resolvePluginPanelOpenLocation } from "./workspace-panels/locations";
-import type { PluginSurfaceRuntime } from "./surface-runtime";
+import { parsePluginOpenScreenInput } from "./surface-contribution";
 import type { InstalledPlugin } from "./types";
 import { runInstalledSubmissionChecks } from "./submission-runtime";
 
 export interface PluginNavigation {
   openSettings(pluginId: string, screenId: string): void;
-  openSurface(pluginId: string, surfaceId: string, options?: PluginOpenSurfaceOptions): void;
+  openSurface(pluginId: string, surfaceId: string, params?: PluginScreenParams): void;
   openNewWorkspace(input: PluginOpenNewWorkspaceOptions): void;
   openWorkspacePanel(pluginId: string, panelId: string, location: PluginPanelLocation): void;
   openAgentPanel(
@@ -28,17 +28,20 @@ export interface PluginNavigation {
 
 export function createPluginCapabilities(
   plugin: InstalledPlugin,
-  runtime: PluginSurfaceRuntime,
   navigation: PluginNavigation,
 ): PluginCommandCapabilities {
+  function openScreen(input: unknown) {
+    const { screenId, params } = parsePluginOpenScreenInput(plugin, input);
+    navigation.openSurface(plugin.id, screenId, params);
+  }
   return {
-    paseo: runtime.paseo,
+    paseo: plugin.paseo,
     runSubmissionChecks: (input) =>
       runInstalledSubmissionChecks(plugin.serverId, input, {
         signal: plugin.lifetime.signal,
         caller: plugin,
       }),
-    rpc: (contract, input) => callPluginRpc(contract, runtime.invoke, input),
+    rpc: (contract, input) => callPluginRpc(contract, plugin.invoke, input),
     openSettings(screenId) {
       if (!plugin.settingsScreens.some((screen) => screen.id === screenId))
         throw new Error(`Plugin settings screen is unavailable: ${screenId}`);
@@ -47,30 +50,26 @@ export function createPluginCapabilities(
     openNewWorkspace(input) {
       navigation.openNewWorkspace({ ...input, executionId: `${plugin.id}:${input.executionId}` });
     },
-    openSurface(surfaceId, options) {
-      if (!plugin.surfaces.some((surface) => surface.id === surfaceId)) {
-        throw new Error(`Plugin surface is unavailable: ${surfaceId}`);
-      }
-      navigation.openSurface(plugin.id, surfaceId, options);
-    },
+    openScreen,
+    // COMPAT(pluginSidebarAliases): added in v0.11.0, remove after 2027-03-29
+    openSurface: (screenId, options) => openScreen({ screenId, params: options?.params }),
   };
 }
 
 export function createPluginAgentActionContext(input: {
   plugin: InstalledPlugin;
-  runtime: PluginSurfaceRuntime;
   navigation: PluginNavigation;
   state: PluginClientStateSource;
   workspaceId: string;
   agentId: string;
 }): PluginAgentCommandContext | null {
-  const { plugin, runtime, navigation, state, workspaceId, agentId } = input;
+  const { plugin, navigation, state, workspaceId, agentId } = input;
   const workspace = state.getWorkspace(workspaceId);
   const agent = state.getAgent(agentId);
   if (!workspace || !agent || agent.workspaceId !== workspace.id) return null;
   return {
     context: "agent",
-    ...createPluginCapabilities(plugin, runtime, navigation),
+    ...createPluginCapabilities(plugin, navigation),
     workspace,
     agent,
     openPanel(panelId, options) {
@@ -88,17 +87,16 @@ export function createPluginAgentActionContext(input: {
 
 export function createPluginWorkspaceActionContext(input: {
   plugin: InstalledPlugin;
-  runtime: PluginSurfaceRuntime;
   navigation: PluginNavigation;
   state: PluginClientStateSource;
   workspaceId: string;
 }): PluginWorkspaceCommandContext | null {
-  const { plugin, runtime, navigation, state, workspaceId } = input;
+  const { plugin, navigation, state, workspaceId } = input;
   const workspace = state.getWorkspace(workspaceId);
   if (!workspace) return null;
   return {
     context: "workspace",
-    ...createPluginCapabilities(plugin, runtime, navigation),
+    ...createPluginCapabilities(plugin, navigation),
     workspace,
     openPanel(panelId, options) {
       const panel = plugin.workspacePanels.find(

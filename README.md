@@ -13,9 +13,9 @@
   </a>
 </p>
 
-<p align="center">One interface for Claude Code, Codex, Copilot, OpenCode, and Pi agents, with a testing engine and Jev decisions built in.</p>
+<p align="center">One interface for Claude Code, Codex, Copilot, OpenCode, Pi, Antigravity, and Muse Code agents, with a testing engine and Jev decisions built in.</p>
 
-PandaOS is a fork of [Paseo](https://github.com/getpaseo/paseo). The CLI command is `pandaos`. Internal `@getpaseo/*` package names stay unchanged so merging upstream stays cheap. It tracks upstream releases (currently 0.10.0) and adds features that make agents cheaper to run and faster to verify. Everything upstream does still works the same way; the additions below are on top.
+PandaOS is a fork of [Paseo](https://github.com/getpaseo/paseo). The CLI command is `pandaos`. Internal `@getpaseo/*` package names stay unchanged so merging upstream stays cheap. It tracks upstream releases (currently 0.11.0) and adds features that make agents cheaper to run and faster to verify. Everything upstream does still works the same way; the additions below are on top.
 
 ## What PandaOS adds
 
@@ -62,6 +62,8 @@ packages/cli/bin/pandaos daemon run
 You need at least one agent CLI installed and signed in: [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), [GitHub Copilot](https://github.com/features/copilot/cli/), [OpenCode](https://github.com/anomalyco/opencode), or [Pi](https://pi.dev). To connect from your phone, open **Settings → your host → Pair Device**.
 
 Upstream's [docs](https://paseo.sh/docs), [connectivity guide](https://paseo.sh/docs/connectivity), and [configuration reference](https://paseo.sh/docs/configuration) apply to the fork as well.
+
+[Run parallel tasks in Paseo](https://paseo.sh/docs/parallel-development): start agents in separate worktrees, review their diffs, run each app, and check it in the built-in browser.
 
 ## Plugins
 

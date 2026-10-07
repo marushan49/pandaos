@@ -45,12 +45,9 @@ export function createPluginNavigation(input: {
         },
       });
     },
-    openSurface(pluginId, surfaceId, options) {
-      const route = buildPluginSurfaceRoute(serverId, pluginId, { kind: "surface", id: surfaceId });
+    openSurface(pluginId, surfaceId, params) {
       router.push(
-        options?.params
-          ? `${route}?pluginParams=${encodeURIComponent(JSON.stringify(options.params))}`
-          : route,
+        buildPluginSurfaceRoute(serverId, pluginId, { kind: "surface", id: surfaceId }, params),
       );
     },
     openWorkspacePanel(pluginId, panelId, location) {

@@ -18,6 +18,7 @@ import type { PersistedWorkspaceRecord } from "../../workspace-registry.js";
 export const lifecycleEventNames = [
   "agent.created",
   "agent.user_message_accepted",
+  "agent.closed",
   "agent.turn_started",
   "agent.turn_ended",
   "agent.permission_requested",

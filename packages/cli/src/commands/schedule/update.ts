@@ -24,10 +24,8 @@ export interface ScheduleUpdateOptions extends ScheduleCommandOptions {
   mode?: string;
   cwd?: string;
   reuseSession?: boolean;
-  maxRuns?: string;
-  noMaxRuns?: boolean;
-  expiresIn?: string;
-  noExpiresIn?: boolean;
+  maxRuns?: string | false;
+  expiresIn?: string | false;
 }
 
 export async function runUpdateCommand(
@@ -47,10 +45,10 @@ export async function runUpdateCommand(
     mode: options.mode,
     cwd: options.cwd,
     reuseSession: options.reuseSession,
-    maxRuns: options.maxRuns,
-    expiresIn: options.expiresIn,
-    clearMaxRuns: options.noMaxRuns,
-    clearExpires: options.noExpiresIn,
+    maxRuns: options.maxRuns === false ? undefined : options.maxRuns,
+    expiresIn: options.expiresIn === false ? undefined : options.expiresIn,
+    clearMaxRuns: options.maxRuns === false,
+    clearExpires: options.expiresIn === false,
   });
   const { client } = await connectScheduleClient(options.daemonTarget);
   try {

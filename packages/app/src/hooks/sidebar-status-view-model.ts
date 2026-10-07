@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { STATUS_BUCKET_ORDER } from "@/utils/sidebar-agent-state";
 import type { SidebarWorkspaceEntry } from "@/hooks/sidebar-workspaces-view-model";
 
@@ -5,22 +6,17 @@ export type StatusBucket = SidebarWorkspaceEntry["statusBucket"];
 
 export { STATUS_BUCKET_ORDER };
 
-export const STATUS_BUCKET_LABELS: Record<StatusBucket, string> = {
-  needs_input: "Needs input",
-  failed: "Failed",
-  attention: "Ready to review",
-  running: "Working",
-  done: "Waiting",
-};
-
-/** Translation keys for the labels above; the sidebar renders these. */
 export const STATUS_BUCKET_LABEL_KEYS = {
-  needs_input: "sidebar.status.needsInput",
-  failed: "sidebar.status.failed",
-  attention: "sidebar.status.attention",
-  running: "sidebar.status.running",
+  needs_input: "sidebar.statusBucket.needsInput",
+  failed: "sidebar.statusBucket.failed",
+  attention: "sidebar.statusBucket.readyToReview",
+  running: "sidebar.statusBucket.working",
   done: "sidebar.status.done",
 } as const satisfies Record<StatusBucket, string>;
+
+export function getStatusBucketLabel(bucket: StatusBucket, t: TFunction): string {
+  return t(STATUS_BUCKET_LABEL_KEYS[bucket]);
+}
 
 export interface StatusGroup {
   bucket: StatusBucket;
@@ -31,6 +27,7 @@ export interface StatusGroup {
 export function buildStatusGroups(
   workspaces: SidebarWorkspaceEntry[],
   projectNamesByViewKey: Map<string, string>,
+  t: TFunction,
   workspacePromotedAt: Readonly<Record<string, number>> = {},
 ): StatusGroup[] {
   const bucketRows = new Map<StatusBucket, SidebarWorkspaceEntry[]>();
@@ -52,7 +49,7 @@ export function buildStatusGroups(
     if (!rows || rows.length === 0) continue;
 
     rows.sort((a, b) => compareStatusRows(a, b, projectNamesByViewKey, workspacePromotedAt));
-    groups.push({ bucket, label: STATUS_BUCKET_LABELS[bucket], rows });
+    groups.push({ bucket, label: getStatusBucketLabel(bucket, t), rows });
   }
 
   return groups;

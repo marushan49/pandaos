@@ -19,6 +19,9 @@ import { PluginCatalogSync } from "@/plugins/catalog-sync";
 
 void testI18n;
 
+const audio = vi.hoisted(() => ({ play: async () => 0 }));
+vi.mock("@/contexts/voice-context", () => ({ useVoiceAudioEngineOptional: () => audio }));
+
 vi.mock("@/plugins/client-runtime", () => ({
   createPluginClientRuntime: () => ({
     paseo: { dispose: async () => {} },

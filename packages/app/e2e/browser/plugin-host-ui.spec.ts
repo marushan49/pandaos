@@ -47,9 +47,18 @@ function ModalBody({ onSaved }) {
   </View>;
 }
 
-function Surface() {
+function Surface({ playAudio }) {
+  const [audioStatus, setAudioStatus] = useState("Audio ready");
+  async function play(base64) {
+    setAudioStatus("Playing audio");
+    try { await playAudio({ base64, mimeType: "audio/wav" }); setAudioStatus("Audio finished"); }
+    catch { setAudioStatus("Audio rejected"); }
+  }
   const [open, setOpen] = useState(false);
   return <View>
+    <Text>{audioStatus}</Text>
+    <Pressable accessibilityRole="button" onPress={() => play(AUDIO_BASE64)}><Text>Play plugin audio</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={() => play("UklGRg==")}><Text>Play invalid audio</Text></Pressable>
     <Pressable accessibilityRole="button" onPress={() => setOpen(true)}>
       <View style={{ flexDirection: "row" }}>
         <Icon name="Pencil" size={18} />
@@ -70,7 +79,7 @@ function Surface() {
 }
 
 export default function contribute(plugin) {
-  plugin.addSurface("main", Surface);
+  plugin.addSurface("main", () => <Surface playAudio={plugin.playAudio} />);
   plugin.addSidebarItem({
     id: "main",
     title: "Host UI",
@@ -134,13 +143,23 @@ test("plugin modal adapts its presentation and preserves host contexts", async (
     path.join(directory, "paseo-plugin.json"),
     JSON.stringify({ id: PLUGIN_ID, requirements: pluginRequirements }),
   );
-  await writeFile(path.join(directory, "index.client.tsx"), PLUGIN_SOURCE);
+  const audio = await readFile(path.resolve(__dirname, "../../assets/audio/thinking-tone.wav"));
+  await writeFile(
+    path.join(directory, "index.client.tsx"),
+    `const AUDIO_BASE64 = ${JSON.stringify(audio.toString("base64"))};\n${PLUGIN_SOURCE}`,
+  );
 
   try {
     await client.patchDaemonConfig({ pluginsEnabled: true });
     await client.installDirectoryPlugin(directory);
     await useNonCompactLayout(page);
     await openHostUiPlugin(page);
+
+    await test.step("plugin audio finishes, rejects corrupt files, and recovers", async () => {
+      await playPluginAudio(page, "Play plugin audio", "Audio finished");
+      await playPluginAudio(page, "Play invalid audio", "Audio rejected");
+      await playPluginAudio(page, "Play plugin audio", "Audio finished");
+    });
 
     await test.step("non-compact layouts use a centered dialog", async () => {
       await openPluginModal(page);
@@ -429,4 +448,9 @@ for (const compact of [false, true]) {
       await rm(parent, { recursive: true, force: true });
     }
   });
+}
+
+async function playPluginAudio(page: Page, button: string, result: string) {
+  await page.getByRole("button", { name: button, exact: true }).click();
+  await expect(page.getByText(result, { exact: true })).toBeVisible();
 }

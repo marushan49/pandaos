@@ -1,8 +1,8 @@
 import { PluginClientStateProvider } from "@getpaseo/plugin/client/host";
-import type { PluginHostProps, PluginTimelineItemProps } from "@getpaseo/plugin/client";
+import type { PluginTimelineItemProps } from "@getpaseo/plugin/client";
 import type { PluginTheme } from "@getpaseo/plugin";
 import React, { type ComponentType, useMemo } from "react";
-import { Platform, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { useHostRuntimeClient, useHosts } from "@/runtime/host-runtime";
@@ -12,17 +12,12 @@ import { createPluginClientStateSource } from "../client-state/source";
 import { ToolCallOriginIndicator } from "@/tool-calls/origin-indicator";
 import { createPluginOrigin } from "@/tool-calls/origin";
 import { useInstalledPlugin } from "../registry";
-import { PluginRuntimeBoundary } from "../runtime-boundary";
+import { PluginInstallationProvider } from "../installation-provider";
 import { SurfaceErrorBoundary } from "../surface-error-boundary";
 import { toPluginTheme } from "../theme";
+import { resolvePluginPlatform } from "../platform";
 
 const pluginThemeMapping = (theme: Theme) => ({ theme: toPluginTheme(theme) });
-
-function resolvePlatform(): PluginHostProps["layout"]["platform"] {
-  if (Platform.OS === "ios") return "ios";
-  if (Platform.OS === "android") return "android";
-  return "web";
-}
 
 function TimelineItemUnavailable() {
   return <Text style={styles.unavailable}>Plugin timeline item unavailable.</Text>;
@@ -65,7 +60,7 @@ function PluginTimelineItemBody({
   const hosts = useHosts();
   const hostLabel = hosts.find((host) => host.serverId === serverId)?.label ?? serverId;
   const host = useMemo(() => ({ id: serverId, label: hostLabel }), [hostLabel, serverId]);
-  const layout = useMemo(() => ({ compact, platform: resolvePlatform() }), [compact]);
+  const layout = useMemo(() => ({ compact, platform: resolvePluginPlatform() }), [compact]);
   const stateSource = useMemo(() => createPluginClientStateSource(serverId), [serverId]);
   const origin = useMemo(() => createPluginOrigin(item.pluginId), [item.pluginId]);
 
@@ -96,11 +91,11 @@ function PluginTimelineItemBody({
     <View style={styles.container}>
       <ToolCallOriginIndicator origins={[origin]} />
       <SurfaceErrorBoundary installation={plugin} resetKey={item.data} Surface={Component}>
-        <PluginRuntimeBoundary plugin={plugin} client={client}>
+        <PluginInstallationProvider plugin={plugin}>
           <PluginClientStateProvider source={stateSource}>
             <Component {...props} />
           </PluginClientStateProvider>
-        </PluginRuntimeBoundary>
+        </PluginInstallationProvider>
       </SurfaceErrorBoundary>
     </View>
   );

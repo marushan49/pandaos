@@ -1,3 +1,4 @@
+import type { PaseoApi } from "@getpaseo/client";
 import type { QueryClient } from "@tanstack/react-query";
 import type { PluginRequirements } from "@getpaseo/protocol/messages";
 import type {
@@ -12,13 +13,16 @@ import type {
   PluginClientSlashCommandContribution,
   PluginComposerPillContribution,
   PluginSidebarContribution,
-  PluginSurfaceContribution,
+  PluginSidebarItemContribution,
+  PluginScreenContribution,
   PluginSettingsScreenContribution,
   PluginTimelineRendererContribution,
   PluginTimelineTransformerContribution,
   PluginPanelLocation,
   PluginWorkspacePanelContribution,
 } from "@getpaseo/plugin/client";
+
+export type PluginSidebarSection = "header" | "footer";
 
 export type EvaluatedPluginWorkspacePanelContribution = PluginWorkspacePanelContribution & {
   locations: readonly PluginPanelLocation[];
@@ -29,9 +33,12 @@ export interface EvaluatedPlugin {
   cleanup: PluginCleanup;
   submissionChecks?: PluginSubmissionCheckContribution[];
   executionModes: PluginExecutionModeContribution[];
-  surfaces: PluginSurfaceContribution[];
+  surfaces: PluginScreenContribution[];
   settingsScreens: PluginSettingsScreenContribution[];
-  sidebarItems: PluginSidebarContribution[];
+  sidebarItems: Record<PluginSidebarSection, PluginSidebarItemContribution[]>;
+  // COMPAT(pluginSidebarAliases): added in v0.11.0, remove after 2027-03-29
+
+  legacySidebarItems: PluginSidebarContribution[];
   workspacePanels: EvaluatedPluginWorkspacePanelContribution[];
   commandCenterItems: PluginCommandCenterItemContribution[];
   clientSlashCommands: PluginClientSlashCommandContribution[];
@@ -43,6 +50,10 @@ export interface EvaluatedPlugin {
 
 export interface InstalledPlugin extends EvaluatedPlugin {
   lifetime: AbortController;
+
+  paseo: PaseoApi;
+
+  invoke(method: string, input: unknown): Promise<unknown>;
   serverId: string;
   requirements?: PluginRequirements;
   clientBundle: string;
@@ -55,7 +66,8 @@ export type {
   PluginClientSlashCommandContribution,
   PluginComposerPillContribution,
   PluginSidebarContribution,
-  PluginSurfaceContribution,
+  PluginSidebarItemContribution,
+  PluginScreenContribution,
   PluginSettingsScreenContribution,
   PluginThemeContribution,
   PluginTimelineRendererContribution,

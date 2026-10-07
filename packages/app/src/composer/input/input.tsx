@@ -109,18 +109,13 @@ export interface MessageInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSubmit: (payload: MessagePayload) => void;
-  /** When true, the submit button is enabled even without text or images (e.g. external attachment selected). */
   hasExternalContent?: boolean;
-  /** When true, the submit button stays visible and can submit even with no content. */
   allowEmptySubmit?: boolean;
-  /** Optional accessibility label for the primary submit button. */
   submitButtonAccessibilityLabel?: string;
-  /** Optional testID for the primary submit button. */
   submitButtonTestID?: string;
   submitIcon?: "arrow" | "return";
   isSubmitDisabled?: boolean;
   isSubmitLoading?: boolean;
-  /** When true, keep the grown input height after submit (text is preserved, not cleared). */
   preserveHeightOnSubmit?: boolean;
   attachments: ComposerAttachment[];
   cwd: string;
@@ -129,50 +124,31 @@ export interface MessageInputProps {
   onAddImages?: (images: ImageAttachment[]) => void;
   onPasteImages?: (files: readonly NativePastedFile[]) => void;
   client: DaemonClient | null;
-  /** Dictation start gate from host runtime (socket connected + directory ready). */
   isReadyForDictation?: boolean;
   placeholder?: string;
   autoFocus?: boolean;
   autoFocusKey?: string;
   disabled?: boolean;
-  /** Content to render on the left side of the composer toolbar (e.g., AgentControls) */
   leftContent?: React.ReactNode;
-  /** Content to render on the right side before the voice button (e.g., context window meter) */
   beforeVoiceContent?: React.ReactNode;
-  /** Auxiliary content to render on the right side after the voice button. */
   rightContent?: React.ReactNode;
-  /** Primary action to render when the agent is active and the composer has no sendable content. */
   activeActionContent?: React.ReactNode;
   voiceServerId?: string;
   voiceAgentId?: string;
-  /** When true and there's sendable content, calls onQueue instead of onSubmit */
   isAgentRunning?: boolean;
-  /** Controls what the default send action (Enter, send button, dictation) does when the agent is
-   *  running. "interrupt" and "steer" send immediately, "queue" queues. Required so the default
-   *  lives only in DEFAULT_CLIENT_SETTINGS. */
   defaultSendBehavior: "interrupt" | "steer" | "queue";
-  /** Callback for queue button when agent is running */
   onQueue?: (payload: MessagePayload) => void;
-  /** Optional handler used when submit button is in loading state. */
   onSubmitLoadingPress?: () => void;
-  /** Intercept key press events before default handling. Return true to prevent default. */
   onKeyPress?: (event: ComposerKeyPressEvent) => boolean;
-  /** Reports cursor selection updates from the underlying input. */
   onSelectionChange?: (selection: { start: number; end: number }) => void;
   onFocusChange?: (focused: boolean) => void;
   onInputActivity?: (kind: "focus" | "typing") => void;
   onHeightChange?: (height: number) => void;
-  /** Extra styles merged onto the input wrapper (e.g. elevated background). */
   inputWrapperStyle?: import("react-native").ViewStyle;
-  /** Content rendered inside the bordered input surface, above the text input (e.g. attachment pills). */
   attachmentSlot?: React.ReactNode;
-  /** What this composer is for. See `@/composer/input-mode` for what each mode implies. */
   inputMode?: ComposerInputMode;
-  /** Renders `value` as static text on the same surface, for content there is nothing to type into. */
   readOnly?: boolean;
-  /** Command issued when application state must replace native-owned text. */
   textReplacement: TextReplacement;
-  /** Replaces the submit icon with this label, still inside the composer's own toolbar row. */
   submitLabel?: string;
 }
 
@@ -183,10 +159,6 @@ export interface MessageInputRef {
   getInputSnapshot: () => ComposerInputSnapshot;
   replaceText: (text: string, selection?: { start: number; end: number }) => void;
   runKeyboardAction: (action: MessageInputKeyboardActionKind) => boolean;
-  /**
-   * Web-only: return the underlying DOM element for focus assertions/retries.
-   * May return null if not mounted or on native.
-   */
   getNativeElement?: () => HTMLElement | null;
 }
 
@@ -200,7 +172,6 @@ type WebTextInputKeyPressEvent = NativeSyntheticEvent<
     metaKey?: boolean;
     ctrlKey?: boolean;
     shiftKey?: boolean;
-    // Web-only: present on DOM KeyboardEvent during IME composition (CJK input).
     isComposing?: boolean;
     keyCode?: number;
   }
@@ -650,11 +621,6 @@ interface ComposerTextSurfaceProps {
   focusHintLabel: string;
 }
 
-/**
- * The composer's content: an editable input, or static text when there is
- * nothing to type. Both sit in the same bordered surface, so read-only is a
- * state of this composer rather than a second one.
- */
 function ComposerTextSurface(props: ComposerTextSurfaceProps): React.ReactElement {
   if (props.readOnly) {
     return (
@@ -936,8 +902,6 @@ function sendMessageImpl(ctx: SendMessageContext): void {
     cwd: ctx.cwd,
     forceSend: ctx.isAgentRunning || undefined,
   });
-  // When the host preserves and locks the composer (e.g. new-workspace creation),
-  // the text stays put — collapsing the height would clip it. Keep it grown.
   if (!ctx.preserveHeightOnSubmit) {
     ctx.onMinimizeHeight();
   }
@@ -1204,8 +1168,6 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
     const dictationToggleKeys = useShortcutKeys("dictation-toggle");
     const focusInputKeys = useShortcutKeys("focus-message-input");
     const [isInputFocused, setIsInputFocused] = useState(false);
-    // Web text is DOM-owned between deferred draft publications. The action button only needs
-    // this boundary, so publish empty/non-empty transitions without rerendering for every key.
     const initialHasLiveText = value.trim().length > 0;
     const [hasLiveText, setHasLiveText] = useState(initialHasLiveText);
     const hasLiveTextRef = useRef(initialHasLiveText);
@@ -1740,17 +1702,10 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       ],
       [inputWrapperStyle, readOnly, surfacePresentation.input.opacity],
     );
-    // `withUnistyles` maps this component's `style` into a `.hash > *` child
-    // rule, which ties on specificity with react-native-web's own
-    // `.css-textinput-*` class and loses on source order — so a themed
-    // `fontFamily` here is silently dropped while every other property lands.
-    // An inline style outranks both classes. See docs/unistyles.md.
     const textInputStyle = useMemo(
       () => [styles.textInput, mode.isMonospace && styles.textInputMonospace, composerHeightStyle],
       [composerHeightStyle, mode.isMonospace],
     );
-    // Static content has no textarea to mirror, so it grows with its own text
-    // instead of the measured input height.
     const readOnlyTextStyle = useMemo(
       () => [styles.textInput, mode.isMonospace && styles.textInputMonospace, styles.readOnlyText],
       [mode.isMonospace],
@@ -1803,14 +1758,14 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
           autoFocusKey={autoFocusKey}
           textInputRef={textInputRef}
         />
-        {/* Regular input */}
+
         <View
           ref={inputWrapperRef}
           style={inputWrapperCombinedStyle}
           pointerEvents={surfacePresentation.input.pointerEvents}
         >
           {attachmentSlot}
-          {/* Text input */}
+
           <RenderProfile id="ComposerTextSurface">
             <ComposerTextSurface
               readOnly={readOnly}
@@ -1839,9 +1794,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
             />
           </RenderProfile>
 
-          {/* Button row */}
           <View style={styles.buttonRow}>
-            {/* Toolbar left: attachment button + agent controls */}
             <View style={styles.leftButtonGroup}>
               <AttachmentDropdown
                 visible={mode.showAttachments}
@@ -1855,7 +1808,6 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
               {leftContent}
             </View>
 
-            {/* Right: voice button, contextual button (realtime/send/cancel) */}
             <View style={styles.rightButtonGroup}>
               {beforeVoiceContent}
               <VoiceButtonTooltip
@@ -1936,9 +1888,13 @@ const styles = StyleSheet.create((theme: Theme) => ({
     borderWidth: theme.borderWidth[1],
     borderColor: theme.colors.borderAccent,
     borderRadius: theme.borderRadius["2xl"],
-    paddingVertical: {
-      xs: theme.spacing[3],
+    paddingTop: {
+      xs: theme.spacing[2],
       md: theme.spacing[4],
+    },
+    paddingBottom: {
+      xs: theme.spacing[2],
+      md: theme.spacing[3],
     },
     paddingHorizontal: {
       xs: theme.spacing[3],
@@ -1952,8 +1908,6 @@ const styles = StyleSheet.create((theme: Theme) => ({
         }
       : {}),
   },
-  // Dotted says "this surface is the same box, but there is nothing to type
-  // into it" without swapping the border colour, which reads as an error state.
   inputWrapperReadOnly: {
     borderStyle: "dotted",
   },
@@ -1970,16 +1924,11 @@ const styles = StyleSheet.create((theme: Theme) => ({
     opacity: 0.5,
   },
   textInput: {
-    // Preserve the controls when an ancestor constrains an overlong draft.
     flexShrink: 1,
     width: "100%",
     color: theme.colors.foreground,
     fontSize: theme.fontSize.content,
     fontWeight: theme.fontWeight.normal,
-    // No lineHeight on native. React Native applies it as a span over the text, and an
-    // empty trailing line is laid out from the font's own metrics on some devices, so
-    // the input jumps when the first character lands on a new line. The font's natural
-    // line box is the same for every line. Web keeps the CSS value.
     ...(isWeb
       ? ({
           lineHeight: theme.fontSize.content * 1.4,

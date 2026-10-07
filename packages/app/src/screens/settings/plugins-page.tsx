@@ -1,3 +1,4 @@
+import { useVoiceAudioEngineOptional } from "@/contexts/voice-context";
 import { formatPluginInstallation } from "@getpaseo/protocol/plugin-source-reference";
 import { PluginSettingsMenuItems } from "@/plugins/settings";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -266,6 +267,7 @@ function PluginLogsSheet({
 }
 
 export function HostPluginsPage({ serverId }: { serverId: string }) {
+  const audio = useVoiceAudioEngineOptional();
   const { t } = useTranslation();
   const client = useHostRuntimeClient(serverId);
   const connected = useHostRuntimeIsConnected(serverId);
@@ -349,7 +351,7 @@ export function HostPluginsPage({ serverId }: { serverId: string }) {
     onError: (error) => setFeedback({ kind: "error", message: errorMessage(error) }),
   });
   const install = useCallback(() => {
-    if (!client || !sourceInstallSupported || !installState.canSubmit) return;
+    if (!client || !audio || !sourceInstallSupported || !installState.canSubmit) return;
     const input = installForm.getSubmission();
     setFeedback(null);
     mutation.mutate({
@@ -361,17 +363,26 @@ export function HostPluginsPage({ serverId }: { serverId: string }) {
         }
         await waitForPluginCatalog(client);
         const catalog = await client.getPluginCatalog();
-        pluginRegistry.installCatalog(serverId, catalog, { client });
+        pluginRegistry.installCatalog(serverId, catalog, { client, audio });
         const clientError = pluginRegistry.getEvaluationError(serverId, installed.id);
         if (clientError) throw new Error(clientError);
         installForm.reset();
         return t("settings.plugins.feedback.installed", { id: installed.id });
       },
     });
-  }, [client, installForm, installState.canSubmit, mutation, serverId, sourceInstallSupported, t]);
+  }, [
+    audio,
+    client,
+    installForm,
+    installState.canSubmit,
+    mutation,
+    serverId,
+    sourceInstallSupported,
+    t,
+  ]);
   const action = useCallback(
     (name: PluginRowAction, plugin: PluginListItem) => {
-      if (!client) return;
+      if (!client || !audio) return;
       const run = async () => {
         if (name === "remove") {
           const confirmed = await confirmDialog({
@@ -390,7 +401,7 @@ export function HostPluginsPage({ serverId }: { serverId: string }) {
           if (name === "reload" || name === "enable") {
             await waitForPluginCatalog(client);
             const catalog = await client.getPluginCatalog();
-            pluginRegistry.installCatalog(serverId, catalog, { client });
+            pluginRegistry.installCatalog(serverId, catalog, { client, audio });
             const clientError = pluginRegistry.getEvaluationError(serverId, plugin.id);
             if (clientError) throw new Error(clientError);
           }
@@ -400,7 +411,7 @@ export function HostPluginsPage({ serverId }: { serverId: string }) {
       setFeedback(null);
       mutation.mutate({ action: name, pluginId: plugin.id, run });
     },
-    [client, mutation, serverId, t],
+    [audio, client, mutation, serverId, t],
   );
   const toggleGlobal = useCallback(
     (enabled: boolean) => {

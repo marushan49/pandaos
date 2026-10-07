@@ -10,24 +10,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getProviderIcon } from "@/components/provider-icons";
+import { useProviderIcon } from "@/components/provider-icons";
 import { isNative } from "@/constants/platform";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { settingsStyles } from "@/styles/settings";
 import type { Theme } from "@/styles/theme";
 import type { ScheduleDerivedState } from "@/schedules/schedule-derivation";
-import { formatScheduleLastRun } from "@/schedules/schedule-derivation";
 import {
   formatCadence,
   formatNextRun,
   resolveScheduleTitle,
   scheduleProductName,
 } from "@/utils/schedule-format";
-import { formatTimeAgo } from "@/utils/time";
+import { useTimeAgo } from "@/hooks/use-time-ago";
 import type { ScheduleSummary } from "@getpaseo/protocol/schedule/types";
 
-// Themed lucide wrappers — module-scope so only the icon re-renders on theme
-// change (never call useUnistyles in render). See docs/unistyles.md.
 const ThemedPencil = withUnistyles(Pencil);
 const ThemedPause = withUnistyles(Pause);
 const ThemedPlay = withUnistyles(Play);
@@ -42,8 +39,6 @@ const destructiveColorMapping = (theme: Theme) => ({ color: theme.colors.destruc
 const MENU_ICON_SIZE = 14;
 const PROVIDER_ICON_SIZE = 16;
 
-// Pending flags for each action so the parent table can wire a mutation hook
-// and the row reflects in-flight state without owning the mutation itself.
 export interface ScheduleRowPending {
   pause?: boolean;
   resume?: boolean;
@@ -62,15 +57,10 @@ export interface ScheduleRowActions {
 interface ScheduleRowProps extends ScheduleRowActions {
   serverId: string;
   schedule: ScheduleSummary;
-  /** Client-derived target line (agent title / project / shortened path). */
   targetLabel: string;
-  /** Provider glyph, resolved from the schedule config or the target agent. */
   provider: string | null;
-  /** Client-derived state — the single source for the badge and next-run copy. */
   state: ScheduleDerivedState;
-  /** Host name, rendered when the list spans more than one host. */
   serverName?: string;
-  /** True when only one host exists and the host name would be redundant. */
   singleHost?: boolean;
   pending?: ScheduleRowPending;
   isFirst: boolean;
@@ -96,30 +86,19 @@ function stateBadge(state: ScheduleDerivedState): {
   }
 }
 
-// Meta reads left-to-right as identity → history → future: how often, when it
-// was created, when it last ran, and (only while it can still run) when it runs
-// next. Status lives on the badge, never repeated here.
-/** What the row says in red: why it will not run beats why the last run failed. */
-function resolveRowError(schedule: ScheduleSummary, state: ScheduleDerivedState): string | null {
-  if (state === "blocked") {
-    return schedule.automationBlockedReason ?? null;
-  }
-  if (schedule.lastRun?.status === "failed") {
-    return schedule.lastRun.error;
-  }
-  return null;
-}
-
-function buildMeta(
-  schedule: ScheduleSummary,
-  state: ScheduleDerivedState,
-  serverName: string | undefined,
-  singleHost: boolean,
-): string {
+function buildMeta(input: {
+  schedule: ScheduleSummary;
+  state: ScheduleDerivedState;
+  createdAgo: string;
+  lastRunAgo: string;
+  serverName: string | undefined;
+  singleHost: boolean;
+}): string {
+  const { schedule, state, serverName, singleHost } = input;
   const parts = [
     formatCadence(schedule.cadence),
-    `Created ${formatTimeAgo(new Date(schedule.createdAt))}`,
-    formatScheduleLastRun(schedule),
+    `Created ${input.createdAgo}`,
+    schedule.lastRunAt ? `Last run ${input.lastRunAgo}` : "Never run",
   ];
   if (state === "active") {
     const next = formatNextRun(schedule.nextRunAt);
@@ -127,8 +106,6 @@ function buildMeta(
       parts.push(`Next run ${next}`);
     }
   }
-  // Promising a next run that the host will not start is the whole defect this
-  // state exists to fix, so the reason takes that slot instead.
   if (state === "blocked" && schedule.automationBlockedReason) {
     parts.push(schedule.automationBlockedReason);
   }
@@ -138,8 +115,40 @@ function buildMeta(
   return parts.join(" · ");
 }
 
-/** Small provider glyph. Reads the icon color off a StyleSheet object so the
- * dynamic component (getProviderIcon) stays compliant without useUnistyles. */
+function ScheduleMeta({
+  schedule,
+  state,
+  serverName,
+  singleHost,
+}: {
+  schedule: ScheduleSummary;
+  state: ScheduleDerivedState;
+  serverName: string | undefined;
+  singleHost: boolean;
+}) {
+  const createdAgo = useTimeAgo(new Date(schedule.createdAt));
+  const lastRunAgo = useTimeAgo(schedule.lastRunAt ? new Date(schedule.lastRunAt) : null);
+  const meta = buildMeta({ schedule, state, createdAgo, lastRunAgo, serverName, singleHost });
+  let error = schedule.lastRun?.status === "failed" ? schedule.lastRun.error : null;
+  if (state === "blocked") error = schedule.automationBlockedReason ?? null;
+  return (
+    <>
+      <Text style={settingsStyles.rowHint} numberOfLines={1}>
+        {meta}
+      </Text>
+      {error ? (
+        <Text
+          style={styles.lastRunError}
+          numberOfLines={1}
+          testID={`schedule-row-error-${schedule.id}`}
+        >
+          {error}
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
 function ProviderGlyph({
   provider,
   serverId,
@@ -147,22 +156,13 @@ function ProviderGlyph({
   provider: string | null;
   serverId: string;
 }): ReactElement | null {
+  const Icon = useProviderIcon(provider ?? "", serverId);
   if (!provider) {
     return null;
   }
-  const Icon = getProviderIcon(provider, serverId);
   return <Icon size={PROVIDER_ICON_SIZE} color={styles.providerIcon.color} />;
 }
 
-/**
- * One schedule, rendered as a settings-style card row: provider glyph + title,
- * a muted secondary line (model · cadence · next run), a StatusBadge, and the
- * kebab menu that owns every row action. Tapping the row opens the editor.
- *
- * Hover lives on the outer plain View (docs/hover.md): the inner Pressable owns
- * press, the nested kebab Pressable never fights it, and the row background
- * highlights without reflow.
- */
 export function ScheduleRow({
   serverId,
   schedule,
@@ -187,8 +187,6 @@ export function ScheduleRow({
   const title = resolveScheduleTitle(schedule);
   const productName = scheduleProductName(schedule);
   const badge = stateBadge(state);
-  const meta = buildMeta(schedule, state, serverName, singleHost ?? false);
-  const lastRunError = resolveRowError(schedule, state);
   const canRun = schedule.target.type === "new-agent" && (state === "active" || state === "paused");
 
   const rowStyle = useCallback(
@@ -226,18 +224,12 @@ export function ScheduleRow({
             <Text style={styles.target} numberOfLines={1}>
               {targetLabel}
             </Text>
-            <Text style={settingsStyles.rowHint} numberOfLines={1}>
-              {meta}
-            </Text>
-            {lastRunError ? (
-              <Text
-                style={styles.lastRunError}
-                numberOfLines={1}
-                testID={`schedule-row-error-${schedule.id}`}
-              >
-                {lastRunError}
-              </Text>
-            ) : null}
+            <ScheduleMeta
+              schedule={schedule}
+              state={state}
+              serverName={serverName}
+              singleHost={singleHost ?? false}
+            />
           </View>
         </View>
 
@@ -401,7 +393,6 @@ function kebabTriggerStyle({
 }
 
 const styles = StyleSheet.create((theme) => ({
-  // Static color holder for the dynamic provider icon (compliant idiom).
   providerIcon: {
     color: theme.colors.foregroundMuted,
   },

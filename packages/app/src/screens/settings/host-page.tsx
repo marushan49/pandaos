@@ -52,9 +52,8 @@ import {
   useHosts,
 } from "@/runtime/host-runtime";
 import { ProvidersSection } from "@/screens/settings/providers-section";
-import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
-import { TokenUsageSection } from "@/provider-usage/token-usage-section";
-import { useProviderUsage } from "@/provider-usage/use-provider-usage";
+import { HostUsageSection } from "@/usage";
+import { TokenUsageSection } from "@/usage/token-usage-section";
 import { HostAppearanceSection } from "@/screens/settings/host-appearance-section";
 import { SettingsSection } from "@/components/settings/headings/settings-section";
 import { useSessionStore } from "@/stores/session-store";
@@ -67,7 +66,8 @@ import { formatConnectionStatus, getConnectionStatusTone } from "@/utils/daemons
 import { formatLatency } from "@/utils/latency";
 import { ICON_SIZE } from "@/styles/theme";
 import type { Theme } from "@/styles/theme";
-import { getProviderIcon } from "@/components/provider-icons";
+import { useProviderIcon } from "@/components/provider-icons";
+import { BrowserToolsOptInCard } from "./browser-tools-card";
 import { restartDaemonFromSettings, updateDaemonFromSettings } from "./daemon-lifecycle";
 
 const ThemedRestart = withUnistyles(RotateCw);
@@ -93,7 +93,7 @@ interface DynamicProviderIconProps {
 }
 
 function DynamicProviderIcon({ iconKey, size, color = "" }: DynamicProviderIconProps) {
-  const Icon = getProviderIcon(iconKey);
+  const Icon = useProviderIcon(iconKey);
   return <Icon size={size} color={color} />;
 }
 
@@ -292,6 +292,7 @@ export function HostAgentsPage({ serverId }: { serverId: string }) {
       {isConnected ? (
         <SettingsSection title={t("settings.hostSections.agents")}>
           <InjectPaseoToolsCard serverId={serverId} />
+          <BrowserToolsOptInCard serverId={serverId} />
           <ResourcePolicyCard serverId={serverId} />
           <AppendSystemPromptCard serverId={serverId} />
         </SettingsSection>
@@ -346,10 +347,6 @@ export function HostProvidersPage({ serverId }: { serverId: string }) {
 
 export function HostUsagePage({ serverId }: { serverId: string }) {
   const host = useHostProfile(serverId);
-  const { view: providerUsageView, refresh: refreshProviderUsage } = useProviderUsage(serverId);
-  const handleRefresh = useCallback(() => {
-    void refreshProviderUsage();
-  }, [refreshProviderUsage]);
 
   if (!host) {
     return <HostNotFound />;
@@ -357,11 +354,7 @@ export function HostUsagePage({ serverId }: { serverId: string }) {
 
   return (
     <View>
-      <ProviderUsageSettingsSection
-        serverId={serverId}
-        view={providerUsageView}
-        onRefresh={handleRefresh}
-      />
+      <HostUsageSection serverId={serverId} />
       <TokenUsageSection serverId={serverId} />
     </View>
   );
@@ -970,9 +963,6 @@ function ResourcePolicyCard({ serverId }: { serverId: string }) {
     [config, isLoading, isSaving, t],
   );
 
-  // economy forbids automated loops, which used to take every schedule down
-  // with it silently. The switch below is the way out, so the card has to say
-  // what the policy currently does to schedules.
   const policyForbidsLoops = selectedPolicy === "economy";
   const allowScheduledAutomation = config?.allowScheduledAutomation ?? !policyForbidsLoops;
 
@@ -1452,10 +1442,6 @@ function RemoveHostSection({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Terminal Profiles
-// ---------------------------------------------------------------------------
-
 function generateProfileId(): string {
   return `profile_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
@@ -1580,9 +1566,6 @@ function TerminalProfilesSection({ serverId }: { serverId: string }) {
   } | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
-  // Settings edits what is persisted, not the adopted view. Any save here
-  // writes the whole list back, so resolving first would bake read-time prompt
-  // adoption into the user's config the first time they reorder a row.
   const profiles = useMemo(
     () => (config ? (config.terminalProfiles ?? DEFAULT_TERMINAL_PROFILES) : null),
     [config],

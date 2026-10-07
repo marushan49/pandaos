@@ -1,7 +1,13 @@
-import { useCallback, useMemo } from "react";
-import { Pressable, Text, View, type PressableStateCallbackType } from "react-native";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type Ref,
+} from "react";
+import { Pressable, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import type { LucideIcon } from "@/components/icons/ui-icons";
 import { HEADER_INNER_HEIGHT, HEADER_INNER_HEIGHT_MOBILE } from "@/constants/layout";
 import { ICON_SIZE } from "@/styles/theme";
 import type { Theme } from "@/styles/theme";
@@ -10,26 +16,22 @@ import type { ShortcutKey } from "@/utils/format-shortcut";
 
 const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const foregroundMutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
-const onInkColorMapping = (theme: Theme) => ({ color: theme.colors.surface0 });
+type SidebarHeaderRowVariant = "header" | "compact" | "inline";
 
-function iconColorMapping(isActive: boolean, isHovered: boolean) {
-  if (isActive) return onInkColorMapping;
-  return isHovered ? foregroundColorMapping : foregroundMutedColorMapping;
-}
-
-type SidebarHeaderRowVariant = "header" | "compact";
+export type SidebarRowIcon = ComponentType<{ size: number; color: string }>;
 
 interface SidebarHeaderRowProps {
-  icon: LucideIcon;
+  icon: SidebarRowIcon | null;
   label: string;
   onPress: () => void;
   isActive?: boolean;
   testID?: string;
   nativeID?: string;
   accessibilityLabel?: string;
-
   variant?: SidebarHeaderRowVariant;
   shortcutKeys?: ShortcutKey[][] | null;
+  trailing?: ReactNode;
+  rowRef?: Ref<View>;
 }
 
 export function SidebarHeaderRow({
@@ -42,72 +44,60 @@ export function SidebarHeaderRow({
   accessibilityLabel,
   variant = "header",
   shortcutKeys = null,
+  trailing,
+  rowRef,
 }: SidebarHeaderRowProps) {
-  const ThemedIcon = useMemo(() => withUnistyles(Icon), [Icon]);
+  const [isHovered, setIsHovered] = useState(false);
+  const handlePointerEnter = useCallback(() => setIsHovered(true), []);
+  const handlePointerLeave = useCallback(() => setIsHovered(false), []);
+  const ThemedIcon = useMemo(() => (Icon ? withUnistyles(Icon) : null), [Icon]);
+  const isHighlighted = isHovered || isActive;
+  const iconSize = variant === "header" ? ICON_SIZE.md : ICON_SIZE.sm;
 
-  const containerStyle = useMemo(
-    () => (variant === "compact" ? styles.containerCompact : styles.container),
-    [variant],
-  );
-
-  const buttonStyle = useCallback(
-    ({ hovered }: PressableStateCallbackType & { hovered?: boolean }) => [
-      styles.button,
-      variant === "compact" && styles.buttonCompact,
-      Boolean(hovered) && !isActive && styles.buttonHovered,
-      isActive && styles.buttonActive,
-    ],
-    [isActive, variant],
-  );
-
-  const renderChildren = useCallback(
-    (state: PressableStateCallbackType & { hovered?: boolean }) => {
-      const isHovered = Boolean(state.hovered);
-      return (
-        <>
-          <ThemedIcon size={ICON_SIZE.sm} uniProps={iconColorMapping(isActive, isHovered)} />
-          <SidebarHeaderRowLabel label={label} isHovered={isHovered} isActive={isActive} />
-          {shortcutKeys && isHovered && !isActive ? (
-            <Shortcut chord={shortcutKeys} style={styles.shortcut} />
-          ) : null}
-        </>
-      );
-    },
-    [ThemedIcon, isActive, label, shortcutKeys],
-  );
+  let right = trailing ?? null;
+  if (right === null && shortcutKeys && isHovered) {
+    right = <Shortcut chord={shortcutKeys} />;
+  }
 
   return (
-    <View style={containerStyle}>
-      <Pressable
-        onPress={onPress}
-        testID={testID}
-        nativeID={nativeID}
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? label}
-        style={buttonStyle}
+    <View ref={rowRef} collapsable={false} style={getContainerStyle(variant)}>
+      <View
+        style={[styles.row, isHighlighted && styles.rowHighlighted]}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
       >
-        {renderChildren}
-      </Pressable>
+        <Pressable
+          onPress={onPress}
+          testID={testID}
+          nativeID={nativeID}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel ?? label}
+          accessibilityState={isActive ? SELECTED_STATE : undefined}
+          aria-selected={isActive}
+          style={styles.button}
+        >
+          {ThemedIcon ? (
+            <ThemedIcon
+              size={iconSize}
+              uniProps={isHighlighted ? foregroundColorMapping : foregroundMutedColorMapping}
+            />
+          ) : (
+            <View style={variant === "header" ? styles.iconSpacer : styles.iconSpacerCompact} />
+          )}
+          <Text style={[styles.label, isHighlighted && styles.labelHighlighted]}>{label}</Text>
+        </Pressable>
+        {right === null ? null : (
+          <Pressable onPress={onPress} accessible={false} focusable={false} style={styles.trailing}>
+            {right}
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
 
-function SidebarHeaderRowLabel({
-  label,
-  isHovered,
-  isActive,
-}: {
-  label: string;
-  isHovered: boolean;
-  isActive: boolean;
-}) {
-  const labelStyle = useMemo(
-    () => [styles.label, isHovered && styles.labelHighlighted, isActive && styles.labelActive],
-    [isHovered, isActive],
-  );
-  return <Text style={labelStyle}>{label}</Text>;
-}
+const SELECTED_STATE = { selected: true } as const;
 
 const styles = StyleSheet.create((theme) => ({
   container: {
@@ -126,31 +116,34 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     userSelect: "none",
   },
+  containerInline: {
+    width: "100%",
+    justifyContent: "center",
+    userSelect: "none",
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 28,
+    borderRadius: theme.borderRadius.lg,
+  },
+  rowHighlighted: {
+    backgroundColor: theme.colors.surfaceSidebarHover,
+  },
   button: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[2],
-
-    minHeight: 36,
-    paddingVertical: theme.spacing[2],
-    paddingHorizontal: theme.spacing[3],
-    borderRadius: theme.borderRadius.lg,
-  },
-
-  buttonCompact: {
-    minHeight: 32,
-    paddingVertical: theme.spacing[1.5],
-
+    minHeight: 28,
+    paddingVertical: theme.spacing[1],
     paddingHorizontal: theme.spacing[2],
   },
-  buttonHovered: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
-  },
-
-  buttonActive: {
-    backgroundColor: theme.colors.foreground,
-  },
+  iconSpacer: { width: ICON_SIZE.md, height: ICON_SIZE.md },
+  iconSpacerCompact: { width: ICON_SIZE.sm, height: ICON_SIZE.sm },
   label: {
+    flexShrink: 1,
     fontSize: theme.fontSize.base,
     fontWeight: theme.fontWeight.normal,
     color: theme.colors.foregroundMuted,
@@ -158,10 +151,21 @@ const styles = StyleSheet.create((theme) => ({
   labelHighlighted: {
     color: theme.colors.foreground,
   },
-  labelActive: {
-    color: theme.colors.surface0,
-  },
-  shortcut: {
-    marginLeft: "auto",
+  trailing: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    paddingRight: theme.spacing[2],
   },
 }));
+
+function getContainerStyle(variant: SidebarHeaderRowVariant) {
+  switch (variant) {
+    case "header":
+      return styles.container;
+    case "compact":
+      return styles.containerCompact;
+    case "inline":
+      return styles.containerInline;
+  }
+}

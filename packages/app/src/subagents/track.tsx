@@ -1,9 +1,9 @@
-import { useCallback, useMemo, type ReactElement, type ReactNode } from "react";
+import { useCallback, type ReactElement, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Archive, Unlink } from "@/components/icons/ui-icons";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { getProviderIcon } from "@/components/provider-icons";
+import { useProviderIcon } from "@/components/provider-icons";
 import { ComposerTrackActions, ComposerTrackPill, ComposerTrackRow } from "@/composer/tracks";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -13,6 +13,7 @@ import {
   type WorkspaceTabPresentation,
 } from "@/screens/workspace/workspace-tab-presentation";
 import type { Theme } from "@/styles/theme";
+import { getPanelManifest } from "@/panels/panel-manifest";
 import type { SubagentRow } from "./select";
 import type { ArchiveFinishedStatus } from "./use-archive-finished";
 import {
@@ -44,16 +45,17 @@ export interface SubagentsTrackProps {
 
 const IDLE_ARCHIVE_FINISHED_STATUS: ArchiveFinishedStatus = { kind: "idle" };
 
-/** Leading and action glyphs share one size so rows keep a single icon column. */
 const ROW_ICON_SIZE = 14;
 
-function buildRowPresentation(row: SubagentRow, serverId: string): WorkspaceTabPresentation {
+function useRowPresentation(row: SubagentRow, serverId: string): WorkspaceTabPresentation {
+  const icon = useProviderIcon(row.provider, serverId);
   const data = buildSubagentRowPresentationData(row);
   return {
     ...data,
     tooltip: data.label,
     modified: false,
-    icon: getProviderIcon(row.provider, serverId),
+    showCloseButton: getPanelManifest(data.kind).showCloseButton,
+    icon,
   };
 }
 
@@ -113,10 +115,6 @@ export function SubagentsTrack({
   );
 }
 
-/**
- * Bulk archive, as a row above the list rather than an icon next to the count. The pill has no
- * header to hang an icon off, and a destructive-ish action reads better with its name attached.
- */
 function ArchiveFinishedRow({
   status,
   disabled,
@@ -161,8 +159,6 @@ function ArchiveFinishedRow({
       accessibilityLabel={t("subagents.archiveFinishedAction")}
       testID="subagents-track-archive-finished"
       disabled={disabled}
-      // Progress and the retry count land on this row, so the panel is where the result of
-      // pressing it shows up. Dismissing would hide the thing the press produces.
       closeOnSelect={false}
       onPress={onPress}
     >
@@ -190,7 +186,7 @@ function SubagentsTrackRow({
 }: SubagentsTrackRowProps): ReactElement {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
-  const presentation = useMemo(() => buildRowPresentation(row, serverId), [row, serverId]);
+  const presentation = useRowPresentation(row, serverId);
   const displayLabel =
     presentation.titleState === "loading" ? t("common.states.loading") : presentation.label;
   const handlePress = useCallback(() => {
@@ -342,8 +338,6 @@ function SubagentActionButton({
 }
 
 const styles = StyleSheet.create((theme) => ({
-  // `flexBasis: "auto"` rather than `flex: 1`: a zero-basis label contributes nothing to the row's
-  // intrinsic width, so the panel measures itself at its floor and truncates every label at once.
   rowLabel: {
     flexGrow: 1,
     flexShrink: 1,
@@ -352,9 +346,6 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.base,
     color: theme.colors.foreground,
   },
-  // Trailing metadata — provider context on a subagent row, progress on the archive row. No width
-  // cap: the panel's own ceiling bounds it. It shrinks twice as fast as the label, so a wordy
-  // provider subtitle gives way first instead of squeezing the thing that names the row.
   rowTrailing: {
     flexShrink: 2,
     minWidth: 0,

@@ -18,7 +18,7 @@ import { buildSettingsHostSectionRoute } from "@/utils/host-routes";
 import type { NewTabSelection } from "@/workspace-tabs/new-tab";
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 import type { TerminalProfile } from "@getpaseo/protocol/messages";
-import { panelSupportsHost, type PaneHost } from "@/panels/panel-manifest";
+import { panelCanLaunchInPane, panelSupportsHost, type PaneHost } from "@/panels/panel-manifest";
 import {
   getPanelRegistration,
   type PanelIconProps,
@@ -51,7 +51,6 @@ export interface NewTabLauncher {
   showBrowser: boolean;
   terminalDisabled: boolean;
   launch: (selection: NewTabSelection, destination: WorkspaceTabLaunchDestination) => void;
-  /** Scopes the recently closed tabs to this workspace. */
   workspaceKey?: string | null;
 }
 
@@ -63,8 +62,6 @@ export interface WorkspaceTabLaunchItem {
   shortcutActionId?: string;
   disabled: boolean;
   panelKind: WorkspaceTabTarget["kind"];
-  /** The fixed view this item can toggle in a configuration menu, or null for launch-only items. */
-  toggleTarget: WorkspaceTabTarget | null;
   launch: (destination: WorkspaceTabLaunchDestination) => void;
 }
 
@@ -74,6 +71,8 @@ export interface WorkspaceTabLaunchGroup {
   items: readonly WorkspaceTabLaunchItem[];
   accessory?: { id: string; label: string; run: () => void };
 }
+
+const EMPTY_PANE_PANEL_KINDS: readonly WorkspaceTabTarget["kind"][] = [];
 
 const NewTabLauncherContext = createContext<NewTabLauncher | null>(null);
 
@@ -101,7 +100,6 @@ function closedTabLabel(
   return t("workspace.tabs.fallback.terminal");
 }
 
-/** A closed agent reopens as itself; a browser tab at its last page; a terminal fresh. */
 function reopenSelection(entry: ClosedTabEntry): NewTabSelection {
   if (entry.target.kind === "agent") return { kind: "target", target: entry.target };
   if (entry.target.kind === "browser")
@@ -141,8 +139,10 @@ export function useWorkspaceTabLaunchCatalog(input: {
   serverId: string;
   purpose: WorkspaceTabLaunchPurpose;
   host: PaneHost;
+  surface: "menu" | "panel";
+  panePanelKinds?: readonly WorkspaceTabTarget["kind"][];
 }): readonly WorkspaceTabLaunchGroup[] {
-  const { serverId, purpose, host } = input;
+  const { serverId, purpose, host, surface, panePanelKinds = EMPTY_PANE_PANEL_KINDS } = input;
   const { t } = useTranslation();
   const router = useRouter();
   const launcher = useContext(NewTabLauncherContext);
@@ -160,8 +160,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
   const closedByWorkspace = useRecentlyClosedTabsStore((state) => state.byWorkspace);
   const forgetClosed = useRecentlyClosedTabsStore((state) => state.forget);
   const agents = useSessionStore((state) => state.sessions[serverId]?.agents);
-  // Only what was closed here. Closing archives a session and reopening brings it back,
-  // like History does; a session that has since moved to another workspace drops out.
   const recentlyClosed = useMemo(
     () =>
       (launcher.workspaceKey ? (closedByWorkspace[launcher.workspaceKey] ?? []) : []).filter(
@@ -180,6 +178,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
   }, [router, serverId]);
 
   return useMemo(() => {
+    const isExplorerMenu = host === "explorer" && surface === "menu";
     const changesPresentation = getLaunchPresentation("changes_tree");
     const diffPresentation = getLaunchPresentation("working_diff");
     const filesPresentation = getLaunchPresentation("files");
@@ -194,7 +193,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
         shortcutActionId: "workspace-tab-target-agent",
         disabled: false,
         panelKind: "draft",
-        toggleTarget: null,
+        hidden: isExplorerMenu,
         launch: launchSelection(BUILT_IN_SELECTIONS.agent),
       },
       terminal: {
@@ -204,7 +203,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         shortcutActionId: "workspace-terminal-new",
         disabled: launcher.terminalDisabled,
         panelKind: "terminal",
-        toggleTarget: null,
         launch: launchSelection(BUILT_IN_SELECTIONS.terminal),
       },
       changes: {
@@ -213,7 +211,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         Icon: changesPresentation.icon,
         disabled: false,
         panelKind: "changes_tree",
-        toggleTarget: BUILT_IN_SELECTIONS.changes.target,
         hidden: !launcher.showChanges,
         launch: launchSelection(BUILT_IN_SELECTIONS.changes),
       },
@@ -224,7 +221,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         shortcutActionId: "workspace-tab-target-changes",
         disabled: false,
         panelKind: "working_diff",
-        toggleTarget: null,
         hidden: !launcher.showChanges,
         launch: launchSelection(BUILT_IN_SELECTIONS.diff),
       },
@@ -235,7 +231,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         shortcutActionId: "workspace-tab-target-files",
         disabled: false,
         panelKind: "files",
-        toggleTarget: BUILT_IN_SELECTIONS.files.target,
         launch: launchSelection(BUILT_IN_SELECTIONS.files),
       },
       browser: {
@@ -245,7 +240,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         shortcutActionId: "workspace-tab-target-browser",
         disabled: false,
         panelKind: "browser",
-        toggleTarget: null,
         hidden: !launcher.showBrowser,
         launch: launchSelection(BUILT_IN_SELECTIONS.browser),
       },
@@ -255,7 +249,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         Icon: pullRequestPresentation.icon,
         disabled: false,
         panelKind: "pull_request",
-        toggleTarget: null,
         hidden: !launcher.showPullRequest,
         launch: launchSelection(BUILT_IN_SELECTIONS.pullRequest),
       },
@@ -265,7 +258,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         Icon: evidencePresentation.icon,
         disabled: false,
         panelKind: "evidence",
-        toggleTarget: BUILT_IN_SELECTIONS.evidence.target,
         launch: launchSelection(BUILT_IN_SELECTIONS.evidence),
       },
       insights: {
@@ -274,7 +266,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
         Icon: insightsPresentation.icon,
         disabled: false,
         panelKind: "insights",
-        toggleTarget: BUILT_IN_SELECTIONS.insights.target,
         launch: launchSelection(BUILT_IN_SELECTIONS.insights),
       },
     };
@@ -300,7 +291,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
           Icon: resolvePluginIcon(panel.icon),
           disabled: false,
           panelKind: "plugin",
-          toggleTarget: selection.target,
           launch: launchSelection(selection),
         });
       }
@@ -311,7 +301,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
     if (pluginItems.length > 0) {
       groups.push({ id: "plugin-panels", label: null, items: pluginItems });
     }
-    if (profiles.length > 0) {
+    if (!isExplorerMenu && profiles.length > 0) {
       groups.push({
         id: "terminal-profiles",
         label: t("workspace.tabs.actions.terminalProfilesMenu"),
@@ -321,7 +311,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
           terminalIconKey: getTerminalProfileIcon(profile),
           disabled: launcher.terminalDisabled,
           panelKind: "terminal",
-          toggleTarget: null,
           launch: launchSelection({ kind: "terminal", profile }),
         })),
         accessory: {
@@ -337,11 +326,8 @@ export function useWorkspaceTabLaunchCatalog(input: {
       Icon: CLOSED_TAB_ICONS[entry.target.kind],
       disabled: entry.target.kind === "terminal" && launcher.terminalDisabled,
       panelKind: entry.target.kind,
-      toggleTarget: null,
       launch: (destination: WorkspaceTabLaunchDestination) => {
         if (launcher.workspaceKey) forgetClosed(launcher.workspaceKey, entry.id);
-        // Closing archived the session; bring it back like the Unarchive button does,
-        // or the tab opens on an archived, possibly empty session.
         if (entry.target.kind === "agent") {
           void getHostRuntimeStore()
             .getClient(serverId)
@@ -367,7 +353,13 @@ export function useWorkspaceTabLaunchCatalog(input: {
         items: closedTabs.map(closedItem),
       });
     }
-    return groups;
+    if (surface !== "menu") return groups;
+    return groups.flatMap((group) => {
+      const items = group.items.filter((item) =>
+        panelCanLaunchInPane(item.panelKind, panePanelKinds),
+      );
+      return items.length > 0 ? [{ ...group, items }] : [];
+    });
   }, [
     agents,
     recentlyClosed,
@@ -379,6 +371,8 @@ export function useWorkspaceTabLaunchCatalog(input: {
     plugins,
     purpose,
     host,
+    surface,
+    panePanelKinds,
     serverId,
     t,
   ]);

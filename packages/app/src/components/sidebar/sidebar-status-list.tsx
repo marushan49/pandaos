@@ -22,7 +22,7 @@ import type { GestureType } from "react-native-gesture-handler";
 import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { type SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
-import { STATUS_BUCKET_LABEL_KEYS, type StatusBucket } from "@/hooks/sidebar-status-view-model";
+import { type StatusBucket } from "@/hooks/sidebar-status-view-model";
 import { useScrollSelectedRowIntoView } from "@/components/sidebar/use-scroll-selected-row-into-view";
 import type { SidebarWorkspaceGroup } from "@/components/sidebar/sidebar-labels";
 import { SidebarFilterEmptyState } from "@/components/sidebar/empty-states";
@@ -87,12 +87,9 @@ import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press
 import { useWorkspaceSessionsDrop } from "@/workspace-move/use-workspace-sessions-drop";
 import { useWorkspaceTopicMenu } from "@/topics/use-workspace-topic-menu";
 
-// Themed icon wrappers
 const foregroundMutedColorMapping = (theme: Theme) => ({
   color: theme.colors.foregroundMuted,
 });
-// One mapping per bucket, resolved through the status-dot producer so a group header and
-// the rows under it cannot disagree about what "failed" looks like.
 const needsInputColorMapping = (theme: Theme) => ({
   color: getStatusDotColor({ theme, bucket: "needs_input" }) ?? undefined,
 });
@@ -130,7 +127,6 @@ interface StatusWorkspaceListProps {
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspaceEntry[]) => void;
   listHeaderComponent?: ReactNode;
-  /** Swaps the group list for the label filter's empty state. Never the header above it. */
   sidebarFilterEmpty?: boolean;
   parentGestureRef?: MutableRefObject<GestureType | undefined>;
   dragGestureHostActive?: boolean;
@@ -322,7 +318,6 @@ function StatusGroupList({
   );
 }
 
-// Status groups keep their activity order; dragging only moves sessions to another workspace.
 const keepStatusOrder = () => {};
 
 function StatusGroupRows({
@@ -457,7 +452,6 @@ function StatusGroupHeader({
   collapsed: boolean;
 }) {
   const { t } = useTranslation();
-  const label = t(STATUS_BUCKET_LABEL_KEYS[group.leading.bucket]);
   const [isHovered, setIsHovered] = useState(false);
   const toggleWorkspaceGroupCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.toggleWorkspaceGroupCollapsed,
@@ -481,7 +475,7 @@ function StatusGroupHeader({
     <View onPointerEnter={handleHoverIn} onPointerLeave={handleHoverOut}>
       <Pressable
         accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={`${label} group`}
+        accessibilityLabel={t("sidebar.statusGroupAccessibility", { label: group.label })}
         accessibilityState={accessibilityState}
         style={rowStyle}
         onPress={handlePress}
@@ -497,7 +491,7 @@ function StatusGroupHeader({
           </View>
           <View style={styles.statusGroupTitleGroup}>
             <Text style={styles.statusGroupTitle} numberOfLines={1}>
-              {label}
+              {group.label}
             </Text>
             <Text
               dataSet={MONO_FONT_DATASET}
@@ -571,10 +565,6 @@ const StatusWorkspaceRow = memo(function StatusWorkspaceRow({
   canPin: boolean;
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   reserveIdleStatusIndicatorSpace?: boolean;
-  /**
-   * Whether the row sits under a status header, which is what it indents from. Pinned rows
-   * are a flat list under their own header and sit flush.
-   */
   inStatusGroup?: boolean;
   onWorkspacePress?: () => void;
   drag?: () => void;
@@ -640,10 +630,6 @@ function StatusWorkspaceRowWithMenu({
   canPin: boolean;
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   reserveIdleStatusIndicatorSpace?: boolean;
-  /**
-   * Whether the row sits under a status header, which is what it indents from. Pinned rows
-   * are a flat list under their own header and sit flush.
-   */
   inStatusGroup?: boolean;
   onPress: () => void;
   drag?: () => void;
@@ -693,8 +679,6 @@ function StatusWorkspaceRowWithMenu({
   const handleOpenRename = useCallback(() => setIsRenameOpen(true), []);
   const handleCloseRename = useCallback(() => setIsRenameOpen(false), []);
 
-  // Row-level like rename: the dialog must survive the hover-gated kebab
-  // menu unmounting when its item is selected.
   const isPinned = workspace.pinnedAt != null;
   const handleTogglePin = useCallback(() => {
     onToggleWorkspacePin(workspace);
@@ -801,7 +785,6 @@ interface StatusWorkspaceRowInnerProps {
   isPinned?: boolean;
   onTogglePin?: () => void;
   reserveIdleStatusIndicatorSpace?: boolean;
-  /** Pinned rows are flat under their own header; status-group rows indent from theirs. */
   inStatusGroup?: boolean;
   drag?: () => void;
   isDragging?: boolean;
@@ -1132,14 +1115,12 @@ const styles = StyleSheet.create((theme) => ({
   },
   listContent: {
     paddingHorizontal: theme.spacing[2],
-    // Keep status mode's Pinned/Workspaces boundary identical to project mode.
     paddingTop: 2,
     paddingBottom: theme.spacing[4],
   },
   pinnedSection: {
     marginBottom: theme.spacing[1],
   },
-  // Matches `projectBlockExpanded` in sidebar-workspace-list.tsx. See the note there.
   statusGroupBlockExpanded: {
     paddingBottom: theme.spacing[3],
   },
@@ -1184,7 +1165,6 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     minWidth: 0,
   },
-  // Small tracked capitals: the group names a region of the Leiste, it is not a row to act on.
   statusGroupTitle: {
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.sm,
@@ -1242,7 +1222,6 @@ const styles = StyleSheet.create((theme) => ({
     zIndex: 3,
     ...theme.shadow.md,
   },
-  // Where you are must read at a glance, distinct from hover: accent fill plus a left bar.
   sidebarRowSelected: {
     backgroundColor: selectionTint({
       accent: theme.colors.accent,

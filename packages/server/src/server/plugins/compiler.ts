@@ -10,6 +10,7 @@ import {
 } from "./plugin-sdk-specifiers.js";
 
 const nodeRequire = createRequire(import.meta.url);
+export const SERVER_HOST_MODULES = [...PLUGIN_SDK_SPECIFIERS, "zod"];
 const ESBUILD_BINARY_PATH = "ESBUILD_BINARY_PATH";
 
 export function unpackedEsbuildBinaryFromPackageDir(
@@ -371,6 +372,7 @@ async function compileTarget(entryPath: string, target: PluginBuildTarget): Prom
     jsx: "automatic",
     platform: target === "server" ? "node" : "neutral",
     target: target === "server" ? "node20" : "es2020",
+    mainFields: target === "client" ? ["module", "main"] : undefined,
     supported: target === "client" ? { "async-await": false } : undefined,
     external:
       target === "client"
@@ -382,7 +384,7 @@ async function compileTarget(entryPath: string, target: PluginBuildTarget): Prom
             "react-native",
             "zod",
           ]
-        : [...PLUGIN_SDK_SPECIFIERS, "zod"],
+        : SERVER_HOST_MODULES,
     plugins: [createRuntimeBoundaryPlugin(target, pluginDirectory)],
     metafile: true,
     logLevel: "silent",

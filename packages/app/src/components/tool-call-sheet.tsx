@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { View, Text, Pressable } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
-import { BottomSheetScrollView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { X } from "@/components/icons/ui-icons";
 import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
 import {
@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/isolated-bottom-sheet-modal";
 import type { ToolCallIconComponent } from "@/utils/tool-call-icon";
 import { ToolCallDetailsContent } from "./tool-call-details";
-
-// ----- Types -----
 
 export interface ToolCallSheetData {
   toolName: string;
@@ -30,8 +28,6 @@ interface ToolCallSheetContextValue {
   openToolCall: (data: ToolCallSheetData) => void;
   closeToolCall: () => void;
 }
-
-// ----- Context -----
 
 const ToolCallSheetContext = createContext<ToolCallSheetContextValue | null>(null);
 
@@ -80,8 +76,6 @@ export const ToolCallSheetModal = withUnistyles(IsolatedBottomSheetModal, (theme
   },
 }));
 
-// ----- Provider Component -----
-
 interface ToolCallSheetProviderProps {
   children: ReactNode;
 }
@@ -115,13 +109,6 @@ export function ToolCallSheetProvider({ children }: ToolCallSheetProviderProps) 
     setSheetData(null);
   }, [handleSheetDismiss]);
 
-  const renderBackdrop = useCallback(
-    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-    ),
-    [],
-  );
-
   const contextValue = useMemo(
     () => ({ openToolCall, closeToolCall }),
     [openToolCall, closeToolCall],
@@ -138,7 +125,7 @@ export function ToolCallSheetProvider({ children }: ToolCallSheetProviderProps) 
         enableDynamicSizing={false}
         onChange={handleSheetChange}
         onDismiss={handleToolCallSheetDismiss}
-        backdropComponent={renderBackdrop}
+        backdropOpacity={0.5}
         enablePanDownToClose
       >
         {sheetData && <ToolCallSheetContent data={sheetData} onClose={closeToolCall} />}
@@ -146,8 +133,6 @@ export function ToolCallSheetProvider({ children }: ToolCallSheetProviderProps) 
     </ToolCallSheetContext.Provider>
   );
 }
-
-// ----- Sheet Content Component -----
 
 interface ToolCallSheetContentProps {
   data: ToolCallSheetData;
@@ -167,7 +152,6 @@ function ToolCallSheetContent({ data, onClose }: ToolCallSheetContentProps) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <ThemedToolCallHeaderIcon icon={IconComponent} size={20} />
@@ -186,7 +170,6 @@ function ToolCallSheetContent({ data, onClose }: ToolCallSheetContentProps) {
         </Pressable>
       </View>
 
-      {/* Content */}
       <BottomSheetScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <ToolCallDetailsContent
           toolName={toolName}
@@ -199,8 +182,6 @@ function ToolCallSheetContent({ data, onClose }: ToolCallSheetContentProps) {
     </View>
   );
 }
-
-// ----- Styles -----
 
 const styles = StyleSheet.create((theme) => ({
   container: {

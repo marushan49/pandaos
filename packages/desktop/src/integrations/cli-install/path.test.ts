@@ -1,11 +1,13 @@
 import { basename } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { resolveCliInstallSourcePath } from "./path";
+import { resolveCliInstallSourcePath, resolveCliShimPath } from "./path";
 import { getBundledCliShimPath, getCliTargetPath } from "./paths";
 
 vi.mock("electron", () => ({
-  app: { getPath: () => "/Applications/PandaOS.app/Contents/MacOS/PandaOS" },
+  app: { isPackaged: true, getPath: () => "/Applications/PandaOS.app/Contents/MacOS/PandaOS" },
 }));
+import { createRequire } from "node:module";
+import path from "node:path";
 
 describe("cli-install-path", () => {
   it("installs the bundled pandaos command", () => {
@@ -66,5 +68,40 @@ describe("cli-install-path", () => {
         shimPath: "/opt/Paseo/resources/bin/pandaos",
       }),
     ).toBe("/opt/Paseo/resources/bin/pandaos");
+  });
+});
+
+describe("CLI executable selection", () => {
+  const resolveWorkspaceCli = () =>
+    createRequire(import.meta.url).resolve("@getpaseo/cli/bin/pandaos");
+
+  it("uses the workspace CLI for an unpackaged Electron launcher", () => {
+    expect(
+      resolveCliShimPath({
+        platform: "linux",
+        isPackaged: false,
+        executablePath: "/nix/store/electron/bin/electron",
+        resolveWorkspaceCli,
+      }),
+    ).toBe(resolveWorkspaceCli());
+  });
+
+  it("uses the application shim for a packaged launcher", () => {
+    expect(
+      resolveCliShimPath({
+        platform: "linux",
+        isPackaged: true,
+        executablePath: "/opt/Paseo/paseo",
+        resolveWorkspaceCli,
+      }),
+    ).toBe(path.join("/opt/Paseo", "resources", "bin", "pandaos"));
+    expect(
+      resolveCliShimPath({
+        platform: "darwin",
+        isPackaged: true,
+        executablePath: "/Applications/Paseo.app/Contents/MacOS/Paseo",
+        resolveWorkspaceCli,
+      }),
+    ).toBe(path.join("/Applications/Paseo.app", "Contents", "Resources", "bin", "pandaos"));
   });
 });

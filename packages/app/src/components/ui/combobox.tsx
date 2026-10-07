@@ -30,10 +30,9 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import {
   BottomSheetScrollView,
-  BottomSheetBackdrop,
+  BottomSheetBackgroundProps,
   BottomSheetFooter,
   type BottomSheetFooterProps,
-  BottomSheetBackgroundProps,
 } from "@gorhom/bottom-sheet";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -102,40 +101,20 @@ export interface ComboboxProps {
   customValueKind?: "directory" | "file";
   optionsPosition?: "below-search" | "above-search";
   title?: string;
-  /**
-   * Structured header. When provided, replaces `title` + `stickyHeader` and
-   * is rendered via the shared SheetHeaderView (mobile) / InlineHeaderView
-   * (desktop). Built-in search (when `searchable=true` and no `header.search`)
-   * is folded into the header so its magnifying glass aligns with the title
-   * and any leading icon at the sheet's shared indent.
-   */
   header?: SheetHeader;
   mobileChildrenScrollEnabled?: boolean;
-  /** Let custom desktop children own scrolling, for example a virtualized list. */
   desktopChildrenScrollEnabled?: boolean;
-  /** Overrides the mobile scroll container spacing for custom child content. */
   mobileChildrenContentContainerStyle?: StyleProp<ViewStyle>;
   presentation?: "push" | "replace";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   desktopPlacement?: ComboboxDesktopPlacement;
-  /**
-   * Prevents an initial frame at 0,0 by hiding desktop content until floating
-   * coordinates resolve. This intentionally disables fade enter/exit animation
-   * for that combobox instance to avoid animation overriding hidden opacity.
-   */
   desktopPreventInitialFlash?: boolean;
-  /** Minimum width for the desktop popover (overrides trigger-based width). */
   desktopMinWidth?: number;
-  /** Keep the desktop popover at its opening width as its content changes. */
   desktopLockWidth?: boolean;
-  /** Fixed height for the desktop popover (overrides default 400px max). */
   desktopFixedHeight?: number;
-  /** Content rendered above the scroll area on desktop (sticky header). */
   stickyHeader?: ReactNode;
-  /** Content rendered below the scroll area. */
   footer?: ReactNode;
-  /** When true, selecting an option does not close the picker (multi-select mode). */
   keepOpenOnSelect?: boolean;
   anchorRef: React.RefObject<View | null>;
   children?: ReactNode;
@@ -238,7 +217,6 @@ export interface ComboboxItemProps {
   active?: boolean;
   disabled?: boolean;
   accessibilityLabel?: string;
-  /** When true, bumps hover/pressed colors up one surface level (for items on elevated backgrounds). */
   elevated?: boolean;
   onPress: () => void;
   testID?: string;
@@ -950,18 +928,6 @@ interface MobileBodyProps {
 }
 
 function MobileComboboxBody(props: MobileBodyProps): ReactElement {
-  const renderBackdrop = useCallback(
-    (backdropProps: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop
-        {...backdropProps}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.45}
-      />
-    ),
-    [],
-  );
-
   const comboboxTitleStyle = useMemo(
     () => [styles.comboboxTitle, { color: props.titleColor }],
     [props.titleColor],
@@ -1001,7 +967,7 @@ function MobileComboboxBody(props: MobileBodyProps): ReactElement {
       enableDynamicSizing={false}
       onChange={props.handleSheetChange}
       onDismiss={props.handleSheetDismiss}
-      backdropComponent={renderBackdrop}
+      backdropOpacity={0.45}
       footerComponent={props.footer ? renderFooter : undefined}
       enablePanDownToClose
       backgroundComponent={ComboboxSheetBackground}
@@ -1278,7 +1244,6 @@ function DesktopComboboxBody(props: DesktopBodyProps): ReactElement {
       visible={props.isOpen}
       onRequestClose={props.handleClose}
     >
-      {/* Android Modal opens a separate window outside the app's gesture root. */}
       <GestureHandlerRootView style={styles.desktopOverlay}>{overlay}</GestureHandlerRootView>
     </Modal>
   );

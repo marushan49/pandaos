@@ -1,6 +1,3 @@
-// PandaOS UI icons: Phosphor glyphs under the names the app has always used, so call sites keep
-// their props (size, color, strokeWidth, fill). Each icon is imported on its own; the package
-// index would pull all 1500 into the bundle.
 import { forwardRef, type ComponentType, type ForwardRefExoticComponent } from "react";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import type { IconProps, IconWeight } from "phosphor-react-native";
@@ -301,6 +298,7 @@ export const FolderOpen = uiIcon(PhFolderOpen, "FolderOpen");
 export const FolderPlus = uiIcon(PhFolderPlus, "FolderPlus");
 export const FolderTree = uiIcon(PhTreeStructure, "FolderTree");
 export const Gauge = uiIcon(PhGauge, "Gauge");
+export const CircleGauge = uiIcon(PhGauge, "CircleGauge");
 export const Gift = uiIcon(PhGift, "Gift");
 export const GitBranch = uiIcon(PhGitBranch, "GitBranch");
 export const GitCommitHorizontal = uiIcon(PhGitCommit, "GitCommitHorizontal");

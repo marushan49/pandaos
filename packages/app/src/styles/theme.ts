@@ -627,6 +627,8 @@ export const ICON_SIZE = {
   lg: icon(20),
 } as const;
 
+export const ICON_STROKE_WIDTH = 1.5;
+
 export const FONT_WEIGHT = {
   normal: "normal" as const,
   medium: "500" as const,
@@ -682,7 +684,10 @@ export const DEFAULT_DISPLAY_FONT_STACK: string = Platform.select({
   web: "'Instrument Serif', Georgia, 'Times New Roman', serif",
 });
 
-// `fontSize`, `fontFamily`, and `lineHeight` are deliberately widened to plain
+// Chat and markdown content column; the appearance updater patches the user's width in.
+export const DEFAULT_CONTENT_MAX_WIDTH = 820;
+
+// `fontSize`, `fontFamily`, `lineHeight`, and `contentMaxWidth` are deliberately widened to plain
 // `number`/`string` (not narrowed by `as const`) so the appearance updater can patch
 // them at runtime via `UnistylesRuntime.updateTheme`. The remaining tokens keep their
 // literal types.
@@ -691,6 +696,7 @@ interface CommonTheme {
   fontSize: Record<keyof typeof FONT_SIZE, number>;
   fontFamily: { ui: string; mono: string; display: string };
   lineHeight: Record<keyof typeof LINE_HEIGHT, number>;
+  contentMaxWidth: number;
   iconSize: typeof ICON_SIZE;
   fontWeight: typeof FONT_WEIGHT;
   borderRadius: typeof BORDER_RADIUS;
@@ -707,6 +713,7 @@ const commonTheme: CommonTheme = {
     display: DEFAULT_DISPLAY_FONT_STACK,
   },
   lineHeight: LINE_HEIGHT,
+  contentMaxWidth: DEFAULT_CONTENT_MAX_WIDTH,
   iconSize: ICON_SIZE,
   fontWeight: FONT_WEIGHT,
   borderRadius: BORDER_RADIUS,

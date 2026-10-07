@@ -5,14 +5,13 @@ import {
   useEffect,
   useMemo,
   useRef,
-  type ComponentProps,
   type ReactElement,
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { ChevronLeft } from "@/components/icons/ui-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -27,15 +26,12 @@ import { MenuPage } from "./menu-item";
 import { currentPageId, isSubPageOpen } from "./menu-navigation";
 import { AnchoredSurface, MenuOverlay } from "./menu-overlay";
 import { getMenuSheetBottomPadding } from "./menu-sheet-layout";
-import type { Alignment, Placement } from "./menu-anchor";
+import type { Alignment, Placement } from "../anchor";
 import type { KeyboardFocusScope } from "@/keyboard/actions";
 
 const ThemedChevronLeft = withUnistyles(ChevronLeft);
 const mutedIconMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
-// `backgroundStyle` and `handleIndicatorStyle` are style-shaped props the Babel plugin does not
-// track, so the sheet is wrapped rather than reading the theme through a hook.
-// See docs/unistyles.md.
 const ThemedBottomSheetModal = withUnistyles(IsolatedBottomSheetModal, (theme) => ({
   backgroundStyle: {
     borderTopLeftRadius: theme.borderRadius.xl,
@@ -51,33 +47,14 @@ const ThemedBottomSheetModal = withUnistyles(IsolatedBottomSheetModal, (theme) =
   },
 }));
 
-/** How long the pointer must rest on a submenu row before its flyout opens. */
 const HOVER_OPEN_DELAY_MS = 90;
-/**
- * How long a flyout survives after the pointer leaves. The pointer still crosses sibling rows on
- * its way down into the flyout, so leaving the trigger cannot close it immediately.
- */
 const HOVER_CLOSE_GRACE_MS = 260;
-/**
- * How far the flyout sits *over* its parent surface rather than beside it. The overlap is what
- * makes the hand-off reliable: with a gap there is a strip of backdrop between the two where the
- * pointer belongs to neither, and every pixel of it is a chance to dismiss the thing you are
- * reaching for. Overlapping removes the strip instead of timing around it.
- */
 const SUBMENU_OVERLAP = 5;
 
 export interface MenuPageDefinition {
   id: string;
   title: string;
   content: ReactNode;
-  /**
-   * Whether the pointer opens and closes this page on its own. Default true.
-   *
-   * A page that takes typed input sets this false: hover intent would open it on a pointer that
-   * was only passing through, and then dismiss it — draft and all — the moment the hands moved
-   * to the keyboard and the mouse drifted off the flyout. While such a page is open, the whole
-   * surface stops closing on hover, since its parent leads back to the same dismissal.
-   */
   hoverIntent?: boolean;
 }
 
@@ -99,12 +76,10 @@ export function useMenuSurface(componentName: string): MenuSurfaceContextValue {
 }
 
 export interface MenuSurfaceProps {
-  /** Root page content. */
   children: ReactNode;
-  /** Sub pages, reachable from a `MenuSubTrigger` on the root page. */
   pages?: readonly MenuPageDefinition[];
-  /** Title shown on the sheet's root page. Sheets always have a header; popovers never do. */
   sheetTitle?: string;
+  sheetTrailing?: ReactNode;
   side?: Placement;
   align?: Alignment;
   offset?: number;
@@ -116,19 +91,12 @@ export interface MenuSurfaceProps {
   horizontalPadding?: number;
   scrollable?: boolean;
   testID?: string;
-  /** Limits ordinary app shortcuts to the time this menu owns keyboard focus. */
   keyboardFocusScope?: KeyboardFocusScope;
 }
 
-/**
- * The open menu. Reads its presentation from the menu root and renders either an anchored
- * popover (plus one flyout per open submenu) or a bottom sheet showing one page at a time.
- */
 export function MenuSurface(props: MenuSurfaceProps): ReactElement | null {
   const { presentation } = useMenuContext("MenuSurface");
   const active = useRetainedPanelActive();
-  // Portals escape the hidden panel. Remove the surface in its inactive commit,
-  // before freezing can suspend an async menu action's closing update.
   if (!active) return null;
   if (presentation === "sheet") {
     return <MenuSheetSurface {...props} />;
@@ -212,7 +180,6 @@ function MenuPopoverSurface({
 
   const handleClose = useCallback(() => menu.setOpen(false), [menu]);
 
-  // Every open page in the path gets its own flyout, so a submenu of a submenu simply stacks.
   const openPages = useMemo(
     () =>
       menu.path
@@ -224,8 +191,6 @@ function MenuPopoverSurface({
     [menu.path, pages],
   );
 
-  // `hoverIntent: false` takes a page off the pointer entirely — it is not opened by resting on
-  // its trigger, and while it is open nothing on this surface closes on a pointer leaving it.
   const hoverValue = useMemo<MenuSurfaceContextValue>(() => {
     const locked = openPages.some(({ page }) => page.hoverIntent === false);
     return {
@@ -283,11 +248,6 @@ function MenuPopoverSurface({
   );
 }
 
-/**
- * A submenu's own floating surface. It keeps itself alive while the pointer is inside it —
- * without that, walking from the row into the flyout would cross the gap between them and
- * trigger the close it was travelling to avoid.
- */
 function MenuFlyout({
   page,
   depth,
@@ -339,9 +299,11 @@ function MenuSheetSurface({
   children,
   pages = [],
   sheetTitle,
+  sheetTrailing,
   testID,
   keyboardFocusScope,
 }: MenuSurfaceProps): ReactElement | null {
+  const { height: windowHeight } = useWindowDimensions();
   const menu = useMenuContext("MenuSurface");
   const { value: surfaceValue } = useSubAnchors();
   const safeAreaInsets = useSafeAreaInsets();
@@ -367,25 +329,10 @@ function MenuSheetSurface({
     onClose: handleClose,
   });
 
-  const renderBackdrop = useCallback(
-    (backdropProps: ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop
-        {...backdropProps}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.45}
-      />
-    ),
-    [],
-  );
-
   const openPageId = currentPageId(menu.path);
   const openPage = openPageId ? pages.find((page) => page.id === openPageId) : null;
   const depth = menu.path.length;
 
-  // The sheet's content is teleported out of this subtree, so both menu contexts have to be
-  // rebuilt on the other side. Providing them around the modal instead would put them on the
-  // wrong side of the portal and every item inside would throw. See `ContextBridge`.
   const contextBridge = useCallback<ContextBridge>(
     (content) => (
       <MenuContextProvider value={menu}>
@@ -399,18 +346,12 @@ function MenuSheetSurface({
     <ThemedBottomSheetModal
       ref={sheetRef}
       contextBridge={contextBridge}
-      // Content-sized rather than fixed snap points: a pushed page is rarely the same height
-      // as the page it replaced, and a fixed sheet would either clip it or leave dead space.
       enableDynamicSizing
+      maxDynamicContentSize={windowHeight * 0.8}
       onChange={handleSheetChange}
       onDismiss={handleSheetDismiss}
-      backdropComponent={renderBackdrop}
+      backdropOpacity={0.45}
       enablePanDownToClose
-      // `interactive` rather than `extend`, which is what every other sheet in the app uses.
-      // `extend` grows the sheet to its largest snap point, and with `enableDynamicSizing` that
-      // point is the content's own height — so a short page does not grow, the keyboard comes up
-      // over it, and the field you are typing into is behind the keys. `interactive` moves the
-      // sheet up instead, which is the only thing a content-sized sheet can usefully do.
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
     >
@@ -428,7 +369,9 @@ function MenuSheetSurface({
           </>
         ) : (
           <>
-            {sheetTitle ? <MenuSheetHeader title={sheetTitle} onBack={null} /> : null}
+            {sheetTitle ? (
+              <MenuSheetHeader title={sheetTitle} onBack={null} trailing={sheetTrailing} />
+            ) : null}
             <MenuPage depth={0}>{children}</MenuPage>
           </>
         )}
@@ -440,9 +383,11 @@ function MenuSheetSurface({
 function MenuSheetHeader({
   title,
   onBack,
+  trailing = null,
 }: {
   title: string;
   onBack: (() => void) | null;
+  trailing?: ReactNode;
 }): ReactElement {
   const { t } = useTranslation();
   return (
@@ -462,6 +407,7 @@ function MenuSheetHeader({
       <Text style={styles.sheetTitle} numberOfLines={1}>
         {title}
       </Text>
+      {trailing ? <View style={styles.sheetTrailing}>{trailing}</View> : null}
     </View>
   );
 }
@@ -474,6 +420,11 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing[3],
     paddingTop: theme.spacing[1],
     paddingBottom: theme.spacing[3],
+  },
+  sheetTrailing: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   sheetBackButton: {
     width: 24,

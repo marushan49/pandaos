@@ -411,18 +411,6 @@ export function SplitContainer({
     },
     [workspaceKey],
   );
-  const handleCreateExplorerTab = useCallback(
-    () => onCreateNewTab({ paneId: explorerSidebarPaneId ?? undefined }),
-    [explorerSidebarPaneId, onCreateNewTab],
-  );
-  const handleMoveExplorerTabToMain = useCallback(
-    (tabId: string) => {
-      if (layout.focusedPaneId) {
-        onMoveTabToPane(tabId, layout.focusedPaneId);
-      }
-    },
-    [layout.focusedPaneId, onMoveTabToPane],
-  );
   const splitRoot = useMemo(
     () =>
       resolveSplitContainerRoot({
@@ -552,7 +540,6 @@ export function SplitContainer({
           point: dragEndPoint(event.activatorEvent, event.delta),
           ownListId: null,
           draggedNode: null,
-          // Only a session tab can move, and not to the workspace it is already in or another host.
           isValid: (target) =>
             activeTab?.target.kind === "agent" &&
             target.serverId === normalizedServerId &&
@@ -661,7 +648,6 @@ export function SplitContainer({
 
   const toast = useToast();
   const { t } = useTranslation();
-  // A session tab dropped on another workspace in the sidebar moves there.
   const moveTabToSidebarWorkspace = useCallback(
     (event: DragEndEvent, tabId: string): boolean => {
       const tab = uiTabs.find((candidate) => candidate.tabId === tabId);
@@ -812,8 +798,20 @@ export function SplitContainer({
                   closingTabIds={closingTabIds}
                   onSelectTab={onSelectTabInPane}
                   onCloseTab={onCloseTab}
-                  onCreateNewTab={handleCreateExplorerTab}
-                  onMoveTabToMain={handleMoveExplorerTabToMain}
+                  onCreateNewTab={onCreateNewTab}
+                  hoveredCloseTabKey={hoveredCloseTabKey}
+                  setHoveredCloseTabKey={setHoveredCloseTabKey}
+                  onCopyResumeCommand={onCopyResumeCommand}
+                  onCopyChat={onCopyChat}
+                  onCopyAgentId={onCopyAgentId}
+                  onCopyTerminalId={onCopyTerminalId}
+                  onCopyFilePath={onCopyFilePath}
+                  onReloadAgent={onReloadAgent}
+                  onRenameTab={onRenameTab}
+                  onCloseTabsToLeft={onCloseTabsToLeft}
+                  onCloseTabsToRight={onCloseTabsToRight}
+                  onCloseOtherTabs={onCloseOtherTabs}
+                  onExitFocusMode={onExitFocusMode}
                   buildPaneContentModel={buildPaneContentModel}
                   onReorderTabsInPane={onReorderTabsInPane}
                   activeDragTabId={activeDragTabId}
@@ -960,15 +958,6 @@ function SplitGroupChild({
   );
 }
 
-/**
- * Flex grow per child, renormalized so the visible ones always sum to 1.
- *
- * `sizes` are fractions, so a two-pane group is `[0.5, 0.5]`. Hiding one child drops the group's
- * total grow factor to 0.5, and CSS hands children that sum to less than 1 only that fraction of
- * the free space — the other half of the row is simply left empty. Renormalizing is what makes a
- * hidden pane give its space back instead of just going invisible. The stored `sizes` are never
- * touched, so unhiding restores the width the user dragged to.
- */
 function resolveVisibleGroupFlex(
   children: SplitNode[],
   sizes: number[],

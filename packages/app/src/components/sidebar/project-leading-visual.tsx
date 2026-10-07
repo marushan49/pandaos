@@ -1,8 +1,9 @@
 import { ActivityIndicator, View, type ViewStyle } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, CircleAlert } from "@/components/icons/ui-icons";
 import { ProjectIconView } from "@/components/project-icon-view";
-import { STATUS_BUCKET_LABELS } from "@/hooks/sidebar-status-view-model";
+import { getStatusBucketLabel } from "@/hooks/sidebar-status-view-model";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
 import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
 import {
@@ -20,22 +21,8 @@ import { StatusRing } from "@/components/status-ring";
 import { getStatusRingOffset } from "@/components/status-ring/geometry";
 import type { SidebarSurfaceBackdrop } from "@/styles/surface-backdrop";
 
-// Every surfaced status shares one badge shell, so the badge never changes size or position
-// between states. Only the thing inside it changes.
 const STATUS_BADGE_SIZE = 12;
-// How far the badge overhangs the icon's bottom-right corner. Well short of half the badge:
-// centered on the corner it reads as hanging off the icon rather than sitting on it, and the
-// sidebar row has no padding there to absorb the overhang.
 const STATUS_BADGE_OFFSET = -4;
-// Both glyphs must be EVEN. A centered glyph of size N sits at a (12 - N) / 2 offset — fractional
-// for odd N, which the browser snaps to a device-pixel boundary and renders visibly off-center (an
-// odd size measured 1.5 device px right and down at 3x, ~3px of asymmetry between opposite gaps).
-// Even sizes divide the shell into whole pixels and land dead center with no correction.
-//
-// The filled alert occupies the full badge shell so needs-input remains more prominent than
-// the passive status dots.
-// Matches the workspace title's lineHeight (sidebar-workspace-row-content's
-// workspaceBranchText) so the icon centers on the title rather than floating above it.
 const LEADING_SLOT_HEIGHT = 20;
 
 const ThemedActivityIndicator = withUnistyles(ActivityIndicator);
@@ -49,10 +36,6 @@ const needsInputColorMapping = (theme: Theme) => ({
   fill: getStatusDotColor({ theme, bucket: "needs_input" }) ?? undefined,
 });
 
-/**
- * Leading slot of a sidebar project row: chevron on hover, archive spinner while removing,
- * otherwise the project icon carrying the project's aggregate workspace status.
- */
 export function ProjectLeadingVisual({
   displayName,
   iconDataUri,
@@ -65,10 +48,8 @@ export function ProjectLeadingVisual({
 }: {
   displayName: string;
   iconDataUri: string | null;
-  /** Aggregate status of the project's workspaces; null when it shouldn't be surfaced. */
   statusBucket: SidebarStateBucket | null;
   projectViewKey: string;
-  /** The row's current background, so the status badge can knock out of it. */
   backdrop: SidebarSurfaceBackdrop;
   chevron?: "expand" | "collapse" | null;
   showChevron?: boolean;
@@ -101,11 +82,6 @@ export function ProjectLeadingVisual({
   );
 }
 
-// The project icon (the lettered box) is what marks a row as a *project* rather than a
-// workspace, so it always stays and status annotates it instead of replacing it. Every
-// surfaced bucket lands in the identical corner badge — an amber alert glyph for needs_input,
-// a colored disc for the rest, nothing for done — so the badge reads as one fixed shell and
-// only its contents change.
 export function ProjectStatusIndicator({
   iconDataUri,
   displayName,
@@ -119,7 +95,6 @@ export function ProjectStatusIndicator({
   displayName: string;
   projectViewKey: string;
   statusBucket: SidebarStateBucket | null;
-  /** The row's current background, so the status badge can knock out of it. */
   backdrop: SidebarSurfaceBackdrop;
   loading?: boolean;
   testID?: string;
@@ -127,9 +102,6 @@ export function ProjectStatusIndicator({
   const placeholderInitial = projectIconPlaceholderLabelFromDisplayName(displayName)
     .charAt(0)
     .toUpperCase();
-  // A row that's still starting up and a row that's working are both "busy", and at this size
-  // there's no room to draw the difference — so `loading` just resolves to the running bucket
-  // and they share one badge.
   const badgeBucket = loading ? "running" : statusBucket;
   const badgeContent = getProjectStatusBadgeContent(badgeBucket);
 
@@ -170,14 +142,12 @@ function ProjectStatusBadge({
   statusBucket: SidebarStateBucket;
   backdrop: SidebarSurfaceBackdrop;
 }) {
-  // Running skips the shell. The ring is wider than the 12pt shell and carries its own knockout,
-  // so nesting it inside would clip it against the very thing that was meant to separate it from
-  // the icon. It anchors to the same corner instead, growing around the centre the dot had.
+  const { t } = useTranslation();
   if (content.kind === "dot" && content.bucket === "running") {
     return (
       <View
         role="status"
-        accessibilityLabel={STATUS_BUCKET_LABELS[statusBucket]}
+        accessibilityLabel={getStatusBucketLabel(statusBucket, t)}
         style={styles.statusRingAnchor}
         testID="project-status-badge"
       >
@@ -188,7 +158,7 @@ function ProjectStatusBadge({
   return (
     <View
       role="status"
-      accessibilityLabel={STATUS_BUCKET_LABELS[statusBucket]}
+      accessibilityLabel={getStatusBucketLabel(statusBucket, t)}
       style={[styles.statusBadge, getStatusBadgeBackdropStyle(backdrop)]}
       testID="project-status-badge"
     >
@@ -255,10 +225,6 @@ function getStatusDotColorStyle(bucket: ProjectStatusBadgeDotBucket): ViewStyle 
 }
 
 const styles = StyleSheet.create((theme) => {
-  // Dot statuses sit *inside* the shell rather than replacing it, so they carry the same ring
-  // the alert does. The geometry is shared here and baked into each colored variant so the
-  // style prop stays a single stable object; the colors come from the one bucket-to-color map
-  // so this badge can't drift from the status dots everywhere else.
   const statusDot = (bucket: ProjectStatusBadgeDotBucket) =>
     ({
       width: STATUS_INDICATOR_FILLED_DOT_SIZE,
@@ -268,10 +234,6 @@ const styles = StyleSheet.create((theme) => {
     }) as const;
 
   return {
-    // The slot is as tall as the title's line box, not as tall as the icon, and centers the
-    // icon inside it. Rows lay their leading visual out with alignItems:flex-start, so a
-    // 16pt slot next to a 20pt line box puts the icon 2pt above the title and the kebab —
-    // which is why the workspace status indicator is also 20 tall. Keep the two in step.
     projectLeadingVisualSlot: {
       width: theme.iconSize.md,
       height: LEADING_SLOT_HEIGHT,
@@ -279,7 +241,6 @@ const styles = StyleSheet.create((theme) => {
       alignItems: "center",
       justifyContent: "center",
     },
-    // Anchors the corner badge to the icon rather than to the taller slot.
     projectIconBox: {
       position: "relative",
       width: theme.iconSize.md,
@@ -288,10 +249,6 @@ const styles = StyleSheet.create((theme) => {
     projectIconFallbackText: {
       fontSize: 9,
     },
-    // The shell the alert and dot statuses share. It straddles the icon's bottom-right corner
-    // (half in, half out) so the lettered project box stays readable. The shell is a knockout:
-    // it is filled with the colour of the row behind it, which is what makes the ring around the
-    // dot read as a gap in the icon rather than as a white halo drawn on top of it.
     statusBadge: {
       position: "absolute",
       right: STATUS_BADGE_OFFSET,
@@ -303,7 +260,6 @@ const styles = StyleSheet.create((theme) => {
       justifyContent: "center",
       overflow: "hidden",
     },
-    // Same corner as the shell, re-centred for the wider ring.
     statusRingAnchor: {
       position: "absolute",
       right: getStatusRingOffset(STATUS_BADGE_OFFSET, STATUS_BADGE_SIZE),

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { Modal, Platform, Pressable, Text, View } from "react-native";
+import { Keyboard, Pressable, Text, View } from "react-native";
 import type { DimensionValue, StyleProp, ViewStyle } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -13,13 +13,11 @@ import {
   useWebOverlayRegistration,
 } from "../lib/overlay-root";
 import {
-  BottomSheetBackdrop,
   KEYBOARD_STATUS,
   useBottomSheetInternal,
   type BottomSheetBackgroundProps,
 } from "@gorhom/bottom-sheet";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ArrowLeft, Search, X } from "@/components/icons/ui-icons";
 import {
   IsolatedBottomSheetModal,
@@ -37,15 +35,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AdaptiveTextInput } from "@/components/adaptive-text-input";
 export { AdaptiveTextInput, type AdaptiveTextInputProps } from "@/components/adaptive-text-input";
 
-// Horizontal indent token shared by the sheet header (title, back arrow,
-// leading icon, search input icon) and any row primitive rendered inside the
-// sheet body. Rows whose leading icon should line up with the header must
-// match this padding.
 export const SHEET_HORIZONTAL_PADDING_SCALE = 6;
 
-// The header's close button grows outward from its glyph, so the glyph's
-// trailing rail is the content inset plus this padding. Rows whose trailing
-// glyph should line up with the X must reach the same rail.
 export const SHEET_HEADER_CLOSE_PADDING_SCALE = 2;
 
 export interface SheetHeaderSearch {
@@ -75,10 +66,14 @@ export interface SheetHeader {
 
 const SCROLL_CONTENT_GROW = { flexGrow: 1 };
 const ABSOLUTE_FILL_STYLE = { ...StyleSheet.absoluteFillObject };
+const NATIVE_DIALOG_SNAP_POINTS = ["100%"];
 
 const styles = StyleSheet.create((theme) => ({
-  nativeModalRoot: {
+  nativeDialogSurface: {
     flex: 1,
+  },
+  nativeDialogBackground: {
+    backgroundColor: "transparent",
   },
   desktopOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -143,13 +138,6 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing[SHEET_HORIZONTAL_PADDING_SCALE],
     paddingBottom: theme.spacing[3],
   },
-  // Inline variants for InlineHeaderView inside the desktop Combobox popover.
-  // Horizontal padding matches the model picker's row indent: the picker uses
-  // children mode (desktopChildrenScrollContent, no scroll padding), so the
-  // row content starts at item.paddingHorizontal = spacing[3].
-  // The search row below owns the gap under the title: the input already
-  // carries its own vertical padding, so a paddingBottom here would stack on
-  // top of two more and push the title far off the field.
   inlineHeaderRow: {
     paddingHorizontal: theme.spacing[3],
     paddingTop: theme.spacing[2],
@@ -180,9 +168,6 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.base,
   },
   desktopScrollContainer: {
-    // Grows only when the card has an explicit `desktopHeight`; a content-sized
-    // card has nothing to grow into. Without it a fixed-height card with short
-    // content leaves the footer stranded in the middle.
     flexGrow: 1,
     flexShrink: 1,
     minHeight: 0,
@@ -192,8 +177,6 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 1,
     minHeight: 0,
   },
-  // The sheet's content inset — one definition for every presentation, always
-  // applied through <SheetContent />.
   sheetContent: {
     padding: theme.spacing[SHEET_HORIZONTAL_PADDING_SCALE],
     gap: theme.spacing[4],
@@ -247,16 +230,6 @@ function SheetBackground({ style }: BottomSheetBackgroundProps) {
   return <Animated.View pointerEvents="none" style={combinedStyle} />;
 }
 
-/**
- * The sheet body, indented to the sheet's content inset.
- *
- * The inset lives on a real `View` and never on a scroller's
- * `contentContainerStyle`: that is a library prop, not the `style` prop
- * Unistyles registers, so a themed inset handed to a third-party scroller such
- * as `BottomSheetScrollView` silently resolves to nothing on web — which is how
- * the compact sheet ended up rendering its cards flush to the screen edges. See
- * docs/unistyles.md "Main Gotcha: contentContainerStyle".
- */
 function SheetContent({ style, children }: { style: StyleProp<ViewStyle>; children: ReactNode }) {
   return <View style={[styles.sheetContent, style]}>{children}</View>;
 }
@@ -453,28 +426,23 @@ export interface AdaptiveModalSheetProps {
   onClose: () => void;
   onDismiss?: () => void;
   children: ReactNode;
-  /** Sticky footer rendered below the scrollable content. */
   footer?: ReactNode;
   footerContainerStyle?: StyleProp<ViewStyle>;
   snapPoints?: string[];
   testID?: string;
-  /** Override the max width of the desktop card. */
   desktopMaxWidth?: number;
-  /** Bound an author-owned list without changing content-sized first-party dialogs. */
   desktopHeight?: DimensionValue;
-  /** Whether the host supplies the scroll container. Caller-owned lists still share sheet gestures. */
   scrollable?: boolean;
   presentation?: "push" | "replace";
-  /** Full body viewport below the header, including space beyond the content. */
   bodyStyle?: StyleProp<ViewStyle>;
-  /** Layout intent for the sheet body, composed over the sheet's own content inset. */
   contentStyle?: StyleProp<ViewStyle>;
-  /** Size compact sheet content to the live snap height instead of its largest snap point. */
   sizeContentToCurrentSnapPoint?: boolean;
-  /** How the compact sheet moves when the keyboard opens. */
   keyboardBehavior?: "extend" | "fillParent" | "interactive";
-  /** Re-establishes caller-owned contexts inside the compact bottom-sheet portal. */
   contextBridge?: ContextBridge | null;
+}
+
+function resolveDesktopStaticStyle(height?: DimensionValue) {
+  return height == null ? styles.desktopStaticContent : styles.compactStaticContent;
 }
 
 export function AdaptiveModalSheet({
@@ -513,8 +481,6 @@ export function AdaptiveModalSheet({
       }),
     [footer, insets.bottom, isKeyboardVisible, isMobile],
   );
-  // Safe-area clearance is a separate layer: it must not replace the caller's
-  // padding (including an explicit zero), and the footer owns it when present.
   const bodyClearanceStyle = { paddingBottom: compactSafeAreaPadding.contentPaddingBottom ?? 0 };
   const footerClearanceStyle = useMemo(
     () => ({ paddingBottom: compactSafeAreaPadding.footerPaddingBottom ?? 0 }),
@@ -529,33 +495,24 @@ export function AdaptiveModalSheet({
     () => ({ backgroundColor: theme.colors.palette.zinc[600] }),
     [theme.colors.palette.zinc],
   );
+  useEffect(() => {
+    if (!isWeb && visible) {
+      Keyboard.dismiss();
+    }
+  }, [visible]);
+
   const { sheetRef, handleSheetChange, handleSheetDismiss } = useIsolatedBottomSheetVisibility({
     visible,
-    isEnabled: isMobile,
+    isEnabled: isMobile || !isWeb,
     onClose,
   });
   const [shouldRenderWeb, setShouldRenderWeb] = useState(visible);
   const [isWebClosing, setIsWebClosing] = useState(false);
   const modalLayer = useGlobalWebOverlayLayer("modal", isWeb && !isMobile && shouldRenderWeb);
-  const nativeModalDismissNotifiedRef = useRef(!visible);
   const handleDismiss = useCallback(() => {
     handleSheetDismiss();
     onDismiss?.();
   }, [handleSheetDismiss, onDismiss]);
-  const notifyNativeModalDismiss = useCallback(() => {
-    if (nativeModalDismissNotifiedRef.current) {
-      return;
-    }
-    nativeModalDismissNotifiedRef.current = true;
-    onDismiss?.();
-  }, [onDismiss]);
-
-  const renderBackdrop = useCallback(
-    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.45} />
-    ),
-    [],
-  );
 
   const desktopCardStyle = useMemo(
     () => [
@@ -596,12 +553,6 @@ export function AdaptiveModalSheet({
   });
 
   useEffect(() => {
-    if (visible) {
-      nativeModalDismissNotifiedRef.current = false;
-    }
-  }, [visible]);
-
-  useEffect(() => {
     if (!isWeb || isMobile) return;
     if (visible) {
       setShouldRenderWeb(true);
@@ -617,12 +568,6 @@ export function AdaptiveModalSheet({
     }, WEB_EXIT_DURATION_MS);
     return () => window.clearTimeout(timeout);
   }, [visible, isMobile, onDismiss, shouldRenderWeb]);
-
-  useEffect(() => {
-    if (isWeb || isMobile || visible || Platform.OS !== "android") return;
-    const timeout = setTimeout(notifyNativeModalDismiss, 0);
-    return () => clearTimeout(timeout);
-  }, [visible, isMobile, notifyNativeModalDismiss]);
 
   if (isMobile) {
     const sheetContent = (
@@ -661,7 +606,7 @@ export function AdaptiveModalSheet({
         enableDynamicSizing={false}
         onChange={handleSheetChange}
         onDismiss={handleDismiss}
-        backdropComponent={renderBackdrop}
+        backdropOpacity={0.45}
         enablePanDownToClose
         backgroundComponent={SheetBackground}
         handleIndicatorStyle={handleIndicatorStyle}
@@ -679,8 +624,7 @@ export function AdaptiveModalSheet({
     );
   }
 
-  const desktopStaticStyle =
-    desktopHeight == null ? styles.desktopStaticContent : styles.compactStaticContent;
+  const desktopStaticStyle = resolveDesktopStaticStyle(desktopHeight);
   const cardInner = (
     <OverlayLayerProvider layer={modalLayer}>
       <SheetHeaderView header={header} onClose={onClose} />
@@ -721,25 +665,31 @@ export function AdaptiveModalSheet({
     </View>
   );
 
-  // On web, use portal to overlay root for consistent stacking with toasts
   if (isWeb && typeof document !== "undefined") {
     if (!shouldRenderWeb) return null;
     return createPortal(desktopContent, getOverlayRoot());
   }
 
   return (
-    <Modal
-      transparent
-      animationType="fade"
-      visible={visible}
-      onRequestClose={onClose}
-      onDismiss={notifyNativeModalDismiss}
-      hardwareAccelerated
+    <IsolatedBottomSheetModal
+      ref={sheetRef}
+      contextBridge={contextBridge}
+      snapPoints={NATIVE_DIALOG_SNAP_POINTS}
+      index={0}
+      enableDynamicSizing={false}
+      onChange={handleSheetChange}
+      onDismiss={handleDismiss}
+      handleComponent={null}
+      backgroundStyle={styles.nativeDialogBackground}
+      enablePanDownToClose={false}
+      enableHandlePanningGesture={false}
+      enableContentPanningGesture={false}
+      keyboardBehavior="extend"
+      keyboardBlurBehavior="restore"
+      accessible={false}
+      presentation={presentation}
     >
-      {/* Android Modal opens a separate window outside the app's gesture root. */}
-      <GestureHandlerRootView style={styles.nativeModalRoot}>
-        {desktopContent}
-      </GestureHandlerRootView>
-    </Modal>
+      <View style={styles.nativeDialogSurface}>{desktopContent}</View>
+    </IsolatedBottomSheetModal>
   );
 }

@@ -5,7 +5,7 @@ import { MessageReceipts } from "./message-receipts/index.js";
 import { WebSocket, WebSocketServer } from "ws";
 import type { IncomingMessage, Server as HTTPServer } from "http";
 import { join } from "path";
-import { hostname as getHostname } from "node:os";
+import { getHostName } from "./host-name.js";
 import { randomUUID } from "node:crypto";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import type { AgentManager, AgentMetricsSnapshot } from "./agent/agent-manager.js";
@@ -22,6 +22,7 @@ import type { DaemonConfigStore, MutableDaemonConfig } from "./daemon-config-sto
 import { ResourcePolicyRuntime } from "./resource-policy.js";
 import {
   type ServerInfoStatusPayload,
+  type ScriptStatusUpdateMessage,
   type SessionOutboundMessage,
   type WorkspaceSetupSnapshot,
   type WSHelloMessage,
@@ -78,6 +79,7 @@ import {
   findLatestPermissionRequest,
   type AgentAttentionNotificationPayload,
 } from "@getpaseo/protocol/agent-attention-notification";
+import type { ProviderUsageService } from "../services/quota-fetcher/service.js";
 import { createGitHubService } from "../services/github-service.js";
 import type { ForgeService } from "../services/forge-service.js";
 import {
@@ -93,7 +95,6 @@ import {
   type WebSocketRuntimeCounters,
   type WebSocketRuntimeDiagnosticSnapshot,
 } from "./websocket/runtime-metrics.js";
-import { ProviderUsageService } from "../services/quota-fetcher/service.js";
 import { getProcessMemoryDiagnostics, getProcessUptimeSeconds } from "./process-diagnostics.js";
 import {
   CLIENT_SHUTDOWN_RPC_REASON,
@@ -386,13 +387,6 @@ function resolveCapabilityReason(params: {
   return state.message;
 }
 
-function resolveProviderUsageService(
-  service: ProviderUsageService | undefined,
-  logger: pino.Logger,
-): ProviderUsageService {
-  return service ?? new ProviderUsageService({ logger });
-}
-
 function resolveVerifyDependencies(
   host: DaemonPlaywrightHost | null | undefined,
   evidence: EvidenceStore | null | undefined,
@@ -609,7 +603,6 @@ export class VoiceAssistantWebSocketServer {
   private eventLoopDelayMonitor: ReturnType<typeof monitorEventLoopDelay> | null = null;
   private unsubscribeSpeechReadiness: (() => void) | null = null;
   private unsubscribeDaemonConfigChange: (() => void) | null = null;
-  private readonly providerUsageService: ProviderUsageService;
   private readonly deviceAccess: DeviceAccess | undefined;
   private unsubscribeTerminalActivity: (() => void) | null = null;
   private browserToolsBroker: BrowserToolsBroker | null = null;
@@ -693,7 +686,7 @@ export class VoiceAssistantWebSocketServer {
     workspaceLabelService?: WorkspaceLabelService,
     resourcePolicyRuntime?: Pick<ResourcePolicyRuntime, "checkStatusRead">,
     browserActivity?: BrowserActivityHub,
-    providerUsageService?: ProviderUsageService,
+    _providerUsageService?: ProviderUsageService,
     deviceAccess?: DeviceAccess,
   ) {
     this.logger = logger.child({ module: "websocket-server" });
@@ -798,7 +791,6 @@ export class VoiceAssistantWebSocketServer {
       });
     });
 
-    this.providerUsageService = resolveProviderUsageService(providerUsageService, this.logger);
     this.deviceAccess = deviceAccess;
 
     this.wss = this.createWebSocketServer(server, wsConfig, auth);
@@ -1022,6 +1014,12 @@ export class VoiceAssistantWebSocketServer {
       void session
         .emitProjectUpdate(update)
         .catch((error) => this.logger.warn({ err: error }, "Failed to publish project update"));
+    }
+  }
+
+  public publishScriptStatusUpdate(message: ScriptStatusUpdateMessage): void {
+    for (const session of this.listSessions()) {
+      session.emitServerMessage(message);
     }
   }
 
@@ -1511,6 +1509,7 @@ export class VoiceAssistantWebSocketServer {
           ),
         );
       },
+      publishScriptStatusUpdate: (message) => this.publishScriptStatusUpdate(message),
       downloadTokenStore: this.downloadTokenStore,
       pushNotifications: this.pushNotifications,
       paseoHome: this.paseoHome,
@@ -1538,7 +1537,6 @@ export class VoiceAssistantWebSocketServer {
       tts: () => this.speech?.resolveTts() ?? null,
       terminalManager: this.terminalManager,
       providerSnapshotManager: this.providerSnapshotManager,
-      providerUsageService: this.providerUsageService,
       hubExecutionAgents: options.hubExecutionAgents,
       hubRelationships: options.hubRelationships,
       pairedDevices: options.pairedDevices,
@@ -1898,13 +1896,14 @@ export class VoiceAssistantWebSocketServer {
       status: "server_info",
       protocolVersion: WS_PROTOCOL_VERSION,
       serverId: this.serverId,
-      hostname: getHostname(),
+      hostname: getHostName(),
       version: this.daemonVersion,
       permissions: session.getPermissions(),
       // COMPAT(desktopManaged): added in v0.1.X, remove optional parsing after 2027-01-16.
       desktopManaged: this.daemonRuntimeConfig?.desktopManaged === true,
       ...(this.serverCapabilities ? { capabilities: this.serverCapabilities } : {}),
       features: {
+        usageSources: true,
         ownedSubscriptions: true,
         agentRequestReceipts: true,
         agentInputActivity: true,

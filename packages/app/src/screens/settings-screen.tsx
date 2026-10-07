@@ -18,6 +18,7 @@ import type { TFunction } from "i18next";
 import { Buffer } from "buffer";
 import { ChevronRight } from "@/components/icons/ui-icons";
 import { DropdownTrigger } from "@/components/ui/dropdown-trigger";
+import { ScreenHeader } from "@/components/headers/screen-header";
 import { ScreenTitle } from "@/components/headers/screen-title";
 import {
   SettingsPageTitleContext,
@@ -47,7 +48,6 @@ import {
 import { WindowChromeRegion } from "@/utils/desktop-window";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { BackHeader } from "@/components/headers/back-header";
-import { ScreenHeader } from "@/components/headers/screen-header";
 import { AddHostMethodModal } from "@/components/add-host-method-modal";
 import { AddHostModal } from "@/components/add-host-modal";
 import { AddRemoteSshHostModal } from "@/components/add-remote-ssh-host-modal";
@@ -1085,6 +1085,8 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
             serverId={view.serverId}
             pluginId={view.pluginId}
             screenId={view.screenId}
+            onBackToPlugins={handleBackFromDetail}
+            showBackToPlugins={!isCompactLayout}
           />
         );
       if (view.kind === "host") {

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, Text, View, type GestureResponderEvent } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, MessageSquarePlus } from "@/components/icons/ui-icons";
 import { Button } from "@/components/ui/button";
 import { openExternalUrl } from "@/utils/open-external-url";
@@ -17,16 +18,8 @@ import { useCheckGroupState } from "./check-group-state";
 const ThemedChevronDown = withUnistyles(ChevronDown);
 const ThemedChevronRight = withUnistyles(ChevronRight);
 
-/**
- * Roughly eight rows. A repo with thirty checks would otherwise push the activity
- * timeline off the pane entirely, so past this height the list scrolls in place.
- */
 const LIST_MAX_HEIGHT = 268;
 
-/**
- * The three statuses the pane has always labelled for tests. Skipped has no id because
- * nothing asserts on it.
- */
 const PART_TEST_ID: Partial<Record<CheckPresentation, string>> = {
   actionRequired: "pr-pane-check-action-required",
   warning: "pr-pane-check-warning",
@@ -36,10 +29,6 @@ const PART_TEST_ID: Partial<Record<CheckPresentation, string>> = {
   manual: "pr-pane-check-manual",
 };
 
-/**
- * Identifies a check across refreshes. The forge's run id is stable where a forge exposes
- * one; the name/url pair is the fallback for forges that don't.
- */
 export function getCheckIdentity(check: PrPaneCheck): string {
   if (check.detailRef?.checkRunId !== undefined) {
     return `${check.provider}:check-run:${check.detailRef.checkRunId}`;
@@ -59,10 +48,6 @@ interface ChecksSectionProps {
   onAddLogsToChat: (check: PrPaneCheck) => void;
 }
 
-/**
- * The CI surface of the PR pane: one line saying how the run went, and the checks behind
- * it grouped by status so a failure never needs scrolling to find.
- */
 export function ChecksSection({
   checks,
   open,
@@ -71,7 +56,8 @@ export function ChecksSection({
   loadingCheckKeys,
   onAddLogsToChat,
 }: ChecksSectionProps) {
-  const summary = useMemo(() => summarizeChecks(checks), [checks]);
+  const { t } = useTranslation();
+  const summary = useMemo(() => summarizeChecks(checks, t), [checks, t]);
   const { collapsedGroups, toggle: handleToggleGroup } = useCheckGroupState();
 
   return (
@@ -91,13 +77,14 @@ export function ChecksSection({
           </Text>
           {summary.parts.length > 0 ? (
             <Text style={styles.detail} numberOfLines={1} testID="pr-pane-check-summary">
+              {summary.detailLead}
               {summary.parts.map((part, index) => (
                 <Text key={part.status}>
                   {index > 0 ? ", " : ""}
                   <Text testID={PART_TEST_ID[part.status]}>{part.text}</Text>
                 </Text>
               ))}
-              {` ${summary.countNoun}`}
+              {summary.detailTrail}
             </Text>
           ) : null}
         </View>
@@ -186,6 +173,7 @@ function CheckRow({
   isAddingLogsToChat: boolean;
   onAddLogsToChat: (check: PrPaneCheck) => void;
 }) {
+  const { t } = useTranslation();
   const handlePress = useCallback(() => {
     void openExternalUrl(check.url);
   }, [check.url]);
@@ -217,7 +205,9 @@ function CheckRow({
             onPress={handleAddLogsToChat}
             style={styles.addButton}
           >
-            {isAddingLogsToChat ? "Adding..." : "Add to chat"}
+            {isAddingLogsToChat
+              ? t("workspace.git.pr.actions.addingToChat")
+              : t("workspace.git.pr.actions.addToChat")}
           </Button>
         ) : null}
         {check.timing && <Text style={sectionKitStyles.checkDuration}>{check.timing}</Text>}
