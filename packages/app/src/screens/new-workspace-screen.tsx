@@ -2000,7 +2000,7 @@ export function NewWorkspaceScreen({
   } = useModelFanout({
     serverId: selectedServerId,
     canCreateWorktree,
-    blockedBy: [execution.executionId, forkDraftSetup],
+    blockedBy: [execution.executionId, forkDraftSetup, isTerminalLaunch],
     composerState,
   });
 
