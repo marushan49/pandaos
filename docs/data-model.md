@@ -69,7 +69,8 @@ $PANDAOS_HOME/
 ├── plugins/
 │   ├── sources.json                      # Managed kind and Git acquisition remote
 │   └── {pluginId}/{uuid}/                # Git checkout or npm package/lockfile/dependency tree
-└── push-tokens.json                     # Expo push notification tokens
+├── push-tokens.json                     # Expo push notification tokens
+└── sidebar-order.json                   # Sidebar order shared by every client device
 ```
 
 The `agents/{sanitized-cwd}/` directory name is derived from the agent's `cwd` by stripping the filesystem root and replacing path separators with `-` (Windows drive letters become a `C-` style prefix). Persistent server stores write atomically by writing a temp file in the target directory and then renaming it into place.
@@ -566,7 +567,30 @@ Simple set of Expo push notification tokens. Loaded with permissive parsing (fil
 
 ---
 
-## 7. Daemon meta files
+## 7. Sidebar Order
+
+**Path:** `$PANDAOS_HOME/sidebar-order.json`
+
+```json
+{
+  "revision": 4,
+  "projectOrder": ["github.com/acme/repo", "[\"srv_a\",\"prj_1\"]"],
+  "pinnedWorkspaceOrder": ["srv_a:wks_1"],
+  "workspaceOrderByProject": { "github.com/acme/repo": ["srv_a:wks_1", "srv_b:wks_9"] }
+}
+```
+
+The order of projects, pinned workspaces, and workspaces inside each project, so every device shows
+the same sidebar. The keys are the app's sidebar keys, opaque to the daemon. A missing file reads as
+revision 0 with empty lists. Every `sidebar.order.set.request` replaces the whole order and bumps
+`revision` (last write wins; `baseRevision` is accepted but not enforced), writes atomically, and
+pushes `sidebar.order.changed` to every session subscribed to it. A corrupt file fails get and set
+instead of resetting the order. Gated on `server_info.features.sidebarOrder`; the app side is
+[Sidebar order](#sidebar-order).
+
+---
+
+## 8. Daemon meta files
 
 These small files are not validated as full Zod schemas but are persisted under `$PANDAOS_HOME` for daemon identity and runtime coordination.
 
@@ -590,6 +614,36 @@ Right-sidebar client state splits on whether it is determined by the directory o
 
 - **Directory-backed** (shared by same-`cwd` workspaces): keyed by `(serverId, cwd)`. Git status/diff, GitHub PR status, PR timeline, file preview content. These are TanStack Query caches, not persisted stores.
 - **Workspace-owned** (independent per workspace): keyed by `workspaceId`, with `cwd` used only as a fallback when no `workspaceId` is present. Review draft comments (`@paseo:review-draft-store`), diff-mode overrides (in-memory), workspace composer attachments, and file-explorer nav/expand state. The `workspaceId` part of these keys is **opaque** — never parse it back into a path.
+
+### Sidebar order
+
+**AsyncStorage key:** `sidebar-project-workspace-order` (version 1)
+
+`useSidebarOrderStore` holds `projectOrder`, `pinnedWorkspaceOrder`, `workspaceOrderByProject`,
+the device-local `workspacePromotedAt`, and `syncMark`. The three order fields are a cache of the
+[daemon sidebar order](#7-sidebar-order) on one canonical host: the lexicographically smallest
+`serverId` among the known hosts whose `server_info` reports `sidebarOrder`.
+`packages/app/src/sidebar-order-sync/sync.ts` owns the protocol:
+
+- On connect it fetches the host order. A revision above `syncMark.revision` replaces the local
+  order, including unsent local edits. Otherwise a local order that differs from `syncMark` is
+  uploaded, which also seeds an empty host.
+- Local edits upload after a 500 ms debounce. A push is applied only when it is newer than
+  `syncMark` and nothing local is pending or in flight; the pending edit then wins.
+- `syncMark` stores the host, revision, and a fingerprint of the last synced order. Applying a
+  host order sets the fingerprint first, so applying never triggers an upload and devices cannot
+  ping-pong.
+
+Workspace keys are `serverId:workspaceId` and project keys are the cross-host `projectKey` or
+`JSON.stringify([serverId, projectId])`, so they mean the same on every device. Two exceptions:
+when one host has two projects with the same `projectKey`, the colliding placement key carries an
+allocation-order suffix that can differ between devices; and keys of a host a device does not know
+are kept but never shown there. Two devices that know different host sets can pick different
+canonical hosts and then diverge.
+
+Setters drop blank and duplicate keys but never trim a key: project keys can embed a path, and a
+trimmed key never matches the one the sidebar looks up, so the reconcile effect would rewrite it
+forever. Only the legacy migration trims.
 
 ### Replica row store
 
