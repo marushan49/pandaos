@@ -1,3 +1,4 @@
+import { originKey } from "./origin-key.js";
 import { DAEMON_BROWSER_HOST_ID } from "./host-preference.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -118,10 +119,10 @@ export class BrowserToolsBroker {
 
   public async execute(input: BrowserToolsExecuteInput): Promise<BrowserToolsResponsePayload> {
     const { command } = input;
-    if (command.command !== "new_tab" || !command.args.url || input.separateTab || input.hostId) {
+    if (command.command !== "new_tab" || !command.args.url || input.separateTab) {
       return this.executeUnqueued(input);
     }
-    const key = input.workspaceId ?? "";
+    const key = `${input.hostId ?? ""}|${input.workspaceId ?? ""}`;
     const previous = this.newTabQueues.get(key) ?? Promise.resolve();
     const run = previous.then(() => this.executeUnqueued(input));
     const settled = (): undefined => {
@@ -159,6 +160,15 @@ export class BrowserToolsBroker {
     if (input.hostId) {
       const pinned = this.clients.get(input.hostId);
       if (!pinned) return this.noBrowserHostFailure(requestId);
+      if (this.wantsTabReuse(input, request.data)) {
+        const reusedOnPinned = await this.reuseTabForOrigin({
+          input,
+          request: request.data,
+          timeoutMs,
+          host: pinned,
+        });
+        if (reusedOnPinned) return reusedOnPinned;
+      }
       return (
         this.unsupportedCommandFailure({
           host: pinned,
@@ -172,11 +182,7 @@ export class BrowserToolsBroker {
       return this.executeListTabs({ request: request.data, timeoutMs });
     }
 
-    if (
-      request.data.command.command === "new_tab" &&
-      request.data.command.args.url &&
-      !input.separateTab
-    ) {
+    if (this.wantsTabReuse(input, request.data)) {
       const reused = await this.reuseTabForOrigin({ input, request: request.data, timeoutMs });
       if (reused) return reused;
     }
@@ -272,33 +278,44 @@ export class BrowserToolsBroker {
     });
   }
 
+  private wantsTabReuse(
+    input: BrowserToolsExecuteInput,
+    request: BrowserAutomationExecuteRequest,
+  ): boolean {
+    const { command } = request;
+    return command.command === "new_tab" && Boolean(command.args.url) && !input.separateTab;
+  }
+
   private async reuseTabForOrigin(params: {
     input: BrowserToolsExecuteInput;
     request: BrowserAutomationExecuteRequest;
     timeoutMs: number;
+    host?: RegisteredBrowserHost;
   }): Promise<BrowserToolsResponsePayload | null> {
     const command = params.request.command;
     const target = command.command === "new_tab" ? command.args.url : undefined;
     if (!target) return null;
-    const origin = new URL(target).origin;
-    const listed = await this.executeListTabs({
-      request: {
-        ...params.request,
-        requestId: `${params.request.requestId}:reuse`,
-        command: { command: "list_tabs", args: {} },
-      },
-      timeoutMs: params.timeoutMs,
-    });
+    const origin = originKey(target);
+    if (!origin) return null;
+    const listRequest: BrowserAutomationExecuteRequest = {
+      ...params.request,
+      requestId: `${params.request.requestId}:reuse`,
+      command: { command: "list_tabs", args: {} },
+    };
+    const listed = params.host
+      ? await this.sendRequest({
+          host: params.host,
+          request: listRequest,
+          rememberAffinity: false,
+          timeoutMs: params.timeoutMs,
+        })
+      : await this.executeListTabs({ request: listRequest, timeoutMs: params.timeoutMs });
     if (!listed.ok || listed.result.command !== "list_tabs") return null;
     const tab = listed.result.tabs.find((candidate) => {
       if (params.request.workspaceId && candidate.workspaceId !== params.request.workspaceId) {
         return false;
       }
-      try {
-        return new URL(candidate.url).origin === origin;
-      } catch {
-        return false;
-      }
+      return originKey(candidate.url) === origin;
     });
     const workspaceId = tab?.workspaceId ?? params.request.workspaceId;
     if (!tab || !workspaceId) return null;

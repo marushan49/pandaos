@@ -451,6 +451,75 @@ describe("BrowserToolsBroker", () => {
     ).toHaveLength(1);
   });
 
+  test("a pinned host reuses a tab of the same application, loopback spellings included", async () => {
+    const broker = createBroker();
+    const host = new FakeBrowserHostClient("host-1");
+    broker.registerClient(host);
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const tab = {
+      browserId: BROWSER_ID,
+      workspaceId: "workspace-1",
+      url: "http://127.0.0.1:4040/de/auth",
+      title: "Login",
+      isActive: true,
+      isLoading: false,
+    };
+
+    const first = broker.execute({
+      command: { command: "new_tab", args: { url: tab.url } },
+      workspaceId: "workspace-1",
+      hostId: "host-1",
+    });
+    await flush();
+    host.resolveLatestWith(broker, {
+      requestId: "req-1:reuse",
+      ok: true,
+      result: { command: "list_tabs", tabs: [] },
+    });
+    await flush();
+    host.resolveLatestWith(broker, {
+      requestId: "req-1",
+      ok: true,
+      result: {
+        command: "new_tab",
+        browserId: BROWSER_ID,
+        workspaceId: "workspace-1",
+        url: tab.url,
+      },
+    });
+    await first;
+
+    const second = broker.execute({
+      command: { command: "new_tab", args: { url: "http://localhost:4040/de/monitoring" } },
+      workspaceId: "workspace-1",
+      hostId: "host-1",
+    });
+    await flush();
+    host.resolveLatestWith(broker, {
+      requestId: "req-2:reuse",
+      ok: true,
+      result: { command: "list_tabs", tabs: [tab] },
+    });
+    await flush();
+    host.resolveLatestWith(broker, {
+      requestId: "req-3",
+      ok: true,
+      result: {
+        command: "navigate",
+        browserId: BROWSER_ID,
+        url: "http://localhost:4040/de/monitoring",
+      },
+    } as never);
+
+    await expect(second).resolves.toMatchObject({
+      ok: true,
+      result: { command: "new_tab", browserId: BROWSER_ID },
+    });
+    expect(
+      host.receivedRequests.filter((request) => request.command.command === "new_tab"),
+    ).toHaveLength(1);
+  });
+
   test("new tab opens a fresh tab for another application or when separateTab is set", async () => {
     const broker = createBroker();
     const host = new FakeBrowserHostClient("host-1");

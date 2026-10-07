@@ -7,7 +7,10 @@ import { BrowserMirrorActionSchema } from "@getpaseo/protocol/browser-activity/r
 // Daemon tab actions, fanned out to the desktop tabs that mirror them.
 type MirrorListener = (event: BrowserMirrorEvent) => void;
 const listeners = new Map<string, Set<MirrorListener>>();
+const workspaceListeners = new Map<string, Set<() => void>>();
 const history = new Map<string, BrowserMirrorEvent[]>();
+const workspaceKeyFor = (serverId: string, workspaceId: string) =>
+  `${serverId}\u0000${workspaceId}`;
 const keyFor = (serverId: string, browserId: string) => `${serverId}\u0000${browserId}`;
 
 export function publishBrowserMirror(serverId: string, event: BrowserMirrorEvent): void {
@@ -19,6 +22,26 @@ export function publishBrowserMirror(serverId: string, event: BrowserMirrorEvent
   if (events.length > 201) events.splice(1, 1);
   history.set(key, events);
   for (const listener of listeners.get(key) ?? []) listener(event);
+  for (const listener of workspaceListeners.get(workspaceKeyFor(serverId, event.workspaceId)) ??
+    []) {
+    listener();
+  }
+}
+
+/** Fires when the daemon reports a new action on any tab of the workspace. */
+export function subscribeWorkspaceBrowserMirror(
+  serverId: string,
+  workspaceId: string,
+  listener: () => void,
+): () => void {
+  const key = workspaceKeyFor(serverId, workspaceId);
+  const set = workspaceListeners.get(key) ?? new Set<() => void>();
+  set.add(listener);
+  workspaceListeners.set(key, set);
+  return () => {
+    set.delete(listener);
+    if (set.size === 0) workspaceListeners.delete(key);
+  };
 }
 
 export function subscribeBrowserMirror(
