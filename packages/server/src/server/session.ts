@@ -3224,6 +3224,7 @@ export class Session {
       projectOrder: msg.projectOrder,
       pinnedWorkspaceOrder: msg.pinnedWorkspaceOrder,
       workspaceOrderByProject: msg.workspaceOrderByProject,
+      snoozedWorkspaceUntil: msg.snoozedWorkspaceUntil,
     });
     this.emit({
       type: "sidebar.order.set.response",

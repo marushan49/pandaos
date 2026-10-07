@@ -37,6 +37,8 @@ export class SidebarOrderStore {
         projectOrder: order.projectOrder,
         pinnedWorkspaceOrder: order.pinnedWorkspaceOrder,
         workspaceOrderByProject: order.workspaceOrderByProject,
+        // COMPAT(sidebarSnooze): added in v0.11.1, remove after 2027-04-08 once every app sends it.
+        snoozedWorkspaceUntil: order.snoozedWorkspaceUntil ?? current.snoozedWorkspaceUntil,
       };
       await writeJsonFileAtomic(this.file, next);
       for (const listener of this.listeners) listener(next);

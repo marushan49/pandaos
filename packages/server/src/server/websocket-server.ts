@@ -2038,6 +2038,8 @@ export class VoiceAssistantWebSocketServer {
         workspaceTopics: true,
         // COMPAT(sidebarOrder): added in v0.11.0, remove gate after 2027-04-07.
         sidebarOrder: true,
+        // COMPAT(sidebarSnooze): added in v0.11.1, remove gate after 2027-04-08.
+        sidebarSnooze: true,
         // COMPAT(systemOneUsage): added in v0.9.2, remove gate after 2027-04-01.
         systemOneUsage: true,
         // COMPAT(workspaceDone): added in v0.9.3, remove gate after 2027-04-01.
