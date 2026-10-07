@@ -1,7 +1,10 @@
 import type { BrowserMirrorEvent } from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import { publishBrowserMirror } from "@/desktop/browser/mirror";
 import { isRemoteBrowserClosed, useBrowserStore } from "@/desktop/browser/store";
-import { duplicateRemoteBrowserRecordIds } from "@/desktop/browser/remote-tab-records";
+import {
+  closedRemoteBrowserTabIds,
+  duplicateRemoteBrowserRecordIds,
+} from "@/desktop/browser/remote-tab-records";
 import { collectAllTabs, useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 
 let remoteNewTabsInFlight = 0;
@@ -33,8 +36,17 @@ function openBrowserIds(workspaceKey: string): Set<string> {
   return ids;
 }
 
+function openRemoteBindings(workspaceKey: string): Map<string, string | null> {
+  const browsersById = useBrowserStore.getState().browsersById;
+  const bindings = new Map<string, string | null>();
+  for (const browserId of openBrowserIds(workspaceKey)) {
+    bindings.set(browserId, browsersById[browserId]?.remoteBrowserId ?? null);
+  }
+  return bindings;
+}
+
 export function beginRemoteBrowserTabSync(workspaceKey: string) {
-  return { sequence: ++nextSyncSequence, browserIds: openBrowserIds(workspaceKey) };
+  return { sequence: ++nextSyncSequence, bindings: openRemoteBindings(workspaceKey) };
 }
 
 export function closeLocalBrowserTab(workspaceKey: string, browserId: string): void {
@@ -50,20 +62,16 @@ export function closeLocalBrowserTab(workspaceKey: string, browserId: string): v
 
 function removeClosedRemoteBrowserTabs(
   workspaceKey: string,
-  candidates: ReadonlySet<string>,
+  snapshot: ReadonlyMap<string, string | null>,
   listedIds: ReadonlySet<string>,
 ): void {
   if (remoteNewTabsInFlight > 0) return;
-  for (const browserId of openBrowserIds(workspaceKey)) {
-    const record = useBrowserStore.getState().browsersById[browserId];
-    if (
-      candidates.has(browserId) &&
-      record?.remoteBrowserId === browserId &&
-      !listedIds.has(browserId)
-    ) {
-      closeLocalBrowserTab(workspaceKey, browserId);
-    }
-  }
+  const closed = closedRemoteBrowserTabIds({
+    snapshot,
+    current: openRemoteBindings(workspaceKey),
+    listedIds,
+  });
+  for (const browserId of closed) closeLocalBrowserTab(workspaceKey, browserId);
 }
 
 export function syncRemoteBrowserTabs(input: {
@@ -80,7 +88,7 @@ export function syncRemoteBrowserTabs(input: {
   const tabs = input.tabs.filter((tab) => !tab.workspaceId || tab.workspaceId === workspaceId);
   removeClosedRemoteBrowserTabs(
     workspaceKey,
-    input.request.browserIds,
+    input.request.bindings,
     new Set(tabs.map((tab) => tab.browserId)),
   );
   if (input.serverId) {
