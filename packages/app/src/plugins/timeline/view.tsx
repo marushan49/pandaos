@@ -89,7 +89,6 @@ function PluginTimelineItemBody({
   };
   return (
     <View style={styles.container}>
-      <ToolCallOriginIndicator origins={[origin]} />
       <SurfaceErrorBoundary installation={plugin} resetKey={item.data} Surface={Component}>
         <PluginInstallationProvider plugin={plugin}>
           <PluginClientStateProvider source={stateSource}>
