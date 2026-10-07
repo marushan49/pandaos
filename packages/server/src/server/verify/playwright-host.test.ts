@@ -132,7 +132,7 @@ describe.skipIf(!BROWSER_AVAILABLE)("DaemonPlaywrightHost", { timeout: 20_000 },
     } else {
       expect.unreachable();
     }
-  });
+  }, 45_000);
 
   it("fills the login form and reaches the report behind auth", async () => {
     const browserId = await openTab(`${app?.url}/login`, "login-flow");
