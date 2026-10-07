@@ -1209,6 +1209,8 @@ export const SidebarOrderSchema = z.object({
   projectOrder: z.array(z.string()),
   pinnedWorkspaceOrder: z.array(z.string()),
   workspaceOrderByProject: z.record(z.string(), z.array(z.string())),
+  // COMPAT(sidebarSnooze): added in v0.11.1. Gate on server_info.features.sidebarSnooze.
+  snoozedWorkspaceUntil: z.record(z.string(), z.number().int().nonnegative()).optional(),
 });
 
 export const SidebarOrderSnapshotSchema = SidebarOrderSchema.extend({
@@ -4088,6 +4090,8 @@ export const ServerInfoStatusPayloadSchema = z
         workspaceTopics: z.boolean().optional(),
         // COMPAT(sidebarOrder): added in v0.11.0, remove gate after 2027-04-07.
         sidebarOrder: z.boolean().optional(),
+        // COMPAT(sidebarSnooze): added in v0.11.1, remove gate after 2027-04-08.
+        sidebarSnooze: z.boolean().optional(),
         // COMPAT(pairedDevices): added in v0.9.2, remove gate after 2027-04-01.
         pairedDevices: z.boolean().optional(),
         // COMPAT(systemOneUsage): added in v0.9.2, gates the browser-goal switch and Jev usage.
