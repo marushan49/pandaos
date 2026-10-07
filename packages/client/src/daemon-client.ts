@@ -14,7 +14,11 @@ import type {
   ForgeAccountScope,
 } from "@getpaseo/protocol/messages";
 import type { z } from "zod";
-import type { SessionEventSubscription } from "@getpaseo/protocol/messages";
+import type {
+  SessionEventSubscription,
+  SidebarOrder,
+  SidebarOrderSnapshot,
+} from "@getpaseo/protocol/messages";
 import type { BrowserScreencastQuality } from "@getpaseo/protocol/browser-screencast/rpc-schemas";
 import type { ClientCapability } from "@getpaseo/protocol/client-capabilities";
 import type { AgentAttentionNotificationPayload } from "@getpaseo/protocol/agent-attention-notification";
@@ -3487,6 +3491,27 @@ export class DaemonClient {
       responseType: "device.revoke.response",
     });
     if (!payload.revoked) throw new Error(payload.error ?? "revokePairedDevice rejected");
+  }
+
+  async getSidebarOrder(requestId?: string): Promise<SidebarOrderSnapshot> {
+    const { requestId: _requestId, ...snapshot } = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "sidebar.order.get.request" },
+      responseType: "sidebar.order.get.response",
+    });
+    return snapshot;
+  }
+
+  async setSidebarOrder(
+    input: SidebarOrder & { baseRevision: number },
+    requestId?: string,
+  ): Promise<SidebarOrderSnapshot> {
+    const { requestId: _requestId, ...snapshot } = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "sidebar.order.set.request", ...input },
+      responseType: "sidebar.order.set.response",
+    });
+    return snapshot;
   }
 
   async createWorkspaceTopic(

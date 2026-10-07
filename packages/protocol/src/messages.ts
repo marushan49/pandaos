@@ -1203,6 +1203,47 @@ export const WorkspaceTopicUpdateRequestSchema = z.object({
   requestId: z.string(),
 });
 
+// COMPAT(sidebarOrder): added in v0.11.0. Gate on server_info.features.sidebarOrder.
+
+export const SidebarOrderSchema = z.object({
+  projectOrder: z.array(z.string()),
+  pinnedWorkspaceOrder: z.array(z.string()),
+  workspaceOrderByProject: z.record(z.string(), z.array(z.string())),
+});
+
+export const SidebarOrderSnapshotSchema = SidebarOrderSchema.extend({
+  revision: z.number().int().nonnegative(),
+});
+
+export const SidebarOrderGetRequestSchema = z.object({
+  type: z.literal("sidebar.order.get.request"),
+  requestId: z.string(),
+});
+
+export const SidebarOrderGetResponseSchema = z.object({
+  type: z.literal("sidebar.order.get.response"),
+  payload: SidebarOrderSnapshotSchema.extend({ requestId: z.string() }),
+});
+
+export const SidebarOrderSetRequestSchema = SidebarOrderSchema.extend({
+  type: z.literal("sidebar.order.set.request"),
+  requestId: z.string(),
+  baseRevision: z.number().int().nonnegative(),
+});
+
+export const SidebarOrderSetResponseSchema = z.object({
+  type: z.literal("sidebar.order.set.response"),
+  payload: SidebarOrderSnapshotSchema.extend({ requestId: z.string() }),
+});
+
+export const SidebarOrderChangedMessageSchema = z.object({
+  type: z.literal("sidebar.order.changed"),
+  payload: SidebarOrderSnapshotSchema,
+});
+
+export type SidebarOrder = z.infer<typeof SidebarOrderSchema>;
+export type SidebarOrderSnapshot = z.infer<typeof SidebarOrderSnapshotSchema>;
+
 // COMPAT(workspaceForgeAccount): added in v0.8.1. Gate on
 
 export const PullRequestCurationSchema = z.object({
@@ -3454,6 +3495,7 @@ export const SessionEventSubscriptionSchema = z.enum([
   "browser.activity",
   "browser.handoff",
   "browser.mirror",
+  "sidebar.order.changed",
 ]);
 export type SessionEventSubscription = z.infer<typeof SessionEventSubscriptionSchema>;
 export const SessionEventsSetSubscriptionRequestSchema = z.object({
@@ -3533,6 +3575,8 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   WorkspaceDoneSetRequestSchema,
   AgentLastRepliesRequestSchema,
   WorkspaceTopicCreateRequestSchema,
+  SidebarOrderGetRequestSchema,
+  SidebarOrderSetRequestSchema,
   DeviceListRequestSchema,
   DeviceRevokeRequestSchema,
   DeviceLockSetRequestSchema,
@@ -4042,6 +4086,8 @@ export const ServerInfoStatusPayloadSchema = z
         workspacePinning: z.boolean().optional(),
         // COMPAT(workspaceTopics): added in v0.9.2, remove gate after 2027-04-01.
         workspaceTopics: z.boolean().optional(),
+        // COMPAT(sidebarOrder): added in v0.11.0, remove gate after 2027-04-07.
+        sidebarOrder: z.boolean().optional(),
         // COMPAT(pairedDevices): added in v0.9.2, remove gate after 2027-04-01.
         pairedDevices: z.boolean().optional(),
         // COMPAT(systemOneUsage): added in v0.9.2, gates the browser-goal switch and Jev usage.
@@ -7386,6 +7432,9 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   WorkspaceDoneSetResponseSchema,
   AgentLastRepliesResponseSchema,
   WorkspaceTopicCreateResponseSchema,
+  SidebarOrderGetResponseSchema,
+  SidebarOrderSetResponseSchema,
+  SidebarOrderChangedMessageSchema,
   DeviceListResponseSchema,
   DeviceRevokeResponseSchema,
   DeviceLockSetResponseSchema,

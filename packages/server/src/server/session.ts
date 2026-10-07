@@ -2,6 +2,7 @@ import { searchTimeline } from "./agent/chat-search/index.js";
 import { isSystemOneExcluded } from "./system-one/scope.js";
 import type { BrowserToolsBroker } from "./browser-tools/broker.js";
 import type { BrowserActivityHub } from "./browser-tools/browser-activity.js";
+import type { SidebarOrderStore } from "./sidebar-order.js";
 import { browserToolsFailure } from "./browser-tools/errors.js";
 import { DAEMON_BROWSER_HOST_ID } from "./browser-tools/host-preference.js";
 import { DaemonConfigBrowserToolsPolicy } from "./browser-tools/policy.js";
@@ -487,6 +488,7 @@ export interface SessionOptions {
   trustedPluginId?: string;
   browserToolsBroker?: BrowserToolsBroker | null;
   browserActivity?: BrowserActivityHub | null;
+  sidebarOrder?: SidebarOrderStore | null;
   validateSystemOneApiKey?: typeof isTypeSafeApiKeyAccepted;
   verifyHost?: DaemonPlaywrightHost | null;
   verifyEvidence?: EvidenceStore | null;
@@ -762,6 +764,7 @@ export class Session {
   );
   private readonly browserToolsBroker: SessionOptions["browserToolsBroker"];
   private readonly browserActivity: SessionOptions["browserActivity"];
+  private readonly sidebarOrder: SessionOptions["sidebarOrder"];
   private readonly validateSystemOneApiKey: typeof isTypeSafeApiKeyAccepted;
   private readonly verifySession: VerifySession | null;
   private readonly verifyHost: DaemonPlaywrightHost | null | undefined;
@@ -936,6 +939,7 @@ export class Session {
     } = options;
     this.browserToolsBroker = options.browserToolsBroker;
     this.browserActivity = options.browserActivity;
+    this.sidebarOrder = options.sidebarOrder;
     this.validateSystemOneApiKey = resolveSystemOneApiKeyValidator(options.validateSystemOneApiKey);
     this.clientId = clientId;
     this.authorization = new SessionAuthorization(permissions);
@@ -2449,6 +2453,7 @@ export class Session {
       this.dispatchWorkspaceStateMessage(msg) ??
       this.dispatchWorkspaceLabelMessage(msg) ??
       this.dispatchWorkspaceTopicMessage(msg) ??
+      this.dispatchSidebarOrderMessage(msg) ??
       this.dispatchDeviceMessage(msg) ??
       this.dispatchWorkspaceSetupMessage(msg) ??
       this.dispatchWorkspaceAndProjectMessage(msg)
@@ -3191,6 +3196,39 @@ export class Session {
       return Promise.resolve();
     }
     return undefined;
+  }
+
+  private dispatchSidebarOrderMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    if (msg.type !== "sidebar.order.get.request" && msg.type !== "sidebar.order.set.request") {
+      return undefined;
+    }
+    return this.handleSidebarOrderRequest(msg);
+  }
+
+  private async handleSidebarOrderRequest(
+    msg: Extract<
+      SessionInboundMessage,
+      { type: "sidebar.order.get.request" | "sidebar.order.set.request" }
+    >,
+  ): Promise<void> {
+    if (!this.sidebarOrder) throw new Error("Sidebar order sync is unavailable on this host");
+    if (msg.type === "sidebar.order.get.request") {
+      const snapshot = await this.sidebarOrder.get();
+      this.emit({
+        type: "sidebar.order.get.response",
+        payload: { ...snapshot, requestId: msg.requestId },
+      });
+      return;
+    }
+    const snapshot = await this.sidebarOrder.set({
+      projectOrder: msg.projectOrder,
+      pinnedWorkspaceOrder: msg.pinnedWorkspaceOrder,
+      workspaceOrderByProject: msg.workspaceOrderByProject,
+    });
+    this.emit({
+      type: "sidebar.order.set.response",
+      payload: { ...snapshot, requestId: msg.requestId },
+    });
   }
 
   private dispatchWorkspaceTopicMessage(msg: SessionInboundMessage): Promise<void> | undefined {
@@ -9421,6 +9459,7 @@ function sessionEventCategory(message: SessionOutboundMessage): SessionEventSubs
     case "browser.activity":
     case "browser.handoff":
     case "browser.mirror":
+    case "sidebar.order.changed":
       return message.type;
     case "status":
       switch (message.payload.status) {
@@ -9458,6 +9497,7 @@ function legacyWantsEvent(
     case "browser.activity":
     case "browser.handoff":
     case "browser.mirror":
+    case "sidebar.order.changed":
       return false;
     default:
       return true;

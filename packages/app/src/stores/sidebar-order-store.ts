@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { z } from "zod";
 import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
+import type { SidebarOrderSyncMark } from "@/sidebar-order-sync/sync";
 
 interface SidebarOrderStoreState {
   workspacePromotedAt: Record<string, number>;
@@ -16,6 +17,7 @@ interface SidebarOrderStoreState {
   setPinnedWorkspaceOrder: (keys: string[]) => void;
   getWorkspaceOrder: (projectViewKey: string) => string[];
   setWorkspaceOrder: (projectViewKey: string, keys: string[]) => void;
+  syncMark: SidebarOrderSyncMark | null;
 }
 
 interface SidebarOrderPersistedState {
@@ -25,6 +27,7 @@ interface SidebarOrderPersistedState {
   workspaceOrderByProject?: Record<string, string[]>;
   projectOrderByServerId?: Record<string, string[]>;
   workspaceOrderByServerAndProject?: Record<string, string[]>;
+  syncMark?: SidebarOrderSyncMark | null;
 }
 
 const StringArrayRecordSchema = z.record(z.string(), z.array(z.string()));
@@ -35,6 +38,10 @@ const SidebarOrderPersistedStateSchema = z.strictObject({
   workspaceOrderByProject: StringArrayRecordSchema.optional(),
   projectOrderByServerId: StringArrayRecordSchema.optional(),
   workspaceOrderByServerAndProject: StringArrayRecordSchema.optional(),
+  syncMark: z
+    .object({ serverId: z.string(), revision: z.number().int(), fingerprint: z.string() })
+    .nullable()
+    .optional(),
 });
 
 interface SidebarWorkspaceOrderScope {
@@ -42,8 +49,6 @@ interface SidebarWorkspaceOrderScope {
   projectViewKey: string;
 }
 
-// Trims each key. Only for persisted state read at migration time, where a
-// stray space is an artifact of an older format rather than part of the key.
 function normalizeKeys(keys: string[]): string[] {
   const seen = new Set<string>();
   const normalized: string[] = [];
@@ -60,13 +65,6 @@ function normalizeKeys(keys: string[]): string[] {
   return normalized;
 }
 
-/**
- * Drops blank keys and duplicates but keeps each key exactly as given. View
- * keys embed a project's path, so a directory whose name ends in a space
- * produces a key that ends in a space. Trimming it stores a key that can never
- * match the one the sidebar looks up, so the caller sees its key as missing,
- * writes it again, and the effect that reconciles the order never settles.
- */
 function dedupeKeys(keys: string[]): string[] {
   const seen = new Set<string>();
   const deduped: string[] = [];
@@ -209,6 +207,7 @@ export const useSidebarOrderStore = create<SidebarOrderStoreState>()(
           },
         }));
       },
+      syncMark: null,
     }),
     {
       name: "sidebar-project-workspace-order",
@@ -218,6 +217,7 @@ export const useSidebarOrderStore = create<SidebarOrderStoreState>()(
         projectOrder: state.projectOrder,
         pinnedWorkspaceOrder: state.pinnedWorkspaceOrder,
         workspaceOrderByProject: state.workspaceOrderByProject,
+        syncMark: state.syncMark,
       }),
       version: 1,
       migrate: migrateSidebarOrderState,

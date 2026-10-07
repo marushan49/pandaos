@@ -25,6 +25,7 @@ import {
 import { Session } from "./session.js";
 import { BrowserActivityHub } from "./browser-tools/browser-activity.js";
 import { BrowserToolsBroker } from "./browser-tools/broker.js";
+import { SidebarOrderStore } from "./sidebar-order.js";
 import { OWNER_PERMISSIONS, type DaemonPermission } from "./authorization/index.js";
 import { DownloadTokenStore } from "./file-download/token-store.js";
 import { StructuredAgentFallbackError } from "./agent/agent-response-loop.js";
@@ -338,6 +339,7 @@ interface SessionForTestOptions {
   daemonConfigStore?: SessionOptions["daemonConfigStore"];
   workspaceLabelService?: WorkspaceLabelService;
   browserActivity?: SessionOptions["browserActivity"];
+  sidebarOrder?: SessionOptions["sidebarOrder"];
   browserToolsBroker?: SessionOptions["browserToolsBroker"];
   validateSystemOneApiKey?: SessionOptions["validateSystemOneApiKey"];
 }
@@ -453,6 +455,7 @@ function createSessionForTest(options: SessionForTestOptions = {}): Session {
     daemonRuntimeConfig: options.daemonRuntimeConfig,
     permissions: options.permissions ?? OWNER_PERMISSIONS,
     browserActivity: options.browserActivity,
+    sidebarOrder: options.sidebarOrder,
     browserToolsBroker: options.browserToolsBroker,
     validateSystemOneApiKey: options.validateSystemOneApiKey,
   };
@@ -796,6 +799,94 @@ test("browser handoff subscribers see handoffs end through Done and through clos
     [TAB_B, "cancelled"],
   ]);
   await session.cleanup();
+});
+
+describe("sidebar order", () => {
+  const order = {
+    projectOrder: ["github.com/acme/repo"],
+    pinnedWorkspaceOrder: ["srv_a:wks_1"],
+    workspaceOrderByProject: { "github.com/acme/repo": ["srv_a:wks_1"] },
+  };
+
+  test("a write answers with the new revision and reaches only sessions subscribed to the push", async () => {
+    const home = mkdtempSync(join(tmpdir(), "sidebar-order-session-"));
+    try {
+      const store = new SidebarOrderStore(home);
+      const writerMessages: SessionOutboundMessage[] = [];
+      const readerMessages: SessionOutboundMessage[] = [];
+      const writer = createSessionForTest({ messages: writerMessages, sidebarOrder: store });
+      const reader = createSessionForTest({ messages: readerMessages, sidebarOrder: store });
+      store.subscribe((payload) => {
+        for (const session of [writer, reader]) {
+          session.publish({ type: "sidebar.order.changed", payload });
+        }
+      });
+      await reader.handleMessage({
+        type: "session.events.set_subscription.request",
+        requestId: "events",
+        events: ["sidebar.order.changed"],
+      });
+
+      await writer.handleMessage({ type: "sidebar.order.get.request", requestId: "get" });
+      await writer.handleMessage({
+        type: "sidebar.order.set.request",
+        requestId: "set",
+        baseRevision: 0,
+        ...order,
+      });
+
+      expect(writerMessages).toEqual([
+        {
+          type: "sidebar.order.get.response",
+          payload: {
+            requestId: "get",
+            revision: 0,
+            projectOrder: [],
+            pinnedWorkspaceOrder: [],
+            workspaceOrderByProject: {},
+          },
+        },
+        {
+          type: "sidebar.order.set.response",
+          payload: { requestId: "set", revision: 1, ...order },
+        },
+      ]);
+      expect(readerMessages.filter((message) => message.type === "sidebar.order.changed")).toEqual([
+        { type: "sidebar.order.changed", payload: { revision: 1, ...order } },
+      ]);
+      await writer.cleanup();
+      await reader.cleanup();
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("a read-only session cannot reorder the sidebar", async () => {
+    const home = mkdtempSync(join(tmpdir(), "sidebar-order-session-"));
+    try {
+      const messages: SessionOutboundMessage[] = [];
+      const session = createSessionForTest({
+        messages,
+        permissions: ["workspace.read"],
+        sidebarOrder: new SidebarOrderStore(home),
+      });
+      await session.handleMessage({
+        type: "sidebar.order.set.request",
+        requestId: "set",
+        baseRevision: 0,
+        ...order,
+      });
+      expect(messages).toEqual([
+        expect.objectContaining({
+          type: "rpc_error",
+          payload: expect.objectContaining({ requestId: "set", code: "access_denied" }),
+        }),
+      ]);
+      await session.cleanup();
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("workspace label subscriptions", () => {

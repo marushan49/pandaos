@@ -62,6 +62,7 @@ import {
 import { isNative, isWeb } from "@/constants/platform";
 import { HorizontalScrollProvider } from "@/contexts/horizontal-scroll-context";
 import { SessionProvider } from "@/contexts/session-context";
+import { SidebarOrderSyncHost } from "@/sidebar-order-sync/host";
 import { SidebarCalloutProvider } from "@/contexts/sidebar-callout-context";
 import { ToastProvider } from "@/contexts/toast-context";
 import { VoiceProvider } from "@/contexts/voice-context";
@@ -676,6 +677,7 @@ function ProvidersWrapper({ children }: { children: ReactNode }) {
         <DesktopWindowControlsSync />
         <OfferLinkListener />
         <HostSessionManager />
+        <SidebarOrderSyncHost />
         <FaviconStatusSync />
         {children}
       </VoiceProvider>
