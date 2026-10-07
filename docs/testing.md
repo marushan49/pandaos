@@ -1,5 +1,13 @@
 # Testing
 
+## Local PandaOS validation
+
+For Marushan's private PandaOS checkout and local rollouts, build once and verify the affected flow in the running app or browser. The agent performs the clicks and saves a screenshot. Check startup, the requested behavior, and preservation of existing data when installing or restarting.
+
+Do not run broad suites, repeat checks already passed on unchanged code, or wait for the full hosted CI as a local rollout gate. Run a focused automated test only to resolve a concrete failure or a risk the real flow cannot cover. Run typecheck and lint once for code changes; documentation-only changes need formatting. Fix build failures and observed runtime failures before delivery.
+
+This preference applies only to this private PandaOS project. Other repositories keep their own rules. Hosted CI coverage remains available for upstream contributions and shared releases; its unrun or cancelled checks must be reported as unconfirmed.
+
 ## Philosophy
 
 Tests prove behavior, not structure. Every test should answer: "what user-visible or API-visible behavior does this verify?"

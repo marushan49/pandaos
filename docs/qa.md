@@ -1,5 +1,7 @@
 # QA
 
+For private local PandaOS work, use the [local validation policy](testing.md#local-pandaos-validation). The upstream contribution and shared-release evidence requirements below do not gate Marushan's local installation.
+
 QA is the main bottleneck of Paseo's product development.
 
 The bar is four questions:

@@ -11,4 +11,8 @@ pre-commit:
       glob: "*.{js,jsx,ts,tsx}"
       run: npm run lint -- {staged_files}
     - name: typecheck
+      glob: "*.{js,json,jsonc,jsx,ts,tsx}"
+      exclude:
+        - "package-lock.json"
+        - "**/package-lock.json"
       run: npm run typecheck
