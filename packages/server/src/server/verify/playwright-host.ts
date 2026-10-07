@@ -1,3 +1,4 @@
+import { keepNewestPerApplication } from "../browser-tools/origin-key.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -248,6 +249,17 @@ export class DaemonPlaywrightHost {
       if (this.savedTabs.has(browserId)) continue;
       this.savedTabs.set(browserId, { browserId, workspaceId, profile, url, context: null });
     }
+    this.dropDuplicateSavedTabs();
+  }
+
+  private dropDuplicateSavedTabs(): void {
+    const kept = new Set(
+      keepNewestPerApplication([...this.savedTabs.values()]).map((tab) => tab.browserId),
+    );
+    for (const browserId of this.savedTabs.keys()) {
+      if (!kept.has(browserId)) this.savedTabs.delete(browserId);
+    }
+    this.scheduleSaveTabs();
   }
 
   private scheduleSaveTabs(): void {
