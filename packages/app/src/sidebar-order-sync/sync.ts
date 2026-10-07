@@ -123,7 +123,7 @@ export function startSidebarOrderSync(input: StartSidebarOrderSyncInput): () => 
   }
 
   function receive(snapshot: SidebarOrderSnapshot): void {
-    if (disposed || inFlight || isDirty() || snapshot.revision <= knownRevision()) return;
+    if (disposed || inFlight || timer !== null || snapshot.revision <= knownRevision()) return;
     accept(snapshot);
   }
 

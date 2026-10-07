@@ -205,6 +205,13 @@ describe("sidebar order sync", () => {
 
     expect(setSidebarOrder).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledTimes(1);
+
+    await daemon.connect().setSidebarOrder({ ...REMOTE, baseRevision: 0 });
+    await vi.runAllTimersAsync();
+
+    expect(orderOf(store)).toEqual(REMOTE);
+    expect(store.getState().syncMark?.revision).toBe(1);
+    expect(setSidebarOrder).toHaveBeenCalledTimes(1);
     stop();
   });
 
