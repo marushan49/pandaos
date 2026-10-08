@@ -235,6 +235,19 @@ export const ko: TranslationResources = {
       mode: "모드 변경",
     },
   },
+  reading: {
+    title: "읽기 보기",
+    presets: {
+      compact: "간결",
+      calm: "여유",
+      reading: "읽기",
+    },
+    answersOnly: {
+      label: "답변만",
+      hint: "명령과 카운터 숨기기",
+    },
+  },
+
   agentStream: {
     turnFailure: {
       auth: {

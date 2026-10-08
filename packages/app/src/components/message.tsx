@@ -82,7 +82,9 @@ import type { MarkdownPhase } from "@/components/markdown/fence/types";
 import { splitMarkdownBlocks } from "@/utils/split-markdown-blocks";
 import { useRevealedText } from "@/hooks/use-revealed-text";
 import { colorMarkdownLinkChildren } from "@/components/markdown/link-children";
+import { DISPLAY_FONT_DATASET } from "@/styles/font-dataset";
 import { createAssistantMarkdownParser } from "@/utils/assistant-markdown-parser";
+import { useSettings, type ReadingPreset } from "@/hooks/use-settings";
 import { formatDuration, formatMessageTimestamp } from "@/utils/time";
 import { getTurnDurationLabel } from "./assistant-turn-footer-label";
 import { writeMarkdownToRichClipboard } from "@/utils/rich-clipboard";
@@ -1461,6 +1463,7 @@ interface MemoizedMarkdownBlockProps {
   text: string;
   rules: RenderRules;
   parser: MarkdownIt;
+  readingPreset: ReadingPreset;
   onLinkPress: (url: string) => boolean;
 }
 
@@ -1468,11 +1471,13 @@ const MemoizedMarkdownBlock = React.memo(function MemoizedMarkdownBlock({
   text,
   rules,
   parser,
+  readingPreset,
   onLinkPress,
 }: MemoizedMarkdownBlockProps) {
   return (
     <MarkdownRenderer
       text={text}
+      readingPreset={readingPreset}
       enableHtmlish={false}
       rules={rules}
       markdownit={parser}
@@ -1482,6 +1487,11 @@ const MemoizedMarkdownBlock = React.memo(function MemoizedMarkdownBlock({
     />
   );
 });
+
+const LIST_MARKER_DISPLAY_DATASET = {
+  ...DISPLAY_FONT_DATASET,
+  ...markdownCopyDataSet.listMarker,
+};
 
 interface MarkdownInheritedTextProps {
   inheritedStyles: TextStyle;
@@ -1513,6 +1523,7 @@ function MarkdownInheritedText({
   return (
     <MarkdownTextSpan
       monoSurface={monoSurface}
+      displayFont={!monoSurface && textStyle.fontFamily !== undefined}
       copyTag={copyTag}
       style={style}
       onPress={linkPress?.onPress}
@@ -1572,6 +1583,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   phase,
 }: AssistantMessageProps) {
   const { t } = useTranslation();
+  const readingPreset = useSettings((settings) => settings.readingPreset);
   const markdownParser = useMemo(createAssistantMarkdownParser, []);
   const streamingMarkdownParser = useMemo(
     () => createAssistantMarkdownParser({ streaming: true }),
@@ -1948,7 +1960,12 @@ export const AssistantMessage = memo(function AssistantMessage({
 
         return (
           <View key={node.key} style={styles.list_item} dataSet={markdownCopyDataSet.li}>
-            <Text style={iconStyle} dataSet={markdownCopyDataSet.listMarker}>
+            <Text
+              style={iconStyle}
+              dataSet={
+                iconStyle.fontFamily ? LIST_MARKER_DISPLAY_DATASET : markdownCopyDataSet.listMarker
+              }
+            >
               {marker}
             </Text>
             <MarkdownListItemContent contentStyle={contentStyle}>
@@ -2074,6 +2091,7 @@ export const AssistantMessage = memo(function AssistantMessage({
                 ? streamingMarkdownParser
                 : markdownParser
             }
+            readingPreset={readingPreset}
             onLinkPress={handleMarkdownLinkPress}
           />
         </AssistantMessageBlockContainer>

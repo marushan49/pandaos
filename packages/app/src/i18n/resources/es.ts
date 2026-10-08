@@ -237,6 +237,19 @@ export const es: TranslationResources = {
       mode: "Cambiar modo",
     },
   },
+  reading: {
+    title: "Vista de lectura",
+    presets: {
+      compact: "Compacta",
+      calm: "Tranquila",
+      reading: "Lectura",
+    },
+    answersOnly: {
+      label: "Solo respuestas",
+      hint: "Ocultar comandos y contadores",
+    },
+  },
+
   agentStream: {
     turnFailure: {
       auth: {

@@ -33,6 +33,7 @@ import { getMarkdownListMarker, getMarkdownListSpacing } from "@/utils/markdown-
 import { markdownNodeContainsType } from "@/utils/markdown-ast";
 import { createMarkdownParser } from "@/utils/markdown-parser";
 import { createCompactMarkdownStyles, createMarkdownStyles } from "@/styles/markdown-styles";
+import type { ReadingPreset } from "@/hooks/use-settings/storage";
 import type { Theme } from "@/styles/theme";
 import { openExternalUrl } from "@/utils/open-external-url";
 import { isNative } from "@/constants/platform";
@@ -69,6 +70,20 @@ function markdownStyleMapping(theme: Theme): Partial<MarkdownWithStableRendererP
   return { style: createMarkdownStyles(theme) };
 }
 
+function calmMarkdownStyleMapping(theme: Theme): Partial<MarkdownWithStableRendererProps> {
+  return { style: createMarkdownStyles(theme, "calm") };
+}
+
+function readingMarkdownStyleMapping(theme: Theme): Partial<MarkdownWithStableRendererProps> {
+  return { style: createMarkdownStyles(theme, "reading") };
+}
+
+const READING_STYLE_MAPPINGS = {
+  compact: markdownStyleMapping,
+  calm: calmMarkdownStyleMapping,
+  reading: readingMarkdownStyleMapping,
+} satisfies Record<ReadingPreset, (theme: Theme) => Partial<MarkdownWithStableRendererProps>>;
+
 function compactMarkdownStyleMapping(theme: Theme): Partial<MarkdownWithStableRendererProps> {
   return { style: createCompactMarkdownStyles(theme) };
 }
@@ -81,6 +96,7 @@ const MARKDOWN_LIST_ITEM_CONTENT_FLEX: ViewStyle = { flex: 1, flexShrink: 1, min
 export interface MarkdownRendererProps {
   text: string;
   compact?: boolean;
+  readingPreset?: ReadingPreset;
   rules?: RenderRules;
   markdownit?: ReturnType<typeof MarkdownIt>;
   onLinkPress?: (url: string) => boolean;
@@ -92,6 +108,7 @@ export interface MarkdownRendererProps {
 export function MarkdownRenderer({
   text,
   compact = false,
+  readingPreset = "compact",
   rules,
   markdownit = defaultMarkdownParser,
   onLinkPress,
@@ -107,6 +124,7 @@ export function MarkdownRenderer({
   const rendererProps = useMemo(
     () => ({
       compact,
+      readingPreset,
       rules: markdownRules,
       markdownit,
       onLinkPress,
@@ -116,6 +134,7 @@ export function MarkdownRenderer({
     [
       allowedImageHandlers,
       compact,
+      readingPreset,
       markdownRules,
       markdownit,
       onLinkPress,
@@ -182,13 +201,14 @@ function MarkdownPart({
 function MarkdownFragment({
   text,
   compact,
+  readingPreset = "compact",
   rules,
   markdownit,
   onLinkPress,
   allowedImageHandlers,
   topLevelMaxExceededItem,
 }: MarkdownRendererProps & { rules: RenderRules }) {
-  const uniProps = compact ? compactMarkdownStyleMapping : markdownStyleMapping;
+  const uniProps = compact ? compactMarkdownStyleMapping : READING_STYLE_MAPPINGS[readingPreset];
   return (
     <ThemedMarkdown
       uniProps={uniProps}

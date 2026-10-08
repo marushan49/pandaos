@@ -43,6 +43,8 @@ export type PullRequestOpenLocation = "main" | "side" | "explorer";
 export type SidebarWorkspaceTrailing = "diff" | "timestamp" | "none";
 export type ToolCallDetailLevel = "overview" | "detailed";
 export type SessionCardStyle = "card" | "row";
+export const READING_PRESETS = ["compact", "calm", "reading"] as const;
+export type ReadingPreset = (typeof READING_PRESETS)[number];
 
 const ThemePreferenceSchema = z.enum([
   ...THEME_OPTIONS.map((option) => option.name),
@@ -124,6 +126,8 @@ export interface AppSettings {
   usage: UsagePreferences;
   autoExpandReasoning: boolean;
   toolCallDetailLevel: ToolCallDetailLevel;
+  readingPreset: ReadingPreset;
+  answersOnly: boolean;
   /** Bumped when the default tool call layout changes, so old defaults move with it. */
   toolCallLayoutRevision: number;
   /** Bumped when the default sidebar trailing slot changes, so old defaults move with it. */
@@ -196,6 +200,8 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   usage: DEFAULT_USAGE_PREFERENCES,
   autoExpandReasoning: false,
   toolCallDetailLevel: "overview",
+  readingPreset: "compact",
+  answersOnly: false,
   toolCallLayoutRevision: TOOL_CALL_LAYOUT_REVISION,
   sidebarTrailingRevision: SIDEBAR_TRAILING_REVISION,
   androidTypeRevision: ANDROID_TYPE_REVISION,
@@ -306,6 +312,8 @@ const StoredAppSettingsSchema = z
       .or(z.literal("concise").transform(() => "overview" as const))
       .optional()
       .catch("overview"),
+    readingPreset: z.enum(READING_PRESETS).catch("compact"),
+    answersOnly: z.boolean().catch(false),
     toolCallLayoutRevision: z.number().optional().catch(undefined),
     sidebarTrailingRevision: z.number().optional().catch(undefined),
     androidTypeRevision: z.number().optional().catch(undefined),

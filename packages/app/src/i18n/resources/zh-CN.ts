@@ -235,6 +235,19 @@ export const zhCN: TranslationResources = {
       mode: "更改模式",
     },
   },
+  reading: {
+    title: "阅读视图",
+    presets: {
+      compact: "紧凑",
+      calm: "舒适",
+      reading: "阅读",
+    },
+    answersOnly: {
+      label: "仅回答",
+      hint: "隐藏命令和计数",
+    },
+  },
+
   agentStream: {
     turnFailure: {
       auth: {

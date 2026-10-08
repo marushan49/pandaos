@@ -16,10 +16,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SettingsCard, SettingsSwitch } from "@/components/settings";
+import { SettingsCard, SettingsRow, SettingsSwitch } from "@/components/settings";
 import { SettingsSection } from "@/components/settings/headings/settings-section";
 import { useContributedThemes } from "@/appearance/provider";
 import { Button } from "@/components/ui/button";
+import { ReadingPresetButtons, useReadingView } from "@/components/reading-view-menu";
 import {
   EditingTextInput as TextInput,
   type EditingTextInputHandle,
@@ -385,6 +386,24 @@ function ToolCallDetailRow({ value, onChange }: ToolCallDetailRowProps) {
         </DropdownMenuContent>
       </DropdownMenu>
     </View>
+  );
+}
+
+function ReadingViewRows() {
+  const { t } = useTranslation();
+  const { preset, answersOnly, setPreset, setAnswersOnly } = useReadingView();
+  return (
+    <>
+      <SettingsRow label={t("reading.title")}>
+        <ReadingPresetButtons value={preset} onChange={setPreset} />
+      </SettingsRow>
+      <SettingsSwitch
+        label={t("reading.answersOnly.label")}
+        hint={t("reading.answersOnly.hint")}
+        value={answersOnly}
+        onValueChange={setAnswersOnly}
+      />
+    </>
   );
 }
 
@@ -893,6 +912,7 @@ export function AppearanceSection() {
             value={settings.toolCallDetailLevel}
             onChange={handleToolCallDetailLevelChange}
           />
+          <ReadingViewRows />
           {!isNative ? (
             <ChatOutlineRow
               value={settings.chatOutlineEnabled}

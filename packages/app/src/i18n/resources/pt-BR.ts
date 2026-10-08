@@ -236,6 +236,19 @@ export const ptBR: TranslationResources = {
       mode: "Alterar modo de permissão",
     },
   },
+  reading: {
+    title: "Modo de leitura",
+    presets: {
+      compact: "Compacto",
+      calm: "Calmo",
+      reading: "Leitura",
+    },
+    answersOnly: {
+      label: "Só respostas",
+      hint: "Ocultar comandos e contadores",
+    },
+  },
+
   agentStream: {
     turnFailure: {
       auth: {

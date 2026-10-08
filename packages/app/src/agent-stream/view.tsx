@@ -364,6 +364,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const { t } = useTranslation();
     const autoExpandReasoning = useSettings((settings) => settings.autoExpandReasoning);
     const toolCallDetailLevel = useSettings((settings) => settings.toolCallDetailLevel);
+    const answersOnly = useSettings((settings) => settings.answersOnly);
     const chatOutlineEnabled = useSettings((settings) => settings.chatOutlineEnabled);
     const contentMaxWidth = useSettings(resolveContentMaxWidth);
     const viewportRef = useRef<StreamViewportHandle | null>(null);
@@ -571,6 +572,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
           transform: transformTimelineItem,
           level: toolCallDetailLevel,
           isTurnActive,
+          answersOnly,
         }),
       [
         presentStream,
@@ -579,6 +581,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         transformTimelineItem,
         toolCallDetailLevel,
         isTurnActive,
+        answersOnly,
       ],
     );
     const {

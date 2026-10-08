@@ -38,6 +38,28 @@ function visibleToolCallItems(items: StreamItem[]): StreamItem[] {
   return result;
 }
 
+const answersOnlyCache = new WeakMap<StreamItem[], StreamItem[]>();
+function isAnswerItem(item: StreamItem): boolean {
+  switch (item.kind) {
+    case "user_message":
+    case "assistant_message":
+      return true;
+    case "notification":
+      return item.level === "error" || item.sourceType === "error";
+    default:
+      return false;
+  }
+}
+
+function answersOnlyItems(items: StreamItem[]): StreamItem[] {
+  const cached = answersOnlyCache.get(items);
+  if (cached) return cached;
+  const kept = items.filter(isAnswerItem);
+  const result = kept.length === items.length ? items : kept;
+  answersOnlyCache.set(items, result);
+  return result;
+}
+
 export function prepareToolCallHistory(
   level: ToolCallDetailLevel,
   tail: StreamItem[],
@@ -60,7 +82,16 @@ export function projectToolCallDetailLevel(input: {
   head: StreamItem[];
   preparedHistory: PreparedToolCallHistory | null;
   isTurnActive: boolean;
+  answersOnly?: boolean;
 }): ToolCallDetailProjection {
+  if (input.answersOnly) {
+    return {
+      tail: answersOnlyItems(input.tail),
+      head: answersOnlyItems(input.head),
+      groupsByHostId: EMPTY_TOOL_CALL_GROUPS,
+      historyGroupUpdatesByHostId: EMPTY_TOOL_CALL_GROUPS,
+    };
+  }
   if (input.level === "detailed") {
     return {
       tail: visibleToolCallItems(input.tail),

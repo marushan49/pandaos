@@ -237,6 +237,19 @@ export const ja: TranslationResources = {
       mode: "権限モードを変更",
     },
   },
+  reading: {
+    title: "閲覧表示",
+    presets: {
+      compact: "コンパクト",
+      calm: "ゆったり",
+      reading: "読書",
+    },
+    answersOnly: {
+      label: "回答のみ",
+      hint: "コマンドとカウンターを非表示",
+    },
+  },
+
   agentStream: {
     turnFailure: {
       auth: {

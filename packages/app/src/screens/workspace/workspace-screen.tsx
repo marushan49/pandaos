@@ -34,6 +34,7 @@ import type { Theme } from "@/styles/theme";
 import invariant from "tiny-invariant";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
 import { ScreenHeader } from "@/components/headers/screen-header";
+import { ReadingViewMenu } from "@/components/reading-view-menu";
 import { ScreenTitle } from "@/components/headers/screen-title";
 import { HostBadge } from "@/hosts/host-badge";
 import { useHostBadges } from "@/hosts/use-host-badges";
@@ -3929,6 +3930,7 @@ function WorkspaceScreenContent({
     () => (
       <View style={styles.headerRight}>
         <PluginHeaderButtons serverId={normalizedServerId} workspaceId={normalizedWorkspaceId} />
+        <ReadingViewMenu />
         {!isMobile && workspaceDescriptor && workspaceDescriptor.scripts.length > 0 ? (
           <WorkspaceScriptsButton
             serverId={normalizedServerId}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createCompactMarkdownStyles, createMarkdownStyles } from "./markdown-styles";
+import { resolveReadingProse } from "./reading-presets";
 import { darkTheme } from "./theme";
 
 describe("createMarkdownStyles", () => {
@@ -138,5 +139,73 @@ describe("createMarkdownStyles", () => {
     });
     expect(styles.paragraph.marginBottom).toBe(darkTheme.spacing[3]);
     expect(styles.text).not.toHaveProperty("color");
+  });
+});
+
+describe("reading presets", () => {
+  const content = darkTheme.fontSize.content;
+
+  it("resolves compact to the content size, 1.4 line height and the paragraph step", () => {
+    expect(resolveReadingProse("compact", darkTheme)).toEqual({
+      fontSize: content,
+      lineHeight: Math.round(content * 1.4),
+      paragraphGap: darkTheme.spacing[3],
+      serif: false,
+    });
+  });
+
+  it("resolves calm one pixel larger with 1.6 line height and a wider paragraph step", () => {
+    expect(resolveReadingProse("calm", darkTheme)).toEqual({
+      fontSize: content + 1,
+      lineHeight: Math.round((content + 1) * 1.6),
+      paragraphGap: darkTheme.spacing[4],
+      serif: false,
+    });
+  });
+
+  it("resolves reading five pixels larger with 1.5 line height in the serif", () => {
+    expect(resolveReadingProse("reading", darkTheme)).toEqual({
+      fontSize: content + 5,
+      lineHeight: Math.round((content + 5) * 1.5),
+      paragraphGap: darkTheme.spacing[6],
+      serif: true,
+    });
+  });
+
+  it("follows the user's content size", () => {
+    const theme = { ...darkTheme, fontSize: { ...darkTheme.fontSize, content: 18 } };
+
+    expect(resolveReadingProse("reading", theme).fontSize).toBe(23);
+    expect(resolveReadingProse("calm", theme).fontSize).toBe(19);
+  });
+
+  it("leaves compact styles identical to the default styles", () => {
+    expect(createMarkdownStyles(darkTheme, "compact")).toEqual(createMarkdownStyles(darkTheme));
+  });
+
+  it("applies calm to prose and list markers without changing the font", () => {
+    const styles = createMarkdownStyles(darkTheme, "calm");
+    const prose = resolveReadingProse("calm", darkTheme);
+
+    expect(styles.body).toMatchObject({ fontSize: prose.fontSize, lineHeight: prose.lineHeight });
+    expect(styles.text).not.toHaveProperty("fontFamily");
+    expect(styles.bullet_list_icon).toMatchObject({ lineHeight: prose.lineHeight });
+    expect(styles.ordered_list_icon).toMatchObject({ lineHeight: prose.lineHeight });
+    expect(styles.paragraph.marginBottom).toBe(prose.paragraphGap);
+  });
+
+  it("sets the serif on reading prose text and list markers, not on code", () => {
+    const styles = createMarkdownStyles(darkTheme, "reading");
+
+    expect(styles.text).toMatchObject({ fontFamily: darkTheme.fontFamily.display });
+    expect(styles.bullet_list_icon).toMatchObject({ fontFamily: darkTheme.fontFamily.display });
+    expect(styles.ordered_list_icon).toMatchObject({ fontFamily: darkTheme.fontFamily.display });
+    expect(styles.code_inline).toMatchObject({ fontFamily: darkTheme.fontFamily.mono });
+    expect(styles.fence).toMatchObject({ fontFamily: darkTheme.fontFamily.mono });
+    expect(styles.strong).toMatchObject({ fontWeight: darkTheme.fontWeight.bold });
+  });
+
+  it("keeps the compact variant on the compact preset", () => {
+    expect(createCompactMarkdownStyles(darkTheme).text).not.toHaveProperty("fontFamily");
   });
 });

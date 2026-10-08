@@ -1,5 +1,7 @@
 import { FONT_SIZE, type Theme } from "./theme";
 import { isWeb } from "@/constants/platform";
+import type { ReadingPreset } from "@/hooks/use-settings/storage";
+import { resolveReadingProse } from "./reading-presets";
 
 const webSelectableTextStyle = isWeb ? { userSelect: "text" as const } : {};
 
@@ -22,7 +24,9 @@ function contentHeadingLineHeight(contentSize: number, tier: keyof typeof FONT_S
  * react-native-markdown-display builds its own parser with `typographer: true`,
  * which rewrites a literal `(c)` as ©.
  */
-export function createMarkdownStyles(theme: Theme) {
+export function createMarkdownStyles(theme: Theme, preset: ReadingPreset = "compact") {
+  const prose = resolveReadingProse(preset, theme);
+  const proseFont = prose.serif ? { fontFamily: theme.fontFamily.display } : {};
   return {
     // =========================================================================
     // BASE STYLES
@@ -31,10 +35,8 @@ export function createMarkdownStyles(theme: Theme) {
     body: {
       ...webSelectableTextStyle,
       color: theme.colors.foreground,
-      fontSize: theme.fontSize.content,
-      // Prose line-height scales with the content size, not the
-      // code-size-coupled lineHeight.diff token used by code/diff surfaces.
-      lineHeight: Math.round(theme.fontSize.content * 1.4),
+      fontSize: prose.fontSize,
+      lineHeight: prose.lineHeight,
       flexShrink: 1,
       minWidth: 0,
       width: "100%" as const,
@@ -42,6 +44,7 @@ export function createMarkdownStyles(theme: Theme) {
 
     text: {
       ...webSelectableTextStyle,
+      ...proseFont,
       flexShrink: 1,
       minWidth: 0,
       overflowWrap: "anywhere" as const,
@@ -49,7 +52,7 @@ export function createMarkdownStyles(theme: Theme) {
 
     paragraph: {
       marginTop: 0,
-      marginBottom: theme.spacing[3],
+      marginBottom: prose.paragraphGap,
       flexWrap: "wrap" as const,
       flexDirection: "row" as const,
       alignItems: "flex-start" as const,
@@ -137,7 +140,7 @@ export function createMarkdownStyles(theme: Theme) {
 
     strong: {
       ...webSelectableTextStyle,
-      fontWeight: theme.fontWeight.medium,
+      fontWeight: prose.serif ? theme.fontWeight.bold : theme.fontWeight.medium,
     },
 
     em: {
@@ -293,19 +296,21 @@ export function createMarkdownStyles(theme: Theme) {
 
     bullet_list_icon: {
       ...webSelectableTextStyle,
+      ...proseFont,
       color: theme.colors.foregroundMuted,
       marginRight: 4,
-      fontSize: theme.fontSize.content,
-      lineHeight: Math.round(theme.fontSize.content * 1.4),
+      fontSize: prose.fontSize,
+      lineHeight: prose.lineHeight,
     },
 
     ordered_list_icon: {
       ...webSelectableTextStyle,
+      ...proseFont,
       color: theme.colors.foregroundMuted,
       marginRight: 4,
-      fontSize: theme.fontSize.content,
+      fontSize: prose.fontSize,
       fontWeight: theme.fontWeight.normal,
-      lineHeight: Math.round(theme.fontSize.content * 1.4),
+      lineHeight: prose.lineHeight,
       minWidth: 12,
     },
 

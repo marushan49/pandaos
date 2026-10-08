@@ -8,11 +8,13 @@ import {
   type ViewStyle,
 } from "react-native";
 import { CODE_SURFACE_DATASET } from "@/styles/code-surface";
+import { DISPLAY_FONT_DATASET } from "@/styles/font-dataset";
 import { markdownCopyDataSet, type MarkdownCopyInlineTag } from "@/assistant-selection-copy/markup";
 
 interface MarkdownTextSpanProps {
   style?: StyleProp<TextStyle>;
   monoSurface?: boolean;
+  displayFont?: boolean;
   copyTag?: MarkdownCopyInlineTag;
   children: ReactNode;
   // Web links use the <a>/Pressable path in link.tsx, not this span, so these
@@ -30,6 +32,7 @@ interface MarkdownTextSpanProps {
 export function MarkdownTextSpan({
   style,
   monoSurface,
+  displayFont,
   copyTag,
   children,
   onPress,
@@ -40,10 +43,13 @@ export function MarkdownTextSpan({
       return { ...CODE_SURFACE_DATASET, ...markdownCopyDataSet[copyTag] };
     }
     if (copyTag) {
-      return markdownCopyDataSet[copyTag];
+      return displayFont
+        ? { ...DISPLAY_FONT_DATASET, ...markdownCopyDataSet[copyTag] }
+        : markdownCopyDataSet[copyTag];
     }
-    return monoSurface ? CODE_SURFACE_DATASET : undefined;
-  }, [copyTag, monoSurface]);
+    if (monoSurface) return CODE_SURFACE_DATASET;
+    return displayFont ? DISPLAY_FONT_DATASET : undefined;
+  }, [copyTag, monoSurface, displayFont]);
 
   return (
     <Text dataSet={dataSet} style={style} onPress={onPress} accessibilityRole={accessibilityRole}>

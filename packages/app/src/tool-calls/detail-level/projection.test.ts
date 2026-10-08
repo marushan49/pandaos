@@ -536,3 +536,73 @@ describe("tool call detail-level projection", () => {
     expect(result.groupsByHostId.size).toBe(1);
   });
 });
+
+describe("answers only", () => {
+  const user: StreamItem = {
+    kind: "user_message",
+    id: "u1",
+    text: "Fix it",
+    timestamp: new Date("2026-01-01T00:00:00.000Z"),
+  };
+  const notification = (id: string, level: "info" | "warning" | "error"): StreamItem => ({
+    kind: "notification",
+    sourceType: level === "error" ? "error" : "notification",
+    id,
+    level,
+    message: id,
+    timestamp: new Date("2026-01-01T00:02:00.000Z"),
+  });
+
+  function projectAnswers(tail: StreamItem[], head: StreamItem[] = []) {
+    return projectToolCallDetailLevel({
+      level: "overview",
+      tail,
+      head,
+      preparedHistory: prepareToolCallHistory("overview", tail),
+      isTurnActive: false,
+      answersOnly: true,
+    });
+  }
+
+  it("keeps user messages, assistant messages and errors and drops everything else", () => {
+    const tail: StreamItem[] = [
+      user,
+      thought("t1"),
+      toolCall("1", { type: "shell", command: "ls" }),
+      toolCall("2", { type: "read", filePath: "/repo/a.ts" }),
+      notification("info", "info"),
+      notification("warn", "warning"),
+      notification("err", "error"),
+      assistant("a1"),
+    ];
+    const head = [toolCall("3", { type: "shell", command: "pwd" }), assistant("a2")];
+
+    const result = projectAnswers(tail, head);
+
+    expect(result.tail.map((item) => item.id)).toEqual(["u1", "err", "a1"]);
+    expect(result.head.map((item) => item.id)).toEqual(["a2"]);
+    expect(result.groupsByHostId.size).toBe(0);
+    expect(result.historyGroupUpdatesByHostId.size).toBe(0);
+  });
+
+  it("returns the same array when nothing is hidden and caches by source identity", () => {
+    const tail: StreamItem[] = [user, assistant("a1")];
+
+    expect(projectAnswers(tail).tail).toBe(tail);
+
+    const mixed: StreamItem[] = [user, toolCall("1", { type: "shell", command: "ls" })];
+    expect(projectAnswers(mixed).tail).toBe(projectAnswers(mixed).tail);
+  });
+
+  it("leaves the stream unchanged when the switch is off", () => {
+    const tail: StreamItem[] = [
+      user,
+      toolCall("1", { type: "shell", command: "ls" }),
+      assistant("a1"),
+    ];
+
+    const result = project({ level: "overview", tail });
+
+    expect(result.groupsByHostId.size).toBe(1);
+  });
+});

@@ -18,6 +18,7 @@ import type { MarkdownCopyInlineTag } from "@/assistant-selection-copy/markup";
 interface MarkdownTextSpanProps {
   style?: StyleProp<TextStyle>;
   monoSurface?: boolean;
+  displayFont?: boolean;
   copyTag?: MarkdownCopyInlineTag;
   children: ReactNode;
   // Links route through this span too (see assistant-file-links/link.tsx). A
