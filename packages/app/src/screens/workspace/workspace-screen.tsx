@@ -149,6 +149,7 @@ import {
   type WorkspaceTabMenuLabels,
 } from "@/screens/workspace/workspace-tab-menu";
 import { useDesktopBrowserNewTabRequests } from "@/desktop/browser/new-tab-requests";
+import { useOpenLinkInBrowserRequests } from "@/desktop/browser/open-link-requests";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import {
   resolveWorkspaceExplorerToggleOwner,
@@ -2641,6 +2642,12 @@ function WorkspaceScreenContent({
   useDesktopBrowserNewTabRequests({
     enabled: Boolean(persistenceKey),
     workspaceLayout,
+    openUrl: handleOpenUrlInBrowserTab,
+  });
+
+  useOpenLinkInBrowserRequests({
+    workspaceKey: persistenceKey,
+    isFocused: isRouteFocused,
     openUrl: handleOpenUrlInBrowserTab,
   });
 
