@@ -66,7 +66,7 @@ keeps rendering exactly as it does now, so no fallback path is needed in the cli
 
 ## The row
 
-Collapsed, the row reports the count and the worst state across the set — `3 PRs · 1 failed`. The
+Collapsed, the row reports the count and the worst state across the set — `3 PRs, 1 failed`. The
 worst state is what the current row gets wrong, so it is the part that cannot be one level down.
 
 Expanded, one line per pull request: number, state, checks, and its own `additions`/`deletions`.
@@ -92,7 +92,7 @@ Shipped: the wire field `githubRuntime.relatedPullRequests` with its
 `packages/server/src/utils/related-pull-requests.ts`, the fetch in the forge
 poll (`github-service.ts#getRelatedPullRequests`, cached per poll identity,
 called from `workspace-git-service.ts#resolveRelatedPullRequests`), and the
-row — collapsed `3 PRs · 1 failed`, expanded one line per change request with
+row — collapsed `3 PRs, 1 failed`, expanded one line per change request with
 its own additions and deletions.
 
 Known gap: the fetch keys off the checked-out branch's current PR number, so
