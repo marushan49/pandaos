@@ -82,7 +82,10 @@ import {
   type ElementSelectorOutcome,
 } from "./element-selector.electron";
 import { DEFAULT_BROWSER_URL } from "@/desktop/browser/store/state";
+import { useBrowserHistoryStore } from "@/desktop/browser/store/history";
+import { resolveTypedInput } from "@/desktop/browser/suggestions";
 import { BrowserPasswordSaveBar } from "./password-save-bar";
+import { UrlSuggestionsPopover, useUrlSuggestions } from "./url-suggestions.electron";
 
 type ElectronWebview = HTMLElement & {
   canGoBack?: () => boolean;
@@ -807,6 +810,7 @@ export function BrowserPane({
         ...(normalized !== previousUrl ? { faviconUrl: null } : {}),
         lastError: null,
       });
+      useBrowserHistoryStore.getState().recordVisit({ serverId, rawUrl: normalized });
       setDraftUrl((current) => {
         return current === normalized ? current : normalized;
       });
@@ -835,6 +839,11 @@ export function BrowserPane({
           ? ((event as Event & { title?: string }).title ?? "")
           : "";
       updateBrowserRef.current(browserIdRef.current, { title });
+      useBrowserHistoryStore.getState().updateTitle({
+        serverId,
+        rawUrl: browserRef.current?.url ?? "",
+        title,
+      });
     };
     const handleFaviconUpdated = (event: Event) => {
       const favicons = Array.isArray((event as Event & { favicons?: unknown[] }).favicons)
@@ -1106,9 +1115,43 @@ export function BrowserPane({
     };
   }, [focusUrlBar, isInteractive]);
 
+  const setUrlInputText = useCallback((text: string) => {
+    urlInputRef.current?.replaceText(text);
+    setDraftUrl(text);
+  }, []);
+
+  const handleOpenUrl = useCallback(
+    (url: string) => {
+      setUrlInputText(url);
+      navigate(url);
+    },
+    [navigate, setUrlInputText],
+  );
+
+  const urlSuggestions = useUrlSuggestions({
+    serverId,
+    workspaceId,
+    browserId,
+    enabled: Boolean(isInteractive) && isPresented,
+    inputRef: urlInputRef,
+    onOpenUrl: handleOpenUrl,
+    onSetInputText: setUrlInputText,
+  });
+  const closeUrlSuggestions = urlSuggestions.close;
+  const handleUrlTextChange = urlSuggestions.handleTextChange;
+
+  const handleUrlChangeText = useCallback(
+    (text: string) => {
+      setDraftUrl(text);
+      handleUrlTextChange(text);
+    },
+    [handleUrlTextChange],
+  );
+
   const handleNavigateDraftUrl = useCallback(() => {
-    navigate(draftUrl);
-  }, [draftUrl, navigate]);
+    closeUrlSuggestions();
+    handleOpenUrl(resolveTypedInput(draftUrl));
+  }, [closeUrlSuggestions, draftUrl, handleOpenUrl]);
 
   const addElementAttachment = useCallback(
     (
@@ -1516,12 +1559,13 @@ export function BrowserPane({
             <RotateCw size={16} color={theme.colors.foregroundMuted} />
           </ToolbarButton>
         </View>
-        <View style={styles.urlBarWrap}>
+        <View ref={urlSuggestions.setAnchorNode} style={styles.urlBarWrap}>
           <TextInput
             accessibilityLabel={t("workspace.browser.controls.browserUrl")}
             autoCapitalize="none"
             autoCorrect={false}
-            onChangeText={setDraftUrl}
+            onBlur={closeUrlSuggestions}
+            onChangeText={handleUrlChangeText}
             onFocus={handleUrlBarFocus}
             onSubmitEditing={handleNavigateDraftUrl}
             placeholder={t("workspace.browser.controls.enterUrl")}
@@ -1580,6 +1624,14 @@ export function BrowserPane({
           </ToolbarButton>
         </View>
       </View>
+      <UrlSuggestionsPopover
+        anchor={urlSuggestions.anchor}
+        layer={urlSuggestions.layer}
+        visible={urlSuggestions.visible}
+        suggestions={urlSuggestions.suggestions}
+        selectedIndex={urlSuggestions.selectedIndex}
+        onActivate={urlSuggestions.handleActivateIndex}
+      />
       <BrowserPasswordSaveBar browserId={browserId} url={browser?.url ?? null} />
       {browser?.lastError ? (
         <View style={styles.errorRow}>

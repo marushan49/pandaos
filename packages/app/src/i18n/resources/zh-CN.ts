@@ -630,6 +630,13 @@ export const zhCN: TranslationResources = {
         title: "浏览器仅桌面端可用",
         subtitle: "在 Electron 中打开此 workspace 以使用内置浏览器。",
       },
+      suggestions: {
+        label: "地址建议",
+        switchToTab: "切换到标签页",
+        savedLogin: "已保存的登录",
+        searchWeb: "在网络上搜索：{{text}}",
+        open: "打开：{{url}}",
+      },
       session: "浏览器会话 {{browserId}}",
       activity: {
         title: "浏览器运行",
@@ -2421,7 +2428,20 @@ export const zhCN: TranslationResources = {
       emptyHint: "代理完成一轮后显示数据。",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      history: {
+        title: "地址历史",
+        info: "PandaOS 会按主机记住访问过的地址和标题，用于地址栏建议。搜索参数、凭据和令牌不会被保存。",
+        label: "访问过的地址",
+        hint: "用于此主机上的地址栏建议。",
+        empty: "尚无已保存的地址",
+        clear: "清除历史",
+        confirmTitle: "清除地址历史？",
+        confirmMessage: "此主机上访问过的页面的地址栏建议将被删除。已打开的标签页保持不变。",
+        success: "地址历史已清除。",
+      },
+    },
     plugins: pluginSettings["zh-CN"],
     metadataGeneration: {
       title: "元数据生成",

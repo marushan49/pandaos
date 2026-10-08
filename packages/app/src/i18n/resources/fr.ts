@@ -633,6 +633,13 @@ export const fr: TranslationResources = {
         title: "Le navigateur est réservé à l’app de bureau",
         subtitle: "Ouvrez cet espace de travail dans Electron pour utiliser le navigateur intégré.",
       },
+      suggestions: {
+        label: "Suggestions d'adresses",
+        switchToTab: "Passer à l'onglet",
+        savedLogin: "Identifiant enregistré",
+        searchWeb: "Rechercher sur le web : {{text}}",
+        open: "Ouvrir : {{url}}",
+      },
       session: "Session de navigateur {{browserId}}",
       activity: {
         title: "Exécution du navigateur",
@@ -2500,7 +2507,21 @@ export const fr: TranslationResources = {
       emptyHint: "Les chiffres apparaissent quand un agent termine un tour.",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      history: {
+        title: "Historique des adresses",
+        info: "PandaOS mémorise les adresses et les titres visités par hôte pour les proposer dans la barre d'adresse. Les paramètres de recherche, les identifiants et les jetons ne sont jamais enregistrés.",
+        label: "Adresses visitées",
+        hint: "Utilisées pour les suggestions de la barre d'adresse sur cet hôte.",
+        empty: "Aucune adresse enregistrée",
+        clear: "Effacer l'historique",
+        confirmTitle: "Effacer l'historique des adresses ?",
+        confirmMessage:
+          "Les suggestions de la barre d'adresse issues des pages visitées sur cet hôte seront supprimées. Les onglets ouverts restent inchangés.",
+        success: "Historique des adresses effacé.",
+      },
+    },
     plugins: pluginSettings.fr,
     metadataGeneration: {
       title: "Génération de métadonnées",

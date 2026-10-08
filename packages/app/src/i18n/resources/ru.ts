@@ -636,6 +636,13 @@ export const ru: TranslationResources = {
         subtitle:
           "Откройте это рабочее пространство в Electron, чтобы использовать встроенный браузер.",
       },
+      suggestions: {
+        label: "Подсказки адресов",
+        switchToTab: "Перейти на вкладку",
+        savedLogin: "Сохраненный логин",
+        searchWeb: "Искать в интернете: {{text}}",
+        open: "Открыть: {{url}}",
+      },
       session: "Сеанс браузера {{browserId}}",
       activity: {
         title: "Запуск в браузере",
@@ -2484,7 +2491,21 @@ export const ru: TranslationResources = {
       emptyHint: "Данные появятся, когда агент завершит ход.",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      history: {
+        title: "История адресов",
+        info: "PandaOS запоминает посещенные адреса и заголовки для каждого хоста, чтобы предлагать их в адресной строке. Параметры поиска, учетные данные и токены не сохраняются.",
+        label: "Посещенные адреса",
+        hint: "Используются для подсказок адресной строки на этом хосте.",
+        empty: "Сохраненных адресов пока нет",
+        clear: "Очистить историю",
+        confirmTitle: "Очистить историю адресов?",
+        confirmMessage:
+          "Подсказки адресной строки по посещенным страницам на этом хосте будут удалены. Открытые вкладки не изменятся.",
+        success: "История адресов очищена.",
+      },
+    },
     plugins: pluginSettings.ru,
     metadataGeneration: {
       title: "Генерация метаданных",
