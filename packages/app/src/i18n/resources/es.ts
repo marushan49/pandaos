@@ -636,6 +636,13 @@ export const es: TranslationResources = {
         title: "El navegador es solo para escritorio",
         subtitle: "Abra este espacio de trabajo en Electron para usar el navegador integrado.",
       },
+      suggestions: {
+        label: "Sugerencias de direcciones",
+        switchToTab: "Cambiar a la pestaña",
+        savedLogin: "Inicio de sesión guardado",
+        searchWeb: "Buscar en la web: {{text}}",
+        open: "Abrir: {{url}}",
+      },
       session: "Sesión de navegador{{browserId}}",
       activity: {
         title: "Ejecución del navegador",
@@ -2511,6 +2518,18 @@ export const es: TranslationResources = {
         googleSignIn: "Inicio de sesión de Google más reciente: {{date}}",
         googleSignInStale:
           "Las sesiones de Google copiadas suelen caducar. Para Google, inicia sesión una vez en el propio navegador de PandaOS (traspaso)",
+      },
+      history: {
+        title: "Historial de direcciones",
+        info: "PandaOS recuerda las direcciones y los títulos visitados por host para sugerirlos en la barra de direcciones. Nunca se guardan parámetros de búsqueda, credenciales ni tokens.",
+        label: "Direcciones visitadas",
+        hint: "Se usan para las sugerencias de la barra de direcciones en este host.",
+        empty: "Aún no hay direcciones guardadas",
+        clear: "Borrar historial",
+        confirmTitle: "¿Borrar el historial de direcciones?",
+        confirmMessage:
+          "Se quitarán las sugerencias de la barra de direcciones de las páginas visitadas en este host. Las pestañas abiertas no cambian.",
+        success: "Historial de direcciones borrado.",
       },
     },
     plugins: pluginSettings.es,

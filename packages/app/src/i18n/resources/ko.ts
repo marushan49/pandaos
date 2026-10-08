@@ -631,6 +631,13 @@ export const ko: TranslationResources = {
         title: "브라우저는 데스크톱 전용입니다",
         subtitle: "내장 브라우저를 사용하려면 이 워크스페이스를 Electron에서 여세요.",
       },
+      suggestions: {
+        label: "주소 제안",
+        switchToTab: "탭으로 전환",
+        savedLogin: "저장된 로그인",
+        searchWeb: "웹 검색: {{text}}",
+        open: "열기: {{url}}",
+      },
       session: "브라우저 세션 {{browserId}}",
       activity: {
         title: "브라우저 실행",
@@ -2468,6 +2475,18 @@ export const ko: TranslationResources = {
         googleSignIn: "최근 Google 로그인: {{date}}",
         googleSignInStale:
           "복사한 Google 세션은 자주 만료됩니다. Google은 PandaOS 브라우저에서 직접 한 번 로그인하세요 (핸드오프)",
+      },
+      history: {
+        title: "주소 기록",
+        info: "PandaOS는 주소 표시줄 제안을 위해 호스트별로 방문한 주소와 제목을 기억합니다. 검색 매개변수, 자격 증명, 토큰은 저장되지 않습니다.",
+        label: "방문한 주소",
+        hint: "이 호스트의 주소 표시줄 제안에 사용됩니다.",
+        empty: "저장된 주소가 아직 없습니다",
+        clear: "기록 지우기",
+        confirmTitle: "주소 기록을 지울까요?",
+        confirmMessage:
+          "이 호스트에서 방문한 페이지의 주소 표시줄 제안이 삭제됩니다. 열려 있는 탭은 그대로 유지됩니다.",
+        success: "주소 기록을 지웠습니다.",
       },
     },
     plugins: pluginSettings.ko,

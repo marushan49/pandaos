@@ -636,6 +636,13 @@ export const ja: TranslationResources = {
         title: "ブラウザはデスクトップ専用です",
         subtitle: "組み込みブラウザを使用するには、このワークスペースをElectronで開いてください。",
       },
+      suggestions: {
+        label: "アドレスの候補",
+        switchToTab: "タブに切り替え",
+        savedLogin: "保存済みのログイン",
+        searchWeb: "ウェブを検索: {{text}}",
+        open: "開く: {{url}}",
+      },
       session: "ブラウザセッション{{browserId}}",
       activity: {
         title: "ブラウザ実行",
@@ -2480,6 +2487,18 @@ export const ja: TranslationResources = {
         googleSignIn: "最新の Google ログイン: {{date}}",
         googleSignInStale:
           "コピーした Google セッションはすぐに失効することがあります。Google には PandaOS ブラウザで一度直接ログインしてください (引き継ぎ)",
+      },
+      history: {
+        title: "アドレス履歴",
+        info: "PandaOSはアドレスバーの候補として、ホストごとに訪問したアドレスとタイトルを記憶します。検索パラメータ、認証情報、トークンは保存されません。",
+        label: "訪問したアドレス",
+        hint: "このホストのアドレスバー候補に使われます。",
+        empty: "保存されたアドレスはまだありません",
+        clear: "履歴を消去",
+        confirmTitle: "アドレス履歴を消去しますか?",
+        confirmMessage:
+          "このホストで訪問したページのアドレスバー候補が削除されます。開いているタブは変わりません。",
+        success: "アドレス履歴を消去しました。",
       },
     },
     plugins: pluginSettings.ja,
