@@ -63,6 +63,7 @@ import {
   useBrowserFailureConfirmed,
 } from "@/desktop/browser/activity";
 import { BrowserActivityBar, BrowserHandoffBar } from "@/desktop/browser/activity-bar";
+import { BrowserTabCloseBar } from "@/desktop/browser/tab-close-bar";
 import {
   getContainedFrameRect,
   getRemotePoint,
@@ -982,6 +983,11 @@ function RemoteBrowserPane({
           </Pressable>
         </View>
       ) : null}
+      <BrowserTabCloseBar
+        serverId={serverId}
+        workspaceId={workspaceId}
+        browserId={remoteBrowserId}
+      />
       {handoff ? (
         <BrowserHandoffBar
           handoff={handoff}

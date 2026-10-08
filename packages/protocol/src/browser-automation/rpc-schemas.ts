@@ -487,6 +487,8 @@ export const BrowserAutomationResizeResultSchema = z.object({
 export const BrowserAutomationCloseTabResultSchema = z.object({
   command: z.literal("close_tab"),
   browserId: BrowserAutomationBrowserIdSchema,
+  deferredUntil: z.number().optional(),
+  keptOpen: z.boolean().optional(),
 });
 
 export const BrowserAutomationResultSchema = z.discriminatedUnion("command", [

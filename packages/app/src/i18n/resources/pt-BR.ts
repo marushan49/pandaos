@@ -677,6 +677,11 @@ export const ptBR: TranslationResources = {
           failed: "Falhou",
         },
       },
+      tabClose: {
+        message: "O agente quer fechar esta aba. Fecha em {{time}}.",
+        keepOpen: "Manter aberta",
+        closeNow: "Fechar agora",
+      },
       handoff: {
         title: "Transferência do navegador",
         openBrowser: "Abrir navegador",

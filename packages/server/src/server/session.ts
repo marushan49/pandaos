@@ -2421,6 +2421,10 @@ export class Session {
         browserId: payload.result.browserId,
         action: "cancel_handoff",
       });
+      this.browserActivity?.tabClose?.closed({
+        workspaceId: request.workspaceId,
+        browserId: payload.result.browserId,
+      });
     }
     this.emit({ type: "browser.remote.execute.response", payload });
   }
@@ -2814,6 +2818,11 @@ export class Session {
         if (msg.events.includes("browser.handoff")) {
           for (const payload of this.browserActivity?.currentHandoffs() ?? []) {
             owner.emit({ type: "browser.handoff", payload });
+          }
+        }
+        if (msg.events.includes("browser.tab_close")) {
+          for (const payload of this.browserActivity?.tabClose?.current() ?? []) {
+            owner.emit({ type: "browser.tab_close", payload });
           }
         }
         if (!msg.events.includes("checkout_status_update")) return undefined;
@@ -9463,6 +9472,7 @@ function sessionEventCategory(message: SessionOutboundMessage): SessionEventSubs
     case "browser.handoff":
     case "browser.mirror":
     case "sidebar.order.changed":
+    case "browser.tab_close":
       return message.type;
     case "status":
       switch (message.payload.status) {
@@ -9501,6 +9511,7 @@ function legacyWantsEvent(
     case "browser.handoff":
     case "browser.mirror":
     case "sidebar.order.changed":
+    case "browser.tab_close":
       return false;
     default:
       return true;

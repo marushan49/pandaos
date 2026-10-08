@@ -673,6 +673,11 @@ export const ko: TranslationResources = {
           failed: "실패",
         },
       },
+      tabClose: {
+        message: "에이전트가 이 탭을 닫으려고 합니다. {{time}} 후에 닫힙니다.",
+        keepOpen: "열어 두기",
+        closeNow: "지금 닫기",
+      },
       handoff: {
         title: "브라우저 넘겨주기",
         openBrowser: "브라우저 열기",

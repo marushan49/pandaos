@@ -672,6 +672,11 @@ export const ar: TranslationResources = {
           failed: "فشل",
         },
       },
+      tabClose: {
+        message: "يريد الوكيل إغلاق علامة التبويب هذه. تُغلق خلال {{time}}.",
+        keepOpen: "إبقاؤها مفتوحة",
+        closeNow: "إغلاق الآن",
+      },
       handoff: {
         title: "تسليم المتصفح",
         openBrowser: "فتح المتصفح",

@@ -166,6 +166,7 @@ import { resolveConfigFromPersisted, type CliConfigOverrides } from "./config.js
 import { resolvePaseoToolPolicy } from "./agent/paseo-tool-policy.js";
 import { BrowserToolsBroker } from "./browser-tools/broker.js";
 import { BrowserActivityHub } from "./browser-tools/browser-activity.js";
+import { TabCloseGate } from "./browser-tools/tab-close-gate.js";
 import {
   COMPETING_BROWSER_MCP_SERVERS,
   DaemonConfigBrowserToolsPolicy,
@@ -778,6 +779,11 @@ export async function createPaseoDaemon(
       wsServer?.broadcast({ type: "session", message: { type: "browser.activity", payload } }),
     (payload) =>
       wsServer?.broadcast({ type: "session", message: { type: "browser.handoff", payload } }),
+    new TabCloseGate({
+      isViewed: (browserId) => verifyHost.isViewed(browserId),
+      publish: (payload) =>
+        wsServer?.broadcast({ type: "session", message: { type: "browser.tab_close", payload } }),
+    }),
   );
   verifyHost.onMirror = (payload) =>
     wsServer?.broadcast({ type: "session", message: { type: "browser.mirror", payload } });

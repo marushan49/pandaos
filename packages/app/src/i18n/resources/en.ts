@@ -677,6 +677,11 @@ export const en = {
           failed: "Failed",
         },
       },
+      tabClose: {
+        message: "The agent wants to close this tab. Closes in {{time}}.",
+        keepOpen: "Keep open",
+        closeNow: "Close now",
+      },
       handoff: {
         title: "Browser handoff",
         openBrowser: "Open browser",

@@ -678,6 +678,11 @@ export const es: TranslationResources = {
           failed: "Fallido",
         },
       },
+      tabClose: {
+        message: "El agente quiere cerrar esta pestaña. Se cierra en {{time}}.",
+        keepOpen: "Mantener abierta",
+        closeNow: "Cerrar ahora",
+      },
       handoff: {
         title: "Traspaso del navegador",
         openBrowser: "Abrir navegador",

@@ -675,6 +675,11 @@ export const fr: TranslationResources = {
           failed: "Échec",
         },
       },
+      tabClose: {
+        message: "L'agent veut fermer cet onglet. Fermeture dans {{time}}.",
+        keepOpen: "Garder ouvert",
+        closeNow: "Fermer maintenant",
+      },
       handoff: {
         title: "Transfert du navigateur",
         openBrowser: "Ouvrir le navigateur",

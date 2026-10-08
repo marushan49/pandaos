@@ -478,6 +478,7 @@ const OUTBOUND_PERMISSION = {
   "browser.import.list_sources.response": "daemon.read",
   "browser.activity": "workspace.read",
   "browser.handoff": "workspace.read",
+  "browser.tab_close": "workspace.read",
   "browser.mirror": "workspace.read",
   "sidebar.order.changed": "workspace.read",
   "browser.activity.control.response": "workspace.write",

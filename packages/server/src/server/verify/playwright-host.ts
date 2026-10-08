@@ -208,6 +208,7 @@ export class DaemonPlaywrightHost {
   private readonly restoredWorkspaces = new Map<string, Promise<void>>();
   private readonly openTabQueues = new Map<string, Promise<unknown>>();
   private readonly tabLeases = new Map<string, { users: number; owned: boolean }>();
+  private readonly screencastViewers = new Map<string, number>();
   private saveTabsTimer: ReturnType<typeof setTimeout> | null = null;
   private closing = false;
 
@@ -372,6 +373,10 @@ export class DaemonPlaywrightHost {
     return run;
   }
 
+  public isViewed(browserId: string): boolean {
+    return (this.screencastViewers.get(browserId) ?? 0) > 0;
+  }
+
   public releaseTab(browserId: string): boolean {
     const lease = this.tabLeases.get(browserId);
     if (!lease) return false;
@@ -512,8 +517,19 @@ export class DaemonPlaywrightHost {
       });
     });
     tab.page.once("close", input.onEnd);
+    let viewing = true;
+    this.screencastViewers.set(
+      input.browserId,
+      (this.screencastViewers.get(input.browserId) ?? 0) + 1,
+    );
     const stop = async () => {
       tab.page.off("close", input.onEnd);
+      if (viewing) {
+        viewing = false;
+        const remaining = (this.screencastViewers.get(input.browserId) ?? 1) - 1;
+        if (remaining > 0) this.screencastViewers.set(input.browserId, remaining);
+        else this.screencastViewers.delete(input.browserId);
+      }
 
       await cdp.detach().catch(() => {});
     };

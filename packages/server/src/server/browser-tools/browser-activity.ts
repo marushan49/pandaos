@@ -9,6 +9,7 @@ import type {
 import type { BrowserAutomationCommand } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import { getBrowserIdForCommand } from "./broker.js";
 import { browserToolsFailure, type BrowserToolsResponsePayload } from "./errors.js";
+import type { TabCloseGate } from "./tab-close-gate.js";
 
 export interface BrowserActivityPatch {
   phase: BrowserActivityPhase;
@@ -59,6 +60,7 @@ export class BrowserActivityHub {
   public constructor(
     private readonly publish: (event: BrowserActivityEvent) => void,
     private readonly publishHandoff: (handoff: BrowserHandoff) => void = () => {},
+    public readonly tabClose: TabCloseGate | null = null,
   ) {}
 
   public start(input: {
@@ -140,13 +142,46 @@ export class BrowserActivityHub {
    * Wraps an automation path so it refuses commands on a handed-off tab. Only agent-facing
    * paths use it; the app's viewport keeps capturing frames and forwarding the user's input.
    */
-  public guard<T extends { command: BrowserAutomationCommand; requestId?: string }>(
+  public guard<
+    T extends { command: BrowserAutomationCommand; requestId?: string; workspaceId?: string },
+  >(
     execute: (input: T) => Promise<BrowserToolsResponsePayload>,
   ): (input: T) => Promise<BrowserToolsResponsePayload> {
     return async (input) => {
       const requestId = input.requestId ?? `browser_${randomUUID()}`;
-      return this.refuseHandedOff(input.command, requestId) ?? execute({ ...input, requestId });
+      return (
+        this.refuseHandedOff(input.command, requestId) ??
+        this.closeGently({ ...input, requestId }, execute)
+      );
     };
+  }
+
+  private async closeGently<
+    T extends { command: BrowserAutomationCommand; requestId: string; workspaceId?: string },
+  >(
+    input: T,
+    execute: (input: T) => Promise<BrowserToolsResponsePayload>,
+  ): Promise<BrowserToolsResponsePayload> {
+    const { command, workspaceId, requestId } = input;
+    if (command.command !== "close_tab" || !this.tabClose || !workspaceId) return execute(input);
+    const { browserId } = command.args;
+    const deferred = this.tabClose.defer({ workspaceId, browserId, close: () => execute(input) });
+    if (deferred) {
+      return {
+        requestId,
+        ok: true,
+        result: {
+          command: "close_tab",
+          browserId,
+          ...(deferred.status === "pending"
+            ? { deferredUntil: deferred.closesAt }
+            : { keptOpen: true }),
+        },
+      };
+    }
+    const payload = await execute(input);
+    if (payload.ok) this.tabClose.closed({ workspaceId, browserId });
+    return payload;
   }
 
   public refuseHandedOff(
@@ -167,6 +202,8 @@ export class BrowserActivityHub {
   public control(
     input: Pick<BrowserActivityControlRequest, "workspaceId" | "browserId" | "action">,
   ): boolean {
+    if (input.action === "keep_tab_open") return this.tabClose?.keepOpen(input.browserId) ?? false;
+    if (input.action === "close_tab_now") return this.tabClose?.closeNow(input.browserId) ?? false;
     if (input.action === "finish_handoff" || input.action === "cancel_handoff") {
       return this.endHandoff({
         workspaceId: input.workspaceId,

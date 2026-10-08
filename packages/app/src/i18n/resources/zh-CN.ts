@@ -672,6 +672,11 @@ export const zhCN: TranslationResources = {
           failed: "失败",
         },
       },
+      tabClose: {
+        message: "代理想关闭此标签页。将在 {{time}} 后关闭。",
+        keepOpen: "保持打开",
+        closeNow: "立即关闭",
+      },
       handoff: {
         title: "浏览器交接",
         openBrowser: "打开浏览器",

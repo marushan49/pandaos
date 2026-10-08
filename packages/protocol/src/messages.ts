@@ -141,6 +141,7 @@ import {
   BrowserActivityMessageSchema,
   BrowserMirrorApplyRequestSchema,
   BrowserHandoffMessageSchema,
+  BrowserTabCloseMessageSchema,
   BrowserMirrorMessageSchema,
 } from "./browser-activity/rpc-schemas.js";
 import {
@@ -3498,6 +3499,7 @@ export const SessionEventSubscriptionSchema = z.enum([
   "browser.handoff",
   "browser.mirror",
   "sidebar.order.changed",
+  "browser.tab_close",
 ]);
 export type SessionEventSubscription = z.infer<typeof SessionEventSubscriptionSchema>;
 export const SessionEventsSetSubscriptionRequestSchema = z.object({
@@ -4027,6 +4029,8 @@ export const ServerInfoStatusPayloadSchema = z
         browserActivity: z.boolean().optional(),
         // COMPAT(browserHandoff): added in v0.9.1, remove gate after 2027-03-27.
         browserHandoff: z.boolean().optional(),
+        // COMPAT(browserTabClose): added in v0.11.1, remove gate after 2027-04-08.
+        browserTabClose: z.boolean().optional(),
         // COMPAT(browserMirror): added in v0.9.1, remove gate after 2027-03-28.
         browserMirror: z.boolean().optional(),
         // COMPAT(browserTunnel): added in v0.9.1, remove gate after 2027-04-01.
@@ -7379,6 +7383,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   BrowserImportCookiesResponseSchema,
   BrowserActivityMessageSchema,
   BrowserHandoffMessageSchema,
+  BrowserTabCloseMessageSchema,
   BrowserMirrorMessageSchema,
   BrowserActivityControlResponseSchema,
   LegacyListAvailableEditorsResponseMessageSchema,
