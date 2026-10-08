@@ -8,7 +8,7 @@ export default function contribute(client: PluginClientContext) {
     title: "BTW",
     icon: "MessageCircle",
     context: "agent",
-    locations: ["workspace"],
+    locations: ["explorer"],
     Component: BtwPanel,
   });
   client.addSlashCommand({
@@ -17,7 +17,7 @@ export default function contribute(client: PluginClientContext) {
     argumentHint: "<question>",
     context: "agent",
     async onSubmit({ args, agent, paseo, openPanel }) {
-      openPanel("btw");
+      openPanel("btw", { location: "explorer" });
       if (args) await askSideQuestion(paseo, agent, args);
     },
   });
