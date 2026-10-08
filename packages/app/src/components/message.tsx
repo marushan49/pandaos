@@ -47,6 +47,7 @@ import {
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { ICON_SIZE, MOTION, webTransition, type Theme } from "@/styles/theme";
 import { AnimatedDisclosure } from "@/components/ui/animated-disclosure";
+import { CONTROL_HEIGHTS } from "@/components/ui/control-geometry";
 import { CollapsiblePromptText } from "@/components/collapsible-prompt-text";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import Animated, {
@@ -367,9 +368,7 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
       md: theme.colors.surface2,
     },
     borderRadius: theme.borderRadius["2xl"],
-    borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.hairline,
-    boxShadow: `inset 0 1px 0 ${theme.colors.surfaceHighlightTop}`,
+    boxShadow: `0 0 0 1px ${theme.colors.hairline}, inset 0 1px 0 ${theme.colors.surfaceHighlightTop}`,
     paddingHorizontal: theme.spacing[4],
     paddingVertical: theme.spacing[4],
     minWidth: 0,
@@ -1145,7 +1144,7 @@ const expandableBadgeStylesheet = StyleSheet.create((theme) => ({
   pressablePill: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 28,
+    minHeight: CONTROL_HEIGHTS.compact,
     maxWidth: "100%",
     paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[0.5],
