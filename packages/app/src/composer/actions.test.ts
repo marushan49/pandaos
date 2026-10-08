@@ -750,7 +750,7 @@ describe("dispatchComposerAgentMessage", () => {
       {
         type: "text",
         mimeType: "text/plain",
-        title: "Browser element · button",
+        title: "Browser element: button",
         text: browserElement.attachment.formatted,
       },
     ]);

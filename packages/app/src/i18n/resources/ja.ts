@@ -643,10 +643,10 @@ export const ja: TranslationResources = {
         stepOf: "ステップ {{step}}/{{total}}",
         checkingPage: "ページを確認中",
         recheckPage: "ページを再確認",
-        paused: "一時停止中 · 操作できます",
+        paused: "一時停止中, 操作できます",
         pausing: "このステップの後に操作を引き継ぎます",
         passed: "実行に成功しました",
-        failed: "実行に失敗しました · {{message}}",
+        failed: "実行に失敗しました: {{message}}",
         takeOver: "操作を引き継ぐ",
         resume: "再開",
         dismiss: "ブラウザ実行の状態を閉じる",
@@ -1118,7 +1118,7 @@ export const ja: TranslationResources = {
           "このプロジェクトの各ワークスペースは、独自に設定しない限りこのアカウントを使います。",
         scopeWorkspaceHint:
           "このワークスペースだけに適用され、プロジェクトのアカウントより優先されます。",
-        inherited: "{{host}} · プロジェクトから継承",
+        inherited: "{{host}}, プロジェクトから継承",
         savedProject:
           "このプロジェクトのすべてのワークスペースが {{path}} のアカウントを使うようになりました",
         clearedProject: "このプロジェクトは既定のアカウントに戻りました",
@@ -1889,7 +1889,7 @@ export const ja: TranslationResources = {
       toggle: "{{model}} でもチャットを開始",
     },
     auto: "自動",
-    autoDescription: "Jev が利用可能な使用枠から選択 · 最大2秒",
+    autoDescription: "Jev が利用可能な使用枠から選択, 最大2秒",
     title: "プロバイダーを選択",
     selectModel: "モデルを選択",
     selectedModel: "モデルを選択（{{model}}）",
@@ -2466,7 +2466,7 @@ export const ja: TranslationResources = {
       sessions_other: "{{count}} セッション",
       turns_one: "{{count}} ターン",
       turns_other: "{{count}} ターン",
-      tokens: "入力 {{input}} · 出力 {{output}}",
+      tokens: "入力 {{input}}, 出力 {{output}}",
       empty: "まだトークンの使用はありません",
       emptyHint: "エージェントがターンを終えると表示されます。",
     },
@@ -2880,7 +2880,7 @@ export const ja: TranslationResources = {
         unlocked:
           "Up-to-date apps register here when they connect. Turn on the lock to admit only these devices.",
         thisDevice: "This device",
-        lastSeen: "Last seen {{when}} · app {{version}}",
+        lastSeen: "Last seen {{when}}, app {{version}}",
         revoke: "Remove",
       },
       skills: {

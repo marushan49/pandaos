@@ -172,7 +172,7 @@ function ForgeAccountDialog({
             detail={
               account.configDir === inherited
                 ? t("workspace.forgeAccount.inherited", { host: account.host })
-                : `${account.host} · ${account.configDir}`
+                : `${account.host}, ${account.configDir}`
             }
             selected={selected === account.configDir}
             busy={saving === account.configDir}

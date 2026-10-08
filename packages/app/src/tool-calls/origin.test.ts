@@ -13,7 +13,7 @@ describe("resolveToolCallOrigin", () => {
   it("identifies System One decisions without confusing them with provider tools", () => {
     expect(resolveToolCallOrigin("mcp__paseo__system_one_decide")).toEqual({
       id: "system-one",
-      label: "System One · Jev",
+      label: "System One, Jev",
       colorName: "violet",
     });
     expect(resolveToolCallOrigin("Read")).toBeNull();

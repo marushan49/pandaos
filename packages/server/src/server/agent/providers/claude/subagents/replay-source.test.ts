@@ -352,7 +352,7 @@ describe("replay runtime", () => {
     expect(observations.find((o) => o.kind === "subtitle")).toEqual({
       kind: "subtitle",
       id: TOOL_USE_ID,
-      subtitle: "general-purpose · Opus 5 · High",
+      subtitle: "general-purpose, Opus 5, High",
     });
   });
 
@@ -373,7 +373,7 @@ describe("replay runtime", () => {
     }).observations;
 
     expect(observations.find((o) => o.kind === "subtitle")).toMatchObject({
-      subtitle: "general-purpose · Sonnet 5 · Low",
+      subtitle: "general-purpose, Sonnet 5, Low",
     });
   });
 
@@ -400,7 +400,7 @@ describe("replay runtime", () => {
       convertEntry: () => [],
     }).observations;
     expect(observations.find((o) => o.kind === "subtitle")).toMatchObject({
-      subtitle: "general-purpose · glm-5.1",
+      subtitle: "general-purpose, glm-5.1",
     });
   });
 });
@@ -457,7 +457,7 @@ describe("replay usage", () => {
       kind: "subtitle",
       id: TOOL_USE_ID,
       // 2293 + 0 + 65024 + 1376 — the last turn's context, matching the live path's total_tokens.
-      subtitle: "general-purpose · Opus 5 · 68.7k tokens",
+      subtitle: "general-purpose, Opus 5, 68.7k tokens",
       timestamp: "2026-07-23T23:49:05.068Z",
     });
   });
@@ -476,7 +476,7 @@ describe("replay usage", () => {
           message: { content: "ignored" },
         },
       ]),
-    ).toMatchObject({ subtitle: "general-purpose · 16.4k tokens" });
+    ).toMatchObject({ subtitle: "general-purpose, 16.4k tokens" });
   });
 
   it("emits nothing for a transcript with no entries", () => {
@@ -491,7 +491,7 @@ describe("replay usage", () => {
         message: { content: [], usage: { input_tokens: 10 } },
       },
     ]);
-    expect(observation).toMatchObject({ subtitle: "general-purpose · 10 tokens" });
+    expect(observation).toMatchObject({ subtitle: "general-purpose, 10 tokens" });
   });
 
   it("omits totalTokens when no entry carries a usage block", () => {
@@ -516,7 +516,7 @@ describe("replay usage", () => {
         },
         { type: "assistant", timestamp: "2026-07-27T16:42:20.000Z", message: { content: [] } },
       ]),
-    ).toMatchObject({ subtitle: "general-purpose · 1k tokens" });
+    ).toMatchObject({ subtitle: "general-purpose, 1k tokens" });
   });
 
   it("only reports counters the transcript actually shows", () => {
@@ -551,7 +551,7 @@ describe("replay usage", () => {
       store.apply("parent", "claude", event);
     }
 
-    expect(store.get("parent", TOOL_USE_ID)?.subtitle).toBe("general-purpose · 7 tokens");
+    expect(store.get("parent", TOOL_USE_ID)?.subtitle).toBe("general-purpose, 7 tokens");
   });
 });
 

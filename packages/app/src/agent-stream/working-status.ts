@@ -22,7 +22,7 @@ export function buildWorkingLabel(
       `${t("subagents.title")}: ${t("subagents.pillLabelWorking", { count: subagentCount })}`,
     );
   }
-  return labels.join(" · ");
+  return labels.join(", ");
 }
 
 export function resolveWorkingTool(

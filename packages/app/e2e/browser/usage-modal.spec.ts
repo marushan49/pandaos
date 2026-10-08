@@ -463,7 +463,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(screen.getByText("69% left")).toBeVisible();
       await showUsageAs(page, "used");
       await expect(pinRow(screen, "Claude", "Session")).toHaveAccessibleName(
-        /^Pin Claude Session, 31% · resets /,
+        /^Pin Claude Session, 31%, resets /,
       );
       await openUsageOptions(page);
       await closeUsageOptions(page);

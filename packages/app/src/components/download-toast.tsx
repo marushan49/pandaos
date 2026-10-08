@@ -13,7 +13,7 @@ const AUTO_DISMISS_DELAY = 3000;
 function getDownloadStatusText(download: Download, t: TFunction): string {
   if (download.status === "downloading") {
     if (download.progress) {
-      return `${Math.round(download.progress.percent * 100)}% · ${formatSpeed(download.progress.speed)} · ${formatEta(download.progress.eta)}`;
+      return `${Math.round(download.progress.percent * 100)}%, ${formatSpeed(download.progress.speed)}, ${formatEta(download.progress.eta)}`;
     }
     return t("common.states.starting");
   }

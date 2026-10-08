@@ -76,5 +76,5 @@ export function formatPluginInstallation(installation: PluginInstallation): stri
     installation.identity.kind === "git"
       ? installation.currentRevision?.slice(0, 12)
       : installation.currentRevision;
-  return revision ? `${identity} · ${revision}` : identity;
+  return revision ? `${identity}, ${revision}` : identity;
 }

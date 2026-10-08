@@ -147,7 +147,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Working \u00b7 Shell",
+            "text": "Working, Shell",
             "timeoutMs": 10000
           },
           {

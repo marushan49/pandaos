@@ -26,7 +26,7 @@ describe("workspace file attachments", () => {
       getWorkspaceFileAttachmentKey(lineRange),
     );
     expect(getWorkspaceFileAttachmentSubtitle(wholeFile)).toBe("src/app.ts");
-    expect(getWorkspaceFileAttachmentSubtitle(lineRange)).toBe("src/app.ts · 12-24");
+    expect(getWorkspaceFileAttachmentSubtitle(lineRange)).toBe("src/app.ts:12-24");
   });
 
   it("deduplicates only identical paths and selections", () => {

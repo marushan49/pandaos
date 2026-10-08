@@ -310,7 +310,7 @@ describe("Claude usage source scoped weekly limits", () => {
     const usage = await provider.fetchUsage();
 
     expect(usage.windows).toContainEqual(
-      expect.objectContaining({ id: "weekly_model_fable", label: "Weekly · Fable" }),
+      expect.objectContaining({ id: "weekly_model_fable", label: "Weekly, Fable" }),
     );
   });
 
@@ -390,7 +390,7 @@ describe("Claude usage source scoped weekly limits", () => {
     const usage = await provider.fetchUsage();
 
     expect(usage.windows).toContainEqual(
-      expect.objectContaining({ id: "weekly_surface_code", label: "Weekly · Code" }),
+      expect.objectContaining({ id: "weekly_surface_code", label: "Weekly, Code" }),
     );
   });
 
@@ -489,7 +489,7 @@ describe("Claude usage source scoped limit reconciliation", () => {
     expect(windows).toEqual([
       expect.objectContaining({
         id: "weekly_model_omelette",
-        label: "Weekly · Omelette",
+        label: "Weekly, Omelette",
         usedPct: 12,
       }),
     ]);
@@ -500,7 +500,7 @@ describe("Claude usage source scoped limit reconciliation", () => {
     expect(windows).toEqual([
       expect.objectContaining({
         id: "weekly_model_fable",
-        label: "Weekly · Fable",
+        label: "Weekly, Fable",
         usedPct: 2,
       }),
     ]);
@@ -609,7 +609,7 @@ describe("Claude usage source scoped limit reconciliation", () => {
     const after = await windowsFor({ limits: [scoped(model("Fable 5", "fable"), 2)] });
     expect(before[0]?.id).toBe("weekly_model_fable");
     expect(after[0]?.id).toBe("weekly_model_fable");
-    expect(after[0]?.label).toBe("Weekly · Fable 5");
+    expect(after[0]?.label).toBe("Weekly, Fable 5");
   });
 
   it("identity: a limit keeps one id whichever representation carries it", async () => {

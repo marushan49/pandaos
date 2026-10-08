@@ -234,7 +234,6 @@ function ProviderRow({
                 <Text style={settingsStyles.rowTitle} numberOfLines={1}>
                   {def.label}
                 </Text>
-                {!isCompact ? <Text style={styles.separator}>·</Text> : null}
                 <StatusIndicator status={providerStatus} compact={isCompact} />
               </View>
               {providerError && !isCompact ? (
@@ -304,14 +303,11 @@ function StatusIndicator({ status, compact }: { status: ProviderStatus; compact:
         <>
           <Text style={styles.statusLabel}>{status.label}</Text>
           {status.modelCount !== null ? (
-            <>
-              <Text style={styles.separator}>·</Text>
-              <Text style={styles.statusLabel}>
-                {status.modelCount === 1
-                  ? t("settings.providers.models.one")
-                  : t("settings.providers.models.many", { count: status.modelCount })}
-              </Text>
-            </>
+            <Text style={styles.statusLabel}>
+              {status.modelCount === 1
+                ? t("settings.providers.models.one")
+                : t("settings.providers.models.many", { count: status.modelCount })}
+            </Text>
           ) : null}
         </>
       ) : null}
@@ -511,12 +507,12 @@ const styles = StyleSheet.create((theme) => ({
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[2],
+    gap: theme.spacing[3],
   },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1.5],
+    gap: theme.spacing[2],
   },
   statusDot: {
     width: 8,
@@ -524,10 +520,6 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: 4,
   },
   statusLabel: {
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.base,
-  },
-  separator: {
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.base,
   },

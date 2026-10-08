@@ -1047,7 +1047,7 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
       const screen = installedPlugins
         .find((plugin) => plugin.serverId === view.serverId && plugin.id === view.pluginId)
         ?.settingsScreens.find((candidate) => candidate.id === view.screenId);
-      return { title: `${view.pluginId} · ${screen?.title ?? t("settings.title")}`, groupLabel };
+      return { title: `${view.pluginId}: ${screen?.title ?? t("settings.title")}`, groupLabel };
     }
     if (view.kind === "project") {
       return { title: t("settings.projects"), groupLabel };

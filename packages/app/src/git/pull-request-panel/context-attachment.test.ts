@@ -89,7 +89,7 @@ describe("pull request context attachments", () => {
         "URL: https://github.com/getpaseo/paseo/pull/42#issuecomment-1",
         "Author: octocat",
         "Created: 3d ago",
-        "Location: packages/app/src/panel.tsx:42 · unresolved · outdated · thread PRRT_1",
+        "Location: packages/app/src/panel.tsx:42, unresolved, outdated, thread PRRT_1",
         "",
         "Looks good.",
       ].join("\n"),

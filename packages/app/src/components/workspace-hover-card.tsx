@@ -398,7 +398,7 @@ function PullRequestSetRows({
       <Text style={styles.cardSetSummary}>
         {summary.health === "unknown"
           ? t("workspace.git.pr.set.count", { count: summary.total })
-          : `${t("workspace.git.pr.set.count", { count: summary.total })} · ${t(
+          : `${t("workspace.git.pr.set.count", { count: summary.total })}, ${t(
               HOVER_HEALTH_LABEL_KEYS[summary.health],
               { count: relatedPullRequestsHealthCount(summary) },
             )}`}

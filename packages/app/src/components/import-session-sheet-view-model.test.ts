@@ -300,7 +300,7 @@ describe("formatDirectoryLabel", () => {
 
   it("appends the path under the root so worktrees of one project read apart", () => {
     expect(formatDirectoryLabel({ name: "paseo", detail: ".dev/worktrees/zebra" })).toBe(
-      "paseo · .dev/worktrees/zebra",
+      "paseo, .dev/worktrees/zebra",
     );
   });
 });

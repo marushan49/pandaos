@@ -91,7 +91,7 @@ function issueSubtitle(issue: z.infer<typeof LinearIssueSchema>): string | undef
   const parts = [issue.state.name, issue.assignee?.name].filter(
     (part): part is string => typeof part === "string" && part.length > 0,
   );
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
 function issueText(issue: z.infer<typeof LinearIssueSchema>): string {

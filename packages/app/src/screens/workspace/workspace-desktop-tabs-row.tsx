@@ -182,12 +182,7 @@ function AgentTabTooltipBody({
       </Text>
       <View style={styles.tooltipAgentMetadata}>
         <Text style={styles.tooltipAgentId}>{agentId.slice(0, 7)}</Text>
-        {activity ? (
-          <>
-            <Text style={styles.tooltipAgentSeparator}>·</Text>
-            <Text style={styles.tooltipAgentActivity}>{activity}</Text>
-          </>
-        ) : null}
+        {activity ? <Text style={styles.tooltipAgentActivity}>{activity}</Text> : null}
       </View>
     </View>
   );
@@ -2016,14 +2011,10 @@ const styles = StyleSheet.create((theme) => ({
   tooltipAgentMetadata: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1],
+    gap: theme.spacing[2],
   },
   tooltipAgentId: {
     color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
-  },
-  tooltipAgentSeparator: {
-    color: theme.colors.foregroundExtraMuted,
     fontSize: theme.fontSize.sm,
   },
   tooltipAgentActivity: {

@@ -101,22 +101,16 @@ export function ChangeRequestSetItem({
         </Text>
       )}
       {allMerged ? (
-        <>
-          <Text style={styles.separator}>·</Text>
-          <Text style={styles.mergedText} numberOfLines={1}>
-            {t("workspace.git.pr.states.merged")}
-          </Text>
-        </>
+        <Text style={styles.mergedText} numberOfLines={1}>
+          {t("workspace.git.pr.states.merged")}
+        </Text>
       ) : null}
       {summary.health === "unknown" ? null : (
-        <>
-          <Text style={styles.separator}>·</Text>
-          <Text style={healthTextStyle(summary.health)} numberOfLines={1}>
-            {t(HEALTH_LABEL_KEYS[summary.health], {
-              count: relatedPullRequestsHealthCount(summary),
-            })}
-          </Text>
-        </>
+        <Text style={healthTextStyle(summary.health)} numberOfLines={1}>
+          {t(HEALTH_LABEL_KEYS[summary.health], {
+            count: relatedPullRequestsHealthCount(summary),
+          })}
+        </Text>
       )}
     </Pressable>
   );
@@ -413,18 +407,12 @@ const styles = StyleSheet.create((theme) => ({
   item: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: theme.spacing[1.5],
     minWidth: 0,
     flexShrink: 0,
   },
   itemPressed: {
     opacity: 0.82,
-  },
-  separator: {
-    color: theme.colors.foregroundExtraMuted,
-    fontSize: theme.fontSize.sm,
-    lineHeight: 16,
-    flexShrink: 0,
   },
   countText: {
     color: theme.colors.foregroundMuted,

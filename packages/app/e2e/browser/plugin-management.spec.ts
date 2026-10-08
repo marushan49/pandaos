@@ -638,7 +638,7 @@ async function retryNpmInstallAndInspectRow(page: Page, width: number, testInfo:
   await expectSourceHierarchy(
     page,
     "Installed from the npm fixture registry",
-    "npm:@paseo-fixture/review · 2.0.0",
+    "npm:@paseo-fixture/review, 2.0.0",
   );
   await expect(
     page.getByText("Installed from the npm fixture registry", { exact: true }),

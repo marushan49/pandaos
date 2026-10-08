@@ -185,7 +185,7 @@ export function resolveDirectoryLabel(
 
 /** The one-line form a row shows under its prompt preview. */
 export function formatDirectoryLabel(label: DirectoryLabel): string {
-  return label.detail ? `${label.name} · ${label.detail}` : label.name;
+  return label.detail ? `${label.name}, ${label.detail}` : label.name;
 }
 
 export interface ImportTarget {

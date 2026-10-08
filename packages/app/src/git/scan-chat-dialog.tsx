@@ -137,7 +137,7 @@ function FindingRow({
         </Text>
         <Text style={styles.rowDetail}>
           {t("workspace.git.pr.set.scanChatMentions", { count: finding.mentions })}
-          {" · "}
+          {", "}
           {finding.pullRequest.state}
         </Text>
       </View>

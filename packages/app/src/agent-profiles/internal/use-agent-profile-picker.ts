@@ -90,7 +90,7 @@ export function useAgentProfilePicker(
         name: profile.name,
         summary: buildAgentProfileTags({ profile, entries, formatFeatureCount })
           .map((tag) => tag.label)
-          .join(" · "),
+          .join(", "),
       })),
     [applicableProfiles, entries, formatFeatureCount],
   );

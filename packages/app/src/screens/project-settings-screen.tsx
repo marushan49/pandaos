@@ -958,7 +958,7 @@ function scriptHint(script: ProjectScriptDraft, t: TFunction): string {
   if (script.type) pieces.push(script.type);
   if (script.portText) pieces.push(t("settings.project.scripts.port", { port: script.portText }));
   if (script.commandText) pieces.push(script.commandText.split("\n")[0] ?? "");
-  return pieces.join(" · ");
+  return pieces.join(", ");
 }
 
 interface ScriptValidation {

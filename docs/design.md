@@ -183,6 +183,8 @@ Buttons are imperative: Save, Cancel, Restart, Remove, Update, Install update, A
 
 Error copy is direct. "Unable to remove host" (`packages/app/src/screens/settings/host-page.tsx:697`), not "Sorry, we couldn't remove the host." Recovery instructions are concrete: "Wait for it to come online before restarting." Errors describe state; they do not editorialize.
 
+Parts of one line (subtitles, hints, summaries) are joined with a comma and a space: "Worked for 5m 12s, ran 14 commands". A label and its value take a colon ("Browser element: button"), a path and its lines too ("src/app.ts:12-24"). A middle dot or bullet is never a separator. In a row of separate elements (the sidebar meta row, session rows), draw no separator element and space the items with `gap`.
+
 Terminology:
 
 - Workspace, never "checkout".

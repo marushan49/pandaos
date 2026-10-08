@@ -374,7 +374,7 @@ describe("tool call detail-level projection", () => {
     expect(result.groupsByHostId.get("1")?.summary.origins).toEqual([
       { origin: { id: "browser", label: "Browser", colorName: "sky" }, count: 2 },
       {
-        origin: { id: "system-one", label: "System One · Jev", colorName: "violet" },
+        origin: { id: "system-one", label: "System One, Jev", colorName: "violet" },
         count: 1,
       },
       {

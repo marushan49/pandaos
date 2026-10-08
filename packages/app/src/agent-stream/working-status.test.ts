@@ -38,13 +38,13 @@ describe("working footer activity", () => {
     expect(buildWorkingLabel(t, { ...turn, isWaiting: true }, false, "Browser", 0)).toBe("Waiting");
     expect(resolveWorkingTool([tool], { ...turn, isWaiting: true })).toBeNull();
     expect(buildWorkingLabel(t, turn, false, "Browser", 2)).toBe(
-      "Working · Browser · Subagents: 2 working",
+      "Working, Browser, Subagents: 2 working",
     );
     expect(buildWorkingLabel(t, { ...turn, isActive: false }, false, null, 1)).toBe(
       "Subagents: 1 working",
     );
     expect(buildWorkingLabel(t, turn, true, "Browser", 1)).toBe(
-      "Needs input · Subagents: 1 working",
+      "Needs input, Subagents: 1 working",
     );
     expect(buildWorkingLabel(t, { ...turn, isCancelling: true }, false, "Browser", 0)).toBe(
       "Canceling agent",

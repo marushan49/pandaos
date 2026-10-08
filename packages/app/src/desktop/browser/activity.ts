@@ -148,7 +148,7 @@ export function describeBrowserActivityStep(step: BrowserActivityStep): string {
     step.detail || null,
   ]
     .filter((part): part is string => part !== null)
-    .join(" · ");
+    .join(", ");
 }
 
 export function formatBrowserActivityConfidence(
@@ -181,7 +181,7 @@ export function summarizeBrowserActivity(event: BrowserActivityEvent, t: TFuncti
   const current = event.action
     ? describeBrowserActivityStep(event.action)
     : t("workspace.browser.activity.checkingPage");
-  return `${formatBrowserActivityStep(event, t)} · ${current}`;
+  return `${formatBrowserActivityStep(event, t)}, ${current}`;
 }
 
 /** Jev picks its next step only after observing again, so it is never guessed here. */

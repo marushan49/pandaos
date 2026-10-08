@@ -5763,12 +5763,12 @@ describe("OpenCode provider subagent contract", () => {
         type: "upsert",
         id: "ses_child_facts",
         title: "general",
-        subtitle: "general · claude-sonnet-5 · High",
+        subtitle: "general, claude-sonnet-5, High",
       },
       {
         type: "upsert",
         id: "ses_child_facts",
-        subtitle: "general · claude-sonnet-5 · High · 16.5k tokens",
+        subtitle: "general, claude-sonnet-5, High, 16.5k tokens",
       },
     ]);
     // Presentation upserts must not carry status: they can never revert a finished child.
@@ -5849,7 +5849,7 @@ describe("OpenCode provider subagent contract", () => {
         event: {
           type: "upsert",
           id: "ses_child_link_title",
-          subtitle: "general · claude-sonnet-5",
+          subtitle: "general, claude-sonnet-5",
         },
       }),
     );
@@ -5896,7 +5896,7 @@ describe("OpenCode provider subagent contract", () => {
           title: "explore",
           description: "Investigate flaky test",
           status: "running",
-          subtitle: "explore · claude-sonnet-5 · High",
+          subtitle: "explore, claude-sonnet-5, High",
         },
       },
     ]);
@@ -6428,7 +6428,7 @@ describe("OpenCode provider subagent contract", () => {
         parentSubagentId: null,
         description: "Chase the regression",
         status: "completed",
-        subtitle: "claude-sonnet-5 · Max",
+        subtitle: "claude-sonnet-5, Max",
       },
     });
     await vi.waitFor(() =>
@@ -6439,7 +6439,7 @@ describe("OpenCode provider subagent contract", () => {
           type: "upsert",
           id: "ses_child_hydrated_facts",
           title: "explore",
-          subtitle: "explore · claude-sonnet-5 · Max · 1k tokens",
+          subtitle: "explore, claude-sonnet-5, Max, 1k tokens",
         },
       }),
     );

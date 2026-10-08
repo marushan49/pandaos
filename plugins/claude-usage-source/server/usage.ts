@@ -280,7 +280,7 @@ function scopedWindows(limits: ScopedLimit[]): UsageWindow[] {
     // used", and the bar must not come and go between refreshes.
     return windowFromUsedPct({
       id,
-      label: `Weekly \u00b7 ${limit.name}`,
+      label: `Weekly, ${limit.name}`,
       shortLabel: `wk ${limit.name}`,
       utilizationPct: limit.usedPct,
       resetsAt: limit.resetsAt,

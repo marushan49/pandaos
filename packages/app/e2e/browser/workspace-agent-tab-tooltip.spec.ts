@@ -45,7 +45,6 @@ async function expectTwoRowAgentSummary(
 
   await expect(title).toBeVisible();
   await expect(id).toBeVisible();
-  await expect(tooltip.getByText("·", { exact: true })).toBeVisible();
   await expect(activity).toBeVisible();
   expect((await title.boundingBox())?.y).toBeLessThan((await id.boundingBox())?.y ?? 0);
 }

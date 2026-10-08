@@ -165,7 +165,7 @@ export async function expectAgentProfile(
 ): Promise<void> {
   const row = agentProfileRow(page, expected.name);
   await expect(row).toBeVisible({ timeout: 30_000 });
-  await expect(row.getByText(expected.tags.join(" · "), { exact: true })).toBeVisible();
+  await expect(row.getByText(expected.tags.join(", "), { exact: true })).toBeVisible();
   if (expected.notes !== undefined) {
     await expect(row.getByText(expected.notes, { exact: true })).toBeVisible();
   }

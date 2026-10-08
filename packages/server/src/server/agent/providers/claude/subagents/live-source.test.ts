@@ -129,7 +129,7 @@ describe("ClaudeTaskProtocolSource", () => {
       {
         kind: "subtitle",
         id: "toolu_original",
-        subtitle: "general-purpose · 12.3k tokens",
+        subtitle: "general-purpose, 12.3k tokens",
       },
     ]);
     expect(firstCompleted).toEqual([{ kind: "status", id: "toolu_original", status: "completed" }]);
@@ -151,7 +151,7 @@ describe("ClaudeTaskProtocolSource", () => {
       {
         kind: "subtitle",
         id: "toolu_original",
-        subtitle: "general-purpose · Opus 5 · 12.3k tokens",
+        subtitle: "general-purpose, Opus 5, 12.3k tokens",
       },
     ]);
   });
@@ -591,7 +591,7 @@ describe("ClaudeTaskProtocolSource usage and runtime", () => {
       {
         kind: "subtitle",
         id: "toolu_01DgLoPMW9",
-        subtitle: "general-purpose · 16.5k tokens",
+        subtitle: "general-purpose, 16.5k tokens",
       },
     ]);
   });
@@ -612,7 +612,7 @@ describe("ClaudeTaskProtocolSource usage and runtime", () => {
       {
         kind: "subtitle",
         id: "toolu_01DgLoPMW9",
-        subtitle: "general-purpose · 32.3k tokens",
+        subtitle: "general-purpose, 32.3k tokens",
       },
       { kind: "status", id: "toolu_01DgLoPMW9", status: "completed" },
     ]);
@@ -628,7 +628,7 @@ describe("ClaudeTaskProtocolSource usage and runtime", () => {
     source.observe(taskStarted());
     expect(
       source.observeSidechainFrame(assistantFrame("claude-opus-5"), "toolu_01DgLoPMW9"),
-    ).toEqual([{ kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose · Opus 5" }]);
+    ).toEqual([{ kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose, Opus 5" }]);
   });
 
   it("re-reports only when the model actually changes", () => {
@@ -642,7 +642,7 @@ describe("ClaudeTaskProtocolSource usage and runtime", () => {
     expect(
       source.observeSidechainFrame(assistantFrame("claude-sonnet-5"), "toolu_01DgLoPMW9"),
     ).toEqual([
-      { kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose · Sonnet 5" },
+      { kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose, Sonnet 5" },
     ]);
   });
 
@@ -704,7 +704,7 @@ describe("ClaudeTaskProtocolSource effort from hooks", () => {
     const source = new ClaudeTaskProtocolSource();
     source.observe(taskStarted());
     expect(source.observeHook(hook())).toEqual([
-      { kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose · High" },
+      { kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose, High" },
     ]);
   });
 
@@ -721,7 +721,7 @@ describe("ClaudeTaskProtocolSource effort from hooks", () => {
     source.observe(taskStarted());
     source.observeHook(hook());
     expect(source.observeHook(hook({ effort: { level: "medium" } }))).toEqual([
-      { kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose · Medium" },
+      { kind: "subtitle", id: "toolu_01DgLoPMW9", subtitle: "general-purpose, Medium" },
     ]);
   });
 

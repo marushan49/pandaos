@@ -94,7 +94,7 @@ function useProviderSubagentDescriptor(
   return {
     label,
     subtitle:
-      subagentType && subagentType !== label ? `${subagentType} · ${providerLabel}` : providerLabel,
+      subagentType && subagentType !== label ? `${subagentType}, ${providerLabel}` : providerLabel,
     tooltip: label,
     titleState: descriptor ? "ready" : "loading",
     icon: useProviderIcon(provider, context.serverId),

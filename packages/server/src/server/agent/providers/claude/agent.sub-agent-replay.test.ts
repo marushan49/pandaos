@@ -484,7 +484,7 @@ describe("ClaudeAgentSession persisted subagent replay", () => {
       status: "running",
     });
     expect(events).toContainEqual(
-      expect.objectContaining({ subtitle: "Workflow · Sonnet 5 · 20.4k tokens" }),
+      expect.objectContaining({ subtitle: "Workflow, Sonnet 5, 20.4k tokens" }),
     );
     expect(events.at(-1)).toMatchObject({
       id: WORKFLOW_TOOL_USE_ID,
