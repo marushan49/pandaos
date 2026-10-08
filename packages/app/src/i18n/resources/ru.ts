@@ -3182,6 +3182,11 @@ export const ru: TranslationResources = {
       loading: "Загрузка...",
       addErrorTitle: "Не удалось добавить провайдера",
       updateErrorTitle: "Не удалось обновить провайдера",
+      refreshModels: "Обновить модели",
+      refreshing: "Обновление...",
+      refreshSuccess: "Модели обновлены: {{names}}",
+      refreshNone: "Нет включённых провайдеров для обновления",
+      refreshErrorTitle: "Не удалось обновить модели",
       actions: {
         menu: "Действия с {{name}}",
         remove: "Удалить провайдера",

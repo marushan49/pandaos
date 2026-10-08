@@ -3141,6 +3141,11 @@ export const ko: TranslationResources = {
       loading: "불러오는 중...",
       addErrorTitle: "프로바이더를 추가할 수 없습니다",
       updateErrorTitle: "프로바이더를 업데이트할 수 없습니다",
+      refreshModels: "모델 새로 고침",
+      refreshing: "새로 고치는 중...",
+      refreshSuccess: "{{names}}의 모델을 새로 고쳤습니다",
+      refreshNone: "새로 고칠 활성 프로바이더가 없습니다",
+      refreshErrorTitle: "모델을 새로 고칠 수 없습니다",
       actions: {
         menu: "{{name}} 작업",
         remove: "프로바이더 제거",

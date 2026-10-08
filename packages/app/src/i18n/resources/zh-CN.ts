@@ -3087,6 +3087,11 @@ export const zhCN: TranslationResources = {
       loading: "正在加载...",
       addErrorTitle: "无法添加 Provider",
       updateErrorTitle: "无法更新 Provider",
+      refreshModels: "刷新模型",
+      refreshing: "正在刷新...",
+      refreshSuccess: "已刷新 {{names}} 的模型",
+      refreshNone: "没有可刷新的已启用 Provider",
+      refreshErrorTitle: "无法刷新模型",
       actions: {
         menu: "{{name}} actions",
         remove: "Remove provider",

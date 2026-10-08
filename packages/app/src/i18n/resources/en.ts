@@ -3410,6 +3410,11 @@ export const en = {
       loading: "Loading...",
       addErrorTitle: "Unable to add provider",
       updateErrorTitle: "Unable to update provider",
+      refreshModels: "Refresh models",
+      refreshing: "Refreshing...",
+      refreshSuccess: "Models refreshed for {{names}}",
+      refreshNone: "No enabled providers to refresh",
+      refreshErrorTitle: "Unable to refresh models",
       actions: {
         menu: "{{name}} actions",
         remove: "Remove provider",

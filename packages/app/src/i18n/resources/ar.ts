@@ -3124,6 +3124,11 @@ export const ar: TranslationResources = {
       loading: "تحميل...",
       addErrorTitle: "Unable to add provider",
       updateErrorTitle: "غير قادر على تحديث الموفر",
+      refreshModels: "تحديث النماذج",
+      refreshing: "جارٍ التحديث...",
+      refreshSuccess: "تم تحديث النماذج لـ {{names}}",
+      refreshNone: "لا توجد موفرات مفعّلة للتحديث",
+      refreshErrorTitle: "تعذر تحديث النماذج",
       actions: {
         menu: "{{name}} actions",
         remove: "Remove provider",

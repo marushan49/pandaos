@@ -34,6 +34,8 @@ import {
 import { SettingsSection } from "@/components/settings/headings/settings-section";
 import { useProviderSettingsStore } from "@/stores/provider-settings-store";
 import { confirmDialog } from "@/utils/confirm-dialog";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/contexts/toast-context";
 import { filterSelectableModels } from "@/provider-selection/model-catalog";
 import { ChevronRight, MoreHorizontal, Trash2 } from "@/components/icons/ui-icons";
 
@@ -330,6 +332,8 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
   const [removingProviderId, setRemovingProviderId] = useState<string | null>(null);
   const removingProviderIdRef = useRef<string | null>(null);
   const [installingProviderId, setInstallingProviderId] = useState<string | null>(null);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  const toast = useToast();
 
   const providerDefinitions = useMemo(() => buildProviderDefinitions(entries), [entries]);
   const hasServer = serverId.length > 0;
@@ -357,6 +361,40 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
     },
     [patchConfig, t],
   );
+
+  const handleRefreshEnabled = useCallback(async () => {
+    const enabledEntries = (entries ?? []).filter((entry) => entry.enabled ?? true);
+    if (enabledEntries.length === 0) {
+      toast.show(t("settings.providers.refreshNone"), { variant: "info" });
+      return;
+    }
+    setIsRefreshingAll(true);
+    try {
+      await refresh(enabledEntries.map((entry) => entry.provider));
+      const names = enabledEntries.map((entry) => entry.label ?? entry.provider).join(", ");
+      toast.show(t("settings.providers.refreshSuccess", { names }), { variant: "success" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`${t("settings.providers.refreshErrorTitle")}: ${message}`);
+    } finally {
+      setIsRefreshingAll(false);
+    }
+  }, [entries, refresh, t, toast]);
+
+  const refreshButton =
+    hasServer && isConnected ? (
+      <Button
+        variant="ghost"
+        size="sm"
+        onPress={handleRefreshEnabled}
+        disabled={isRefreshingAll || isLoading}
+        testID="host-page-providers-refresh"
+      >
+        {isRefreshingAll
+          ? t("settings.providers.refreshing")
+          : t("settings.providers.refreshModels")}
+      </Button>
+    ) : undefined;
 
   const handleRemoveProvider = useCallback(
     async (providerId: string, providerLabel: string) => {
@@ -413,6 +451,7 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
     <>
       <SettingsSection
         title={t("settings.providers.title")}
+        trailing={refreshButton}
         testID="host-page-providers-card"
         style={styles.sectionSpacing}
       >

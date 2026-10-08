@@ -3158,6 +3158,11 @@ export const ja: TranslationResources = {
       loading: "読み込み中...",
       addErrorTitle: "プロバイダーを追加できません",
       updateErrorTitle: "プロバイダーを更新できません",
+      refreshModels: "モデルを更新",
+      refreshing: "更新中...",
+      refreshSuccess: "{{names}} のモデルを更新しました",
+      refreshNone: "更新できる有効なプロバイダーがありません",
+      refreshErrorTitle: "モデルを更新できません",
       actions: {
         menu: "{{name}} actions",
         remove: "Remove provider",

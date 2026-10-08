@@ -3175,6 +3175,11 @@ export const ptBR: TranslationResources = {
       loading: "Carregando...",
       addErrorTitle: "Não foi possível adicionar provedor",
       updateErrorTitle: "Não foi possível atualizar provedor",
+      refreshModels: "Atualizar modelos",
+      refreshing: "Atualizando...",
+      refreshSuccess: "Modelos atualizados para {{names}}",
+      refreshNone: "Nenhum provedor ativado para atualizar",
+      refreshErrorTitle: "Não foi possível atualizar os modelos",
       actions: {
         menu: "{{name}} actions",
         remove: "Remove provider",

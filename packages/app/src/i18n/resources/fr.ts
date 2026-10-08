@@ -3200,6 +3200,11 @@ export const fr: TranslationResources = {
       loading: "Chargement…",
       addErrorTitle: "Impossible d’ajouter le fournisseur",
       updateErrorTitle: "Impossible de mettre à jour le fournisseur",
+      refreshModels: "Actualiser les modèles",
+      refreshing: "Actualisation...",
+      refreshSuccess: "Modèles actualisés pour {{names}}",
+      refreshNone: "Aucun fournisseur activé à actualiser",
+      refreshErrorTitle: "Impossible d'actualiser les modèles",
       actions: {
         menu: "Actions de {{name}}",
         remove: "Supprimer le fournisseur",

@@ -3195,6 +3195,11 @@ export const es: TranslationResources = {
       loading: "Cargando...",
       addErrorTitle: "Unable to add provider",
       updateErrorTitle: "No se puede actualizar el proveedor",
+      refreshModels: "Actualizar modelos",
+      refreshing: "Actualizando...",
+      refreshSuccess: "Modelos actualizados para {{names}}",
+      refreshNone: "No hay proveedores habilitados para actualizar",
+      refreshErrorTitle: "No se pudieron actualizar los modelos",
       actions: {
         menu: "{{name}} actions",
         remove: "Remove provider",
