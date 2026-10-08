@@ -26,9 +26,8 @@ test.use({
   },
 });
 
-// Rendered light-theme colors: palette yellow 400 for Fast and Ultrafast, muted foreground for Normal.
 const ACTIVE_SPEED_COLOR = "rgb(251, 191, 36)";
-const NORMAL_SPEED_COLOR = "rgb(113, 113, 122)";
+const NORMAL_SPEED_COLOR = "rgb(106, 102, 92)";
 
 async function openSpeedSelector(page: Page): Promise<void> {
   const speed = page.getByRole("button", { name: /^(Select speed|Speed: .+)$/ });
@@ -59,7 +58,7 @@ async function expectSpeedIconColor(page: Page, color: string): Promise<void> {
   const trigger = page
     .getByRole("button", { name: /^(Speed: .+|Select speed)$/ })
     .filter({ visible: true });
-  await expect(trigger.locator("svg").first()).toHaveCSS("stroke", color);
+  await expect(trigger.locator("svg").first()).toHaveCSS("fill", color);
 }
 
 async function expectSpeedChoices(page: Page, choices: string[]): Promise<void> {
