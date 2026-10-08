@@ -190,10 +190,10 @@ export class ContextualTitles {
     if (changed) await this.options.emitWorkspaceUpdate(record.workspaceId);
   }
 
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
     this.disposed = true;
     this.unsubscribe();
     this.unsubscribeReset();
-    await Promise.allSettled(this.pending.values());
+    return Promise.allSettled(this.pending.values()).then(() => undefined);
   }
 }

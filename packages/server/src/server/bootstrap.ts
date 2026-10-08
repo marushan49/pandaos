@@ -2161,7 +2161,7 @@ export async function createPaseoDaemon(
     // they serve has been closed, further down.
     unsubscribePluginProviders();
     await hubRelationships.stop();
-    await contextualTitles.dispose();
+    void contextualTitles.dispose();
     workspaceReconciliation.dispose();
     scriptHealthMonitor.stop();
     // Freeze both ingress and registration before taking the agent closure snapshot.

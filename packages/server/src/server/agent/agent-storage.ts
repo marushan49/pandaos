@@ -151,6 +151,13 @@ function preserveSnapshotMetadata(
   if (existing && existing.archivedAt !== undefined) record.archivedAt = existing.archivedAt;
 }
 
+function initialTitleSource(
+  config: Pick<AgentSessionConfig, "title" | "titlePinned">,
+): "manual" | "generated" | "provisional" {
+  if (!config.title) return "provisional";
+  return config.titlePinned ? "manual" : "generated";
+}
+
 export function parseStoredAgentRecord(value: unknown): StoredAgentRecord {
   return STORED_AGENT_SCHEMA.parse(value);
 }
@@ -389,7 +396,7 @@ export class AgentStorage {
 
       preserveSnapshotMetadata(record, existing);
       if (hasTitleOverride && options?.title && existing?.title !== options.title)
-        record.titleSource = agent.config.title ? "generated" : "provisional";
+        record.titleSource = initialTitleSource(agent.config);
       return record;
     });
   }

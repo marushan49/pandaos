@@ -24,7 +24,7 @@ Titles follow the topic until you name the session yourself. `titleSource` on th
 
 | Source        | Set by                                                                                                                                                        | Automatic renaming                            |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| `manual`      | Your rename in the app or CLI (`update_agent_request`, `workspace.title.set.request`)                                                                         | Never                                         |
+| `manual`      | Your rename in the app or CLI (`update_agent_request`, `workspace.title.set.request`), and a creator title with `config.titlePinned` (Hub executions)         | Never                                         |
 | `generated`   | The title model, and any title a creator passes at create time (MCP `create_agent`, `paseo run --title`, app create) or an agent sets with MCP `update_agent` | At the 1st, 4th and 10th prompt, then never   |
 | `provisional` | The prompt preview, or an empty rename                                                                                                                        | At the next concrete prompt                   |
 | none          | Records from before titles had a source                                                                                                                       | Only when the title is the old prompt preview |

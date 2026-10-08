@@ -195,15 +195,12 @@ export class DaemonExecutions implements HubExecutionAgents {
         thinking: input.thinkingOptionId,
         features: input.featureValues,
         env: input.env,
-        ...(input.mcpServers || input.providerOptions || input.toolPolicy
-          ? {
-              config: {
-                ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
-                ...(input.providerOptions ? { providerOptions: input.providerOptions } : {}),
-                ...(input.toolPolicy ? { toolPolicy: input.toolPolicy } : {}),
-              },
-            }
-          : {}),
+        config: {
+          titlePinned: true,
+          ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
+          ...(input.providerOptions ? { providerOptions: input.providerOptions } : {}),
+          ...(input.toolPolicy ? { toolPolicy: input.toolPolicy } : {}),
+        },
         worktree: toCreateAgentWorktree(input.worktree),
         background: true,
         notifyOnFinish: false,

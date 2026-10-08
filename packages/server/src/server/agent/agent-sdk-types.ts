@@ -617,6 +617,7 @@ export interface AgentSessionConfig {
   thinkingOptionId?: string;
   featureValues?: Record<string, unknown>;
   title?: string | null;
+  titlePinned?: boolean;
   providerOptions?: ProviderOptions;
   toolPolicy?: ToolPolicy;
   mcpServers?: Record<string, McpServerConfig>;
