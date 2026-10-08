@@ -2273,6 +2273,8 @@ export const en = {
       other: "called PandaOS {{count}} times",
     },
     and: "and",
+    workedFor: "Worked for {{duration}}",
+    failed: "{{count}} failed",
   },
   renameModal: {
     rename: "Rename",

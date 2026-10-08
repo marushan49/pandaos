@@ -2238,6 +2238,8 @@ export const ar: TranslationResources = {
       other: "استدعى PandaOS {{count}} مرات",
     },
     and: "و",
+    workedFor: "عمل لمدة {{duration}}",
+    failed: "فشل {{count}}",
   },
   renameModal: {
     rename: "إعادة تسمية",

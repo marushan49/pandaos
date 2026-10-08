@@ -2216,6 +2216,8 @@ export const zhCN: TranslationResources = {
       other: "调用了 PandaOS {{count}} 次",
     },
     and: "并",
+    workedFor: "已工作 {{duration}}",
+    failed: "{{count}} 个失败",
   },
   renameModal: {
     rename: "重命名",

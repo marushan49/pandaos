@@ -2276,6 +2276,8 @@ export const ptBR: TranslationResources = {
       other: "chamou o PandaOS {{count}} vezes",
     },
     and: "e",
+    workedFor: "Trabalhou por {{duration}}",
+    failed: "{{count}} falharam",
   },
   renameModal: {
     rename: "Renomear",

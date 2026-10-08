@@ -1876,6 +1876,11 @@ const styles = StyleSheet.create((theme: Theme) => ({
   container: {
     flexShrink: 1,
     position: "relative",
+    padding: theme.spacing[1],
+    backgroundColor: theme.colors.surfaceSoft,
+    borderWidth: theme.borderWidth[1],
+    borderColor: theme.colors.hairline,
+    borderRadius: theme.borderRadius["2xl"],
   },
   inputWrapper: {
     flexShrink: 1,
@@ -1886,8 +1891,9 @@ const styles = StyleSheet.create((theme: Theme) => ({
       md: theme.colors.surface1,
     },
     borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.borderAccent,
-    borderRadius: theme.borderRadius["2xl"],
+    borderColor: "transparent",
+    borderRadius: theme.borderRadius.xl,
+    boxShadow: `inset 0 1px 0 ${theme.colors.surfaceHighlightTop}`,
     paddingTop: {
       xs: theme.spacing[2],
       md: theme.spacing[4],
@@ -1900,16 +1906,10 @@ const styles = StyleSheet.create((theme: Theme) => ({
       xs: theme.spacing[3],
       md: theme.spacing[4],
     },
-    ...(isWeb
-      ? {
-          transitionProperty: "border-color",
-          transitionDuration: "200ms",
-          transitionTimingFunction: "ease-in-out",
-        }
-      : {}),
   },
   inputWrapperReadOnly: {
     borderStyle: "dotted",
+    borderColor: theme.colors.hairline,
   },
   textInputScrollWrapper: {
     flexShrink: 1,

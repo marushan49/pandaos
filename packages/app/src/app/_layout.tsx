@@ -118,6 +118,7 @@ import { usePanelStore } from "@/stores/panel-store";
 import { flushDraftPersistStorage } from "@/stores/draft-store";
 import { getNextThemePreference, ICON_STROKE_WIDTH } from "@/styles/theme";
 import { useSessionStore } from "@/stores/session-store";
+import { installWebMotionStyles } from "@/styles/install-web-motion-styles";
 import { installWebScrollbarStyles } from "@/styles/install-web-scrollbar-styles";
 import type { HostProfile } from "@/types/host-connection";
 import {
@@ -992,6 +993,7 @@ function RootAppTree() {
 
 export default function RootLayout() {
   useEffect(() => installWebScrollbarStyles(), []);
+  useEffect(() => installWebMotionStyles(), []);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {

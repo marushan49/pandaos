@@ -2292,6 +2292,8 @@ export const es: TranslationResources = {
       other: "llamó a PandaOS {{count}} veces",
     },
     and: "y",
+    workedFor: "Trabajó durante {{duration}}",
+    failed: "{{count}} fallidos",
   },
   renameModal: {
     rename: "Rebautizar",

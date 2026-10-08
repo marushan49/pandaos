@@ -12,6 +12,7 @@ export interface OverviewSummary {
   searchCount: number;
   otherToolCount: number;
   paseoCallCount: number;
+  failedCount: number;
   origins: Array<{ origin: ToolCallOrigin; count: number }>;
 }
 
@@ -20,6 +21,7 @@ export interface OverviewToolCallGroup {
   run: ToolCallRun;
   summary: OverviewSummary;
   isLoading: boolean;
+  durationMs: number;
 }
 
 function isPaseoCall(name: string, normalizedName: string): boolean {
@@ -38,12 +40,16 @@ export function buildOverviewGroup(run: ToolCallRun): OverviewToolCallGroup {
   let searchCount = 0;
   let otherToolCount = 0;
   let paseoCallCount = 0;
+  let failedCount = 0;
   const origins = new Map<string, { origin: ToolCallOrigin; count: number }>();
 
   for (const call of run.calls) {
     const descriptor = describeToolCall(call);
     const normalizedName = descriptor.name.trim().toLowerCase();
     isLoading ||= descriptor.status === "running" || descriptor.status === "executing";
+    if (descriptor.status === "failed") {
+      failedCount += 1;
+    }
     const origin = resolveToolCallOrigin(descriptor.name, descriptor.metadata);
     if (origin) {
       const existing = origins.get(origin.id);
@@ -71,12 +77,18 @@ export function buildOverviewGroup(run: ToolCallRun): OverviewToolCallGroup {
     searchCount,
     otherToolCount,
     paseoCallCount,
+    failedCount,
     origins: [...origins.values()],
   };
+  const first = run.calls[0];
+  const durationMs = first
+    ? Math.max(0, run.latest.timestamp.getTime() - first.timestamp.getTime())
+    : 0;
   return {
     mode: "overview",
     run,
     isLoading,
     summary,
+    durationMs,
   };
 }

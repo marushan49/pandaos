@@ -23,7 +23,7 @@ import {
   createControlGeometry,
   type ButtonControlSize,
 } from "@/components/ui/control-geometry";
-import type { Theme } from "@/styles/theme";
+import { MOTION, webTransition, type Theme } from "@/styles/theme";
 
 type ButtonVariant = "default" | "secondary" | "outline" | "ghost" | "destructive";
 type ButtonSize = ButtonControlSize;
@@ -97,6 +97,7 @@ const styles = StyleSheet.create((theme) => {
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: "transparent",
+      ...webTransition(["transform", "opacity", "background-color"]),
     },
     md: {
       ...geometry.buttonMd,
@@ -132,6 +133,7 @@ const styles = StyleSheet.create((theme) => {
     },
     pressed: {
       opacity: 0.85,
+      transform: [{ scale: MOTION.pressScale }],
     },
     disabled: {
       opacity: theme.opacity[50],

@@ -279,6 +279,7 @@ describe("tool call detail-level projection", () => {
       mode: "overview",
       run: expect.any(Object),
       isLoading: false,
+      durationMs: 3000,
       summary: {
         editedFileCount: 1,
         commandCount: 1,
@@ -286,6 +287,7 @@ describe("tool call detail-level projection", () => {
         searchCount: 0,
         otherToolCount: 0,
         paseoCallCount: 0,
+        failedCount: 1,
         origins: [],
       },
     });

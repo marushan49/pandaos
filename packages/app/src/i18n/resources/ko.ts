@@ -2253,6 +2253,8 @@ export const ko: TranslationResources = {
       other: "PandaOS를 {{count}}회 호출함",
     },
     and: "그리고",
+    workedFor: "{{duration}} 동안 작업함",
+    failed: "{{count}}개 실패",
   },
   renameModal: {
     rename: "이름 변경",

@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo, useState, type ReactElement } from "react";
-import { Pressable } from "react-native";
+import { memo, useCallback, useState, type ReactElement } from "react";
+import { Pressable, type PressableStateCallbackType } from "react-native";
 import { useTranslation } from "react-i18next";
 import { DiffStat } from "@/components/diff-stat";
 import { composerPillStyles } from "@/composer/pill-styles";
@@ -16,8 +16,12 @@ export function ComposerDiffStatPill({ additions, deletions, onPress }: Composer
   const [isHovered, setIsHovered] = useState(false);
   const handleHoverIn = useCallback(() => setIsHovered(true), []);
   const handleHoverOut = useCallback(() => setIsHovered(false), []);
-  const bodyStyle = useMemo(
-    () => [composerPillStyles.body, isHovered && composerPillStyles.bodyActive],
+  const bodyStyle = useCallback(
+    ({ pressed }: PressableStateCallbackType) => [
+      composerPillStyles.body,
+      (isHovered || pressed) && composerPillStyles.bodyActive,
+      pressed && composerPillStyles.bodyPressed,
+    ],
     [isHovered],
   );
 
