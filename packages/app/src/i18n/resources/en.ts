@@ -2686,6 +2686,10 @@ export const en = {
         empty: "No browsers found",
         onHost: "On the host",
         onThisDevice: "On this device",
+        onThisMac: "On this Mac",
+        onHostNamed: "On the host {{host}}",
+        lastUsed: "last used on {{date}}",
+        preferDevice: "Import from this device so your sign-ins are fresh.",
         success: "Imported {{cookieCount}} cookies for {{domainCount}} domains",
         googleSignIn: "Newest Google sign-in from {{date}}",
         googleSignInStale:

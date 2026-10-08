@@ -2499,6 +2499,10 @@ export const ru: TranslationResources = {
         googleSignIn: "Последний вход в Google: {{date}}",
         googleSignInStale:
           "Скопированные сеансы Google часто истекают. Для Google войдите один раз прямо в браузере PandaOS (передача)",
+        onThisMac: "На этом Mac",
+        onHostNamed: "На хосте {{host}}",
+        lastUsed: "последнее использование {{date}}",
+        preferDevice: "Импортируйте с этого устройства, чтобы входы оставались актуальными.",
       },
       history: {
         title: "История адресов",

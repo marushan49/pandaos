@@ -1,5 +1,5 @@
 import { createDecipheriv, createHash, pbkdf2Sync } from "node:crypto";
-import { copyFile, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,6 +10,7 @@ import type {
   BrowserImportSource,
 } from "@getpaseo/protocol/browser-import/rpc-schemas";
 import { execCommand } from "../../utils/spawn.js";
+import { parseFirefoxProfiles, type FirefoxProfile } from "./firefox-profiles.js";
 
 export type { BrowserImportCookie, BrowserImportSource };
 
@@ -75,6 +76,31 @@ const CHROMIUM_BROWSERS: ChromiumBrowser[] = [
   },
 ];
 
+interface FirefoxBrowser {
+  key: string;
+  name: string;
+  macDir: string;
+  macApp: string;
+  linuxDirs: string[];
+}
+
+const FIREFOX_BROWSERS: FirefoxBrowser[] = [
+  {
+    key: "firefox",
+    name: "Firefox",
+    macDir: "Firefox",
+    macApp: "/Applications/Firefox.app",
+    linuxDirs: [".mozilla/firefox", "snap/firefox/common/.mozilla/firefox"],
+  },
+  {
+    key: "zen",
+    name: "Zen",
+    macDir: "zen",
+    macApp: "/Applications/Zen.app",
+    linuxDirs: [".zen"],
+  },
+];
+
 const CHROMIUM_EPOCH_OFFSET_SECONDS = 11_644_473_600;
 
 const MAX_COOKIE_EXPIRES_SECONDS = 253_402_300_799;
@@ -85,6 +111,7 @@ interface ResolvedSource extends BrowserImportSource {
   cookiesPath: string | null;
   profilePath: string;
   browser?: ChromiumBrowser;
+  nssLibraryDir?: string;
 }
 
 export interface BrowserImportEnvironment {
@@ -112,7 +139,27 @@ export async function listBrowserImportSources(
   env: BrowserImportEnvironment = defaultBrowserImportEnvironment(),
 ): Promise<BrowserImportSource[]> {
   const sources = await resolveSources(env);
-  return sources.map(({ id, browserName, profileName }) => ({ id, browserName, profileName }));
+  return Promise.all(
+    sources.map(async ({ id, browserName, profileName, family, cookiesPath }) => {
+      const cookiesModifiedAt = cookiesPath ? await lastModifiedSeconds(cookiesPath) : null;
+      const source: BrowserImportSource = { id, browserName, profileName, family };
+      if (cookiesModifiedAt !== null) source.cookiesModifiedAt = cookiesModifiedAt;
+      return source;
+    }),
+  );
+}
+
+async function lastModifiedSeconds(file: string): Promise<number | null> {
+  const times = await Promise.all(
+    ["", "-wal"].map((suffix) =>
+      stat(file + suffix).then(
+        (info) => info.mtimeMs / 1000,
+        () => 0,
+      ),
+    ),
+  );
+  const newest = Math.max(...times);
+  return newest > 0 ? newest : null;
 }
 
 export async function readBrowserImportCookies(
@@ -141,7 +188,7 @@ export async function readBrowserImportPasswords(
 ): Promise<BrowserImportLogin[]> {
   const source = (await resolveSources(env)).find((candidate) => candidate.id === sourceId);
   if (!source) throw new BrowserImportError("Browser profile was not found on this device.");
-  if (source.family === "firefox") return readFirefoxPasswords(source.profilePath, primaryPassword);
+  if (source.family === "firefox") return readFirefoxPasswords(source, primaryPassword);
   const loginPath = path.join(source.profilePath, "Login Data");
   if (!existsSync(loginPath)) return [];
   return withDatabaseCopy(loginPath, async (db) => {
@@ -178,10 +225,12 @@ export async function readBrowserImportPasswords(
 const FIREFOX_DECRYPT_SCRIPT = String.raw`
 import base64, ctypes, ctypes.util, json, os, sys
 try:
-    profile, primary = json.load(sys.stdin)
-    library = ctypes.util.find_library('nss3')
-    if not library:
-        library = '/Applications/Firefox.app/Contents/MacOS/libnss3.dylib'
+    profile, primary, libdir = json.load(sys.stdin)
+    if libdir and os.path.exists(os.path.join(libdir, 'libnss3.dylib')):
+        ctypes.CDLL(os.path.join(libdir, 'libmozglue.dylib'), mode=ctypes.RTLD_GLOBAL)
+        library = os.path.join(libdir, 'libnss3.dylib')
+    else:
+        library = ctypes.util.find_library('nss3')
     nss = ctypes.CDLL(library)
     class Item(ctypes.Structure):
         _fields_ = [('type', ctypes.c_uint), ('data', ctypes.c_void_p), ('len', ctypes.c_uint)]
@@ -213,9 +262,10 @@ except Exception:
 `;
 
 async function readFirefoxPasswords(
-  profilePath: string,
+  source: ResolvedSource,
   primaryPassword: string,
 ): Promise<BrowserImportLogin[]> {
+  const { profilePath } = source;
   if (!existsSync(path.join(profilePath, "logins.json"))) return [];
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "paseo-firefox-import-"));
   try {
@@ -235,13 +285,13 @@ async function readFirefoxPasswords(
           if (error)
             reject(
               new BrowserImportError(
-                "Firefox passwords could not be unlocked. Enter its Primary Password if set. Python 3 and Firefox's NSS library must be installed on this device.",
+                `${source.browserName} passwords could not be unlocked. Enter its Primary Password if set. Python 3 and ${source.browserName}'s NSS library must be installed on this device.`,
               ),
             );
           else resolve(stdout);
         },
       );
-      child.stdin!.end(JSON.stringify([tempDir, primaryPassword]));
+      child.stdin!.end(JSON.stringify([tempDir, primaryPassword, source.nssLibraryDir ?? null]));
     });
     const parsed = z.array(BrowserImportLoginSchema).safeParse(JSON.parse(output));
     if (!parsed.success) throw new BrowserImportError("Firefox returned invalid login data.");
@@ -274,19 +324,24 @@ async function resolveSources(env: BrowserImportEnvironment): Promise<ResolvedSo
       });
     }
   }
-  for (const root of firefoxRoots(env)) {
-    for (const profile of await listFirefoxProfiles(root)) {
-      const cookiesPath = path.join(profile.dir, "cookies.sqlite");
-      const hasCookies = existsSync(cookiesPath);
-      if (!hasCookies && !existsSync(path.join(profile.dir, "logins.json"))) continue;
-      sources.push({
-        id: `firefox:${profile.dir}`,
-        browserName: "Firefox",
-        profileName: profile.name,
-        family: "firefox",
-        cookiesPath: hasCookies ? cookiesPath : null,
-        profilePath: profile.dir,
-      });
+  for (const browser of FIREFOX_BROWSERS) {
+    for (const root of firefoxRoots(browser, env)) {
+      for (const profile of await listFirefoxProfiles(root)) {
+        const cookiesPath = path.join(profile.dir, "cookies.sqlite");
+        const hasCookies = existsSync(cookiesPath);
+        if (!hasCookies && !existsSync(path.join(profile.dir, "logins.json"))) continue;
+        sources.push({
+          id: `${browser.key}:${profile.dir}`,
+          browserName: browser.name,
+          profileName: profile.name,
+          family: "firefox",
+          cookiesPath: hasCookies ? cookiesPath : null,
+          profilePath: profile.dir,
+          ...(env.platform === "darwin"
+            ? { nssLibraryDir: path.join(browser.macApp, "Contents", "MacOS") }
+            : {}),
+        });
+      }
     }
   }
   return sources;
@@ -302,16 +357,11 @@ function chromiumRoot(browser: ChromiumBrowser, env: BrowserImportEnvironment): 
   return null;
 }
 
-function firefoxRoots(env: BrowserImportEnvironment): string[] {
+function firefoxRoots(browser: FirefoxBrowser, env: BrowserImportEnvironment): string[] {
   if (env.platform === "darwin") {
-    return [path.join(env.homeDir, "Library", "Application Support", "Firefox")];
+    return [path.join(env.homeDir, "Library", "Application Support", browser.macDir)];
   }
-  if (env.platform === "linux") {
-    return [
-      path.join(env.homeDir, ".mozilla", "firefox"),
-      path.join(env.homeDir, "snap", "firefox", "common", ".mozilla", "firefox"),
-    ];
-  }
+  if (env.platform === "linux") return browser.linuxDirs.map((dir) => path.join(env.homeDir, dir));
   return [];
 }
 
@@ -333,24 +383,17 @@ async function listChromiumProfiles(root: string): Promise<Array<{ dir: string; 
     .map((dir) => ({ dir, name: dir }));
 }
 
-async function listFirefoxProfiles(root: string): Promise<Array<{ dir: string; name: string }>> {
+async function listFirefoxProfiles(root: string): Promise<FirefoxProfile[]> {
   const ini = await readFile(path.join(root, "profiles.ini"), "utf8").catch(() => null);
-  if (!ini) return [];
-  const profiles: Array<{ dir: string; name: string }> = [];
-  for (const section of ini.split(/^\[/m)) {
-    if (!section.startsWith("Profile")) continue;
-    const fields = Object.fromEntries(
-      section
-        .split(/\r?\n/)
-        .map((line) => line.split("="))
-        .filter((parts) => parts.length >= 2)
-        .map(([key, ...rest]) => [key!.trim(), rest.join("=").trim()]),
+  const folders = async (dir: string) =>
+    (await readdir(path.join(root, dir)).catch(() => [] as string[])).map((entry) =>
+      path.join(dir, entry),
     );
-    if (!fields.Path) continue;
-    const dir = fields.IsRelative === "0" ? fields.Path : path.join(root, fields.Path);
-    profiles.push({ dir, name: fields.Name || fields.Path });
-  }
-  return profiles;
+  return parseFirefoxProfiles({
+    root,
+    ini,
+    folders: [...(await folders("Profiles")), ...(await folders(""))],
+  });
 }
 
 interface SqliteStatement {

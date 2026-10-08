@@ -2500,6 +2500,10 @@ export const ptBR: TranslationResources = {
         googleSignIn: "Login mais recente no Google: {{date}}",
         googleSignInStale:
           "Sessões do Google copiadas costumam expirar. Para o Google, faça login uma vez no próprio navegador do PandaOS (transferência)",
+        onThisMac: "Neste Mac",
+        onHostNamed: "No host {{host}}",
+        lastUsed: "usado pela última vez em {{date}}",
+        preferDevice: "Importe deste dispositivo para que seus logins estejam atualizados.",
       },
       history: {
         title: "Histórico de endereços",
