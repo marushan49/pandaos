@@ -427,6 +427,12 @@ execution ID is local to the calling plugin; surface navigation uses `pluginId:e
 Gate these client capabilities on older apps. A new client capability does not establish that an
 older daemon supports a server lifecycle hook.
 
+Starting one prompt on several models ([Model fan-out](glossary.md)) is core, not a plugin. An
+execution mode is one preset picker beside Direct and its `start` receives one already-created
+workspace, so it cannot create the extra workspaces or put checkboxes in the composer's model menu.
+Composer pills attach to an existing agent's composer, not the New workspace draft, and their menus
+have no checked state. A submission check resolves one target and cannot multiply workspaces.
+
 ## Lifecycle hooks
 
 Server entries register lifecycle observers with `server.on()` and request transforms with

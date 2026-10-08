@@ -1492,6 +1492,15 @@ export const zhCN: TranslationResources = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "启动 {{count}} 个聊天",
+      confirmTitle: "启动 {{count}} 个聊天？",
+      confirmMessage:
+        "{{count}} 个模型各自拥有独立的聊天和 worktree，并运行相同的提示。每个聊天都会消耗其模型的额度。",
+      failed: "无法启动：{{models}}（{{message}}）",
+      promptRequired: "请输入提示以启动多个聊天",
+      needsWorktree: "启动多个聊天需要 git worktree",
+    },
     title: "新建 workspace",
     create: "创建",
     isolation: {
@@ -1792,6 +1801,11 @@ export const zhCN: TranslationResources = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "可多选：每个模型都有独立的聊天和 worktree",
+      triggerLabel: "{{count}} 个模型",
+      toggle: "同时用 {{model}} 启动聊天",
+    },
     auto: "自动",
     autoDescription: "Jev 根据可用额度选择 · 最长2秒",
     title: "选择 provider",

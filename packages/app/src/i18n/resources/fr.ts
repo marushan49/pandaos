@@ -1538,6 +1538,15 @@ export const fr: TranslationResources = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "Démarrer {{count}} chats",
+      confirmTitle: "Démarrer {{count}} chats ?",
+      confirmMessage:
+        "Chacun des {{count}} modèles obtient son propre chat et son propre worktree et exécute le même prompt. Chaque chat consomme le quota de son modèle.",
+      failed: "Démarrage impossible : {{models}} ({{message}})",
+      promptRequired: "Saisissez un prompt pour démarrer plusieurs chats",
+      needsWorktree: "Démarrer plusieurs chats nécessite un worktree git",
+    },
     title: "Nouvel espace de travail",
     create: "Créer",
     isolation: {
@@ -1858,6 +1867,11 @@ export const fr: TranslationResources = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "Cochez-en plusieurs : chaque modèle obtient son propre chat et son propre worktree",
+      triggerLabel: "{{count}} modèles",
+      toggle: "Démarrer aussi un chat avec {{model}}",
+    },
     auto: "Auto",
     autoDescription: "Jev choisit selon le quota disponible · 2 secondes maximum",
     title: "Sélectionner le fournisseur",

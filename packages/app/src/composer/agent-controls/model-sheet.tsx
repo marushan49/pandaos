@@ -12,6 +12,7 @@ import { resolveModelBrowserScrolling } from "@/components/model-browser-view";
 import { AgentControlTrigger } from "@/composer/agent-controls/control";
 import { ComposerToolbarGlyph } from "@/composer/agent-controls/glyph";
 import { resolveModelSheetOpening } from "@/composer/agent-controls/model-sheet-flow";
+import type { ModelFanoutControls } from "@/provider-selection/model-fanout";
 import type { ProviderSelectorProvider } from "@/provider-selection/provider-selection";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
@@ -31,6 +32,7 @@ interface CompactModelSheetProps {
   onSelectAuto?: () => void;
   thinkingLabel: string | null;
   onSelect: (provider: string, modelId: string) => void;
+  fanout?: ModelFanoutControls;
   isLoading: boolean;
   profiles?: AgentProfilePicker | null;
   onApplyProfile?: (profileId: string) => void;
@@ -85,6 +87,7 @@ export function CompactModelSheet({
   onSelectAuto,
   thinkingLabel,
   onSelect,
+  fanout,
   isLoading,
   profiles = null,
   onApplyProfile,
@@ -124,6 +127,7 @@ export function CompactModelSheet({
     autoFocusSearch: isWeb && !usesBottomSheet,
     profiles,
     serverId,
+    fanout,
   });
   const modelBrowser = useModelBrowser({
     providers: availableProviders,
@@ -325,6 +329,7 @@ export function CompactModelSheet({
             onSelectAuto={onSelectAuto ? handleSelectAuto : undefined}
             state={rootBrowser}
             onSelect={usesBottomSheet ? handleSearchSelect : handleDesktopSelect}
+            fanout={usesBottomSheet ? undefined : fanout}
             onApplyProfile={handleApplyProfile}
             onEditProfiles={onEditProfiles ? handleEditProfiles : undefined}
             onCreateProfile={profileActions.create}
@@ -373,6 +378,7 @@ export function CompactModelSheet({
               onSelectAuto={onSelectAuto ? handleSelectAuto : undefined}
               state={modelBrowser}
               onSelect={handleBrowserSelect}
+              fanout={fanout}
               onEditProfiles={onEditProfiles ? handleEditProfiles : undefined}
               onCreateProfile={profileActions.create}
               onEditProfile={profileActions.edit}

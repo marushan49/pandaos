@@ -1526,6 +1526,15 @@ export const ru: TranslationResources = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "Запустить чатов: {{count}}",
+      confirmTitle: "Запустить чатов: {{count}}?",
+      confirmMessage:
+        "Каждая из {{count}} моделей получит свой чат и worktree и выполнит тот же запрос. Каждый чат расходует квоту своей модели.",
+      failed: "Не удалось запустить: {{models}} ({{message}})",
+      promptRequired: "Введите запрос, чтобы запустить несколько чатов",
+      needsWorktree: "Для нескольких чатов нужен git worktree",
+    },
     title: "Новое рабочее пространство",
     create: "Создать",
     isolation: {
@@ -1843,6 +1852,11 @@ export const ru: TranslationResources = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "Отметьте несколько: каждая модель получит свой чат и worktree",
+      triggerLabel: "Моделей: {{count}}",
+      toggle: "Также запустить чат с {{model}}",
+    },
     auto: "Авто",
     autoDescription: "Jev выбирает по доступной квоте · не более 2 секунд",
     title: "Выберите провайдера",

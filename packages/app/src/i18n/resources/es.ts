@@ -1545,6 +1545,15 @@ export const es: TranslationResources = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "Iniciar {{count}} chats",
+      confirmTitle: "¿Iniciar {{count}} chats?",
+      confirmMessage:
+        "Cada uno de los {{count}} modelos obtiene su propio chat y worktree y ejecuta el mismo prompt. Cada chat consume la cuota de su modelo.",
+      failed: "No se pudo iniciar: {{models}} ({{message}})",
+      promptRequired: "Escribe un prompt para iniciar varios chats",
+      needsWorktree: "Iniciar varios chats requiere un worktree de git",
+    },
     title: "Nuevo espacio de trabajo",
     create: "Crear",
     isolation: {
@@ -1861,6 +1870,11 @@ export const es: TranslationResources = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "Marca varios: cada modelo obtiene su propio chat y worktree",
+      triggerLabel: "{{count}} modelos",
+      toggle: "Iniciar también un chat con {{model}}",
+    },
     auto: "Auto",
     autoDescription: "Jev elige según la cuota disponible · hasta 2 segundos",
     title: "Seleccionar proveedor",

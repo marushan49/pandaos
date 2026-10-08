@@ -28,6 +28,7 @@ import { getAgentFeatureIcon, ThinkingIcon } from "@/agent-controls/icons";
 import { formatThinkingOptionLabel } from "@/agent-controls/labels";
 import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { CombinedModelSelector } from "@/components/combined-model-selector";
+import type { ModelFanoutControls } from "@/provider-selection/model-fanout";
 import {
   buildProviderSelectorProviders,
   buildSelectableProviderSelectorProviders,
@@ -120,6 +121,7 @@ interface ControlledAgentControlsProps {
   selectedModelId?: string;
   onSelectModel?: (modelId: string) => void;
   onSelectProviderAndModel?: (provider: string, modelId: string) => void;
+  modelFanout?: ModelFanoutControls;
   thinkingOptions?: AgentControlOption[];
   selectedThinkingOptionId?: string;
   onSelectThinkingOption?: (thinkingOptionId: string) => void;
@@ -157,6 +159,7 @@ export interface DraftAgentControlsProps {
   modelSelectorProviders: ProviderSelectorProvider[];
   isAllModelsLoading: boolean;
   onSelectProviderAndModel: (provider: AgentProvider, modelId: string) => void;
+  modelFanout?: ModelFanoutControls;
   thinkingOptions: NonNullable<AgentModelDefinition["thinkingOptions"]>;
   selectedThinkingOptionId: string;
   onSelectThinkingOption: (thinkingOptionId: string) => void;
@@ -516,6 +519,7 @@ function ControlledAgentControls({
   selectedModelId,
   onSelectModel,
   onSelectProviderAndModel,
+  modelFanout,
   thinkingOptions,
   selectedThinkingOptionId,
   onSelectThinkingOption,
@@ -821,6 +825,7 @@ function ControlledAgentControls({
             handleCloseSheet={handleCloseSheet}
             isAuto={isAuto}
             onSelectAuto={onSelectAuto}
+            modelFanout={modelFanout}
             modelSelectorServerId={modelSelectorServerId}
           />
         ) : (
@@ -859,6 +864,7 @@ function ControlledAgentControls({
             glyphSize={layoutContextValue.glyphSize}
             isAuto={isAuto}
             onSelectAuto={onSelectAuto}
+            modelFanout={modelFanout}
             modelSelectorServerId={modelSelectorServerId}
             canSwitchProvider={Boolean(onSelectProviderAndModel)}
           />
@@ -909,6 +915,7 @@ interface DesktopAgentControlsContentProps {
   handleProviderSelect: (id: string) => void;
   handleThinkingSelect: (id: string) => void;
   handleDesktopModelSelect: (providerId: string, modelId: string) => void;
+  modelFanout?: ModelFanoutControls;
   handleProviderOpenChange: (open: boolean) => void;
   handleThinkingOpenChange: (open: boolean) => void;
   handleOpenChange: (selector: AgentControlSelector) => (nextOpen: boolean) => void;
@@ -973,6 +980,7 @@ function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
     handleProviderSelect,
     handleThinkingSelect,
     handleDesktopModelSelect,
+    modelFanout,
     handleProviderOpenChange,
     handleThinkingOpenChange,
     handleOpenChange,
@@ -1035,6 +1043,7 @@ function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
                 selectedProvider={provider}
                 selectedModel={selectedModelId ?? ""}
                 onSelect={handleDesktopModelSelect}
+                fanout={modelFanout}
                 profiles={agentProfiles}
                 onApplyProfile={onApplyAgentProfile}
                 onEditProfiles={onEditAgentProfiles}
@@ -1180,6 +1189,7 @@ interface SheetAgentControlsContentProps {
   handleOpenSheet: (sheet: Exclude<ActiveSheet, null>) => void;
   handleCloseSheet: () => void;
   handleSheetModelSelect: (providerId: string, modelId: string) => void;
+  modelFanout?: ModelFanoutControls;
   handleSelectThinkingAndClose: (thinkingOptionId: string) => void;
   handleOpenChange: (selector: AgentControlSelector) => (nextOpen: boolean) => void;
   renderThinkingOption: (args: {
@@ -1226,6 +1236,7 @@ function SheetAgentControlsContent(props: SheetAgentControlsContentProps) {
     handleOpenSheet,
     handleCloseSheet,
     handleSheetModelSelect,
+    modelFanout,
     handleSelectThinkingAndClose,
     handleOpenChange,
     renderThinkingOption,
@@ -1308,6 +1319,7 @@ function SheetAgentControlsContent(props: SheetAgentControlsContentProps) {
       selectedModel={selectedModelId ?? ""}
       thinkingLabel={hasThinking ? displayThinking : null}
       onSelect={handleSheetModelSelect}
+      fanout={modelFanout}
       profiles={agentProfiles}
       onApplyProfile={onApplyAgentProfile}
       onEditProfiles={onEditAgentProfiles}
@@ -1969,6 +1981,7 @@ export function DraftAgentControls({
   modelSelectorProviders,
   isAllModelsLoading,
   onSelectProviderAndModel,
+  modelFanout,
   thinkingOptions,
   selectedThinkingOptionId,
   onSelectThinkingOption,
@@ -2051,6 +2064,7 @@ export function DraftAgentControls({
         selectedModelId={selectedModel}
         onSelectModel={onSelectModel}
         onSelectProviderAndModel={onSelectProviderAndModel}
+        modelFanout={modelFanout}
         isModelLoading={isAllModelsLoading}
         agentProfiles={agentProfiles}
         onApplyAgentProfile={agentProfiles?.applyProfile}

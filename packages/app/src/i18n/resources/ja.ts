@@ -1522,6 +1522,15 @@ export const ja: TranslationResources = {
     },
   },
   newWorkspace: {
+    fanout: {
+      start: "{{count}} 件のチャットを開始",
+      confirmTitle: "{{count}} 件のチャットを開始しますか？",
+      confirmMessage:
+        "{{count}} 個のモデルそれぞれに専用のチャットと worktree が作られ、同じプロンプトが実行されます。各チャットはそのモデルの利用枠を消費します。",
+      failed: "開始できませんでした：{{models}}（{{message}}）",
+      promptRequired: "複数のチャットを開始するにはプロンプトを入力してください",
+      needsWorktree: "複数のチャットを開始するには git worktree が必要です",
+    },
     title: "新しいワークスペース",
     create: "作成",
     isolation: {
@@ -1831,6 +1840,11 @@ export const ja: TranslationResources = {
     },
   },
   modelSelector: {
+    fanout: {
+      hint: "複数選択できます：モデルごとに専用のチャットと worktree が作られます",
+      triggerLabel: "{{count}} モデル",
+      toggle: "{{model}} でもチャットを開始",
+    },
     auto: "自動",
     autoDescription: "Jev が利用可能な使用枠から選択 · 最大2秒",
     title: "プロバイダーを選択",

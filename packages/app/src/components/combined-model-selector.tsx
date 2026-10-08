@@ -11,6 +11,7 @@ import { ModelBrowser, ModelProviderGlyph, useModelBrowser } from "@/components/
 import { resolveModelBrowserScrolling } from "@/components/model-browser-view";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
+import type { ModelFanoutControls } from "@/provider-selection/model-fanout";
 import type { ProviderSelectorProvider } from "@/provider-selection/provider-selection";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
 
@@ -30,6 +31,7 @@ interface CombinedModelSelectorProps {
   autoSelected?: boolean;
   onSelectAuto?: () => void;
   onSelect: (provider: AgentProvider, modelId: string) => void;
+  fanout?: ModelFanoutControls;
   isLoading: boolean;
   profiles?: AgentProfilePicker | null;
   onApplyProfile?: (profileId: string) => void;
@@ -67,6 +69,7 @@ export function CombinedModelSelector({
   autoSelected,
   onSelectAuto,
   onSelect,
+  fanout,
   isLoading,
   profiles = null,
   onApplyProfile,
@@ -99,6 +102,7 @@ export function CombinedModelSelector({
     isLoading,
     profiles,
     serverId,
+    fanout,
   });
   const { prepareToOpen, reset } = browser;
 
@@ -201,6 +205,7 @@ export function CombinedModelSelector({
       onSelectAuto={onSelectAuto ? handleSelectAuto : undefined}
       state={browser}
       onSelect={handleSelect}
+      fanout={fanout}
       onApplyProfile={handleApplyProfile}
       onEditProfiles={onEditProfiles ? handleEditProfiles : undefined}
       onCreateProfile={onCreateProfile ? handleCreateProfile : undefined}
