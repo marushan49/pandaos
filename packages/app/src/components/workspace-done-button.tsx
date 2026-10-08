@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Check, CircleCheck } from "@/components/icons/ui-icons";
 import { Button } from "@/components/ui/button";
 import { useHostFeature } from "@/runtime/host-features";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
@@ -56,12 +57,12 @@ export function MarkDoneButton({
     <Button
       variant="ghost"
       size={size}
+      leftIcon={toggle.done ? CircleCheck : Check}
       onPress={toggle.toggle}
       loading={toggle.pending}
       disabled={toggle.pending}
+      accessibilityLabel={toggle.done ? t("leitstand.board.reopen") : t("leitstand.board.markDone")}
       testID={`${testID}-${toggle.done ? "reopen" : "done"}`}
-    >
-      {toggle.done ? t("leitstand.board.reopen") : t("leitstand.board.markDone")}
-    </Button>
+    />
   );
 }
