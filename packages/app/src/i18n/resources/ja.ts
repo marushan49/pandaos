@@ -328,6 +328,11 @@ export const ja: TranslationResources = {
     },
   },
   message: {
+    prompt: {
+      showFull_one: "プロンプト全文を表示（{{count}} 行）",
+      showFull_other: "プロンプト全文を表示（{{count}} 行）",
+      collapse: "プロンプトを折りたたむ",
+    },
     diagram: {
       diagram: "図",
       zoomIn: "拡大",

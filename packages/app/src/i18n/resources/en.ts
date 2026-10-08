@@ -320,6 +320,11 @@ export const en = {
     },
   },
   message: {
+    prompt: {
+      showFull_one: "Show full prompt ({{count}} line)",
+      showFull_other: "Show full prompt ({{count}} lines)",
+      collapse: "Collapse prompt",
+    },
     diagram: {
       diagram: "Diagram",
       zoomIn: "Zoom in",

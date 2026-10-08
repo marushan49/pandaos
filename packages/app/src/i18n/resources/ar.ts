@@ -323,6 +323,11 @@ export const ar: TranslationResources = {
     },
   },
   message: {
+    prompt: {
+      showFull_one: "عرض الموجّه كاملاً، عدد الأسطر: {{count}}",
+      showFull_other: "عرض الموجّه كاملاً، عدد الأسطر: {{count}}",
+      collapse: "طيّ الموجّه",
+    },
     diagram: {
       diagram: "مخطط",
       zoomIn: "تكبير",
