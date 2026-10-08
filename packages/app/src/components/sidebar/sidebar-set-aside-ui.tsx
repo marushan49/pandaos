@@ -108,7 +108,10 @@ function useWorkspaceSetAsideActions(workspace: SidebarWorkspaceEntry): {
   }, [name, offerUndo, setWorkspaceSnooze, t, workspaceKey]);
 
   return {
-    onDone: doneToggle && !doneToggle.done && client ? onDone : undefined,
+    onDone:
+      doneToggle && client && (!doneToggle.done || workspaceNeedsYou(workspace.statusBucket))
+        ? onDone
+        : undefined,
     onSnooze: snoozeEnabled && !workspaceNeedsYou(workspace.statusBucket) ? onSnooze : undefined,
   };
 }
