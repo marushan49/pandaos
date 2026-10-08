@@ -1,13 +1,34 @@
 import { type PluginAgentPanelProps, useAgent, usePaseo } from "@getpaseo/plugin/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+
+const SUGGESTIONS = [
+  "What is this session doing right now?",
+  "Summarize what changed so far",
+  "What is blocking progress?",
+];
 import { askSideQuestion, findSideAgentId, resetSideAgent } from "./side-agent";
 
 interface Line {
   key: string;
   role: "user" | "assistant";
   text: string;
+}
+
+function Suggestion(props: {
+  text: string;
+  style: object;
+  textStyle: object;
+  onPick(text: string): Promise<void>;
+}) {
+  const { text, onPick } = props;
+  const pick = useCallback(() => void onPick(text), [onPick, text]);
+  return (
+    <Pressable accessibilityRole="button" style={props.style} onPress={pick}>
+      <Text style={props.textStyle}>{text}</Text>
+    </Pressable>
+  );
 }
 
 export function BtwPanel({ agentId, theme }: PluginAgentPanelProps) {
@@ -47,83 +68,190 @@ export function BtwPanel({ agentId, theme }: PluginAgentPanelProps) {
     setError(null);
   }, [agentId]);
 
-  const send = useCallback(async () => {
-    const question = draft.trim();
-    if (!question || !parent) return;
-    setSending(true);
-    setError(null);
-    try {
-      await askSideQuestion(paseo, parent, question);
-      setDraft("");
-      await cache.invalidateQueries({ queryKey: key });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setSending(false);
-    }
-  }, [draft, parent, paseo, cache, key]);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const send = useCallback(
+    async (text?: string) => {
+      const question = (text ?? draft).trim();
+      if (!question || !parent) return;
+      setSending(true);
+      setError(null);
+      try {
+        await askSideQuestion(paseo, parent, question);
+        setDraft("");
+        await cache.invalidateQueries({ queryKey: key });
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      } finally {
+        setSending(false);
+      }
+    },
+    [draft, parent, paseo, cache, key],
+  );
+
+  const submit = useCallback(() => void send(), [send]);
+  const onKeyPress = useCallback(
+    (event: { nativeEvent: { key: string; shiftKey?: boolean }; preventDefault?: () => void }) => {
+      if (event.nativeEvent.key !== "Enter" || event.nativeEvent.shiftKey) return;
+      event.preventDefault?.();
+      void send();
+    },
+    [send],
+  );
+  const scrollToEnd = useCallback(() => scrollRef.current?.scrollToEnd({ animated: true }), []);
 
   const reset = useCallback(async () => {
     await resetSideAgent(paseo, agentId);
     await cache.invalidateQueries({ queryKey: key });
   }, [paseo, agentId, cache, key]);
 
-  const styles = useMemo(
-    () => ({
-      root: { flex: 1, backgroundColor: theme.colors.surface0 },
+  const styles = useMemo(() => {
+    const c = theme.colors;
+    return {
+      root: { flex: 1, backgroundColor: c.surface0 },
+      header: {
+        flexDirection: "row" as const,
+        alignItems: "center" as const,
+        justifyContent: "space-between" as const,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: c.border,
+      },
+      title: { color: c.foreground, fontSize: 14, fontWeight: "600" as const },
+      subtitle: { color: c.foregroundMuted, fontSize: 12, marginTop: 2 },
       scroll: { flex: 1 },
-      list: { padding: 16, gap: 10 },
+      list: { padding: 16, gap: 12, flexGrow: 1 },
+      empty: { flex: 1, justifyContent: "center" as const, gap: 8 },
+      emptyTitle: { color: c.foreground, fontSize: 15, fontWeight: "600" as const },
+      emptyText: { color: c.foregroundMuted, fontSize: 13, lineHeight: 19, marginBottom: 8 },
+      chip: {
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: c.border,
+        backgroundColor: c.surface1,
+      },
+      chipText: { color: c.foreground, fontSize: 13 },
       user: {
         alignSelf: "flex-end" as const,
-        maxWidth: "85%" as const,
-        padding: 10,
-        borderRadius: 10,
-        backgroundColor: theme.colors.accent,
+        maxWidth: "88%" as const,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 14,
+        backgroundColor: c.accent,
       },
-      userText: { color: theme.colors.accentForeground },
+      userText: { color: c.accentForeground, fontSize: 14, lineHeight: 20 },
       bot: {
         alignSelf: "flex-start" as const,
-        maxWidth: "92%" as const,
-        padding: 10,
-        borderRadius: 10,
-        backgroundColor: theme.colors.surface2,
+        maxWidth: "96%" as const,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: c.border,
+        backgroundColor: c.surface1,
       },
-      text: { color: theme.colors.foreground },
-      muted: { color: theme.colors.foregroundMuted, paddingHorizontal: 16, paddingBottom: 6 },
-      error: { color: theme.colors.statusDanger, paddingHorizontal: 16, paddingBottom: 6 },
-      bar: { flexDirection: "row" as const, gap: 8, padding: 12, alignItems: "flex-end" as const },
+      text: { color: c.foreground, fontSize: 14, lineHeight: 20 },
+      thinking: { color: c.foregroundMuted, fontSize: 13, fontStyle: "italic" as const },
+      error: { color: c.statusDanger, fontSize: 12, paddingHorizontal: 16, paddingBottom: 8 },
+      composer: {
+        margin: 12,
+        paddingLeft: 12,
+        paddingRight: 8,
+        paddingVertical: 8,
+        flexDirection: "row" as const,
+        alignItems: "flex-end" as const,
+        gap: 8,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: c.border,
+        backgroundColor: c.surface1,
+      },
       input: {
         flex: 1,
-        minHeight: 40,
-        padding: 10,
-        borderRadius: 10,
-        color: theme.colors.foreground,
-        backgroundColor: theme.colors.surface2,
+        maxHeight: 140,
+        minHeight: 24,
+        paddingVertical: 6,
+        fontSize: 14,
+        color: c.foreground,
       },
-      button: { padding: 10, borderRadius: 10, backgroundColor: theme.colors.accent },
-      buttonText: { color: theme.colors.accentForeground },
-      ghost: { padding: 10, borderRadius: 10, backgroundColor: theme.colors.surface2 },
-    }),
-    [theme],
-  );
+      send: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center" as const,
+        justifyContent: "center" as const,
+        backgroundColor: c.accent,
+      },
+      sendText: { color: c.accentForeground, fontSize: 16, fontWeight: "700" as const },
+      ghost: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+      ghostText: { color: c.foregroundMuted, fontSize: 12 },
+    };
+  }, [theme]);
 
   const lines = side.data?.lines ?? [];
-  let status = "Ask anything about this session. The main session keeps running.";
-  if (side.data?.running || sending) status = "Thinking…";
-  else if (lines.length > 0) status = "Side chat. Does not touch the main session.";
+  const busy = Boolean(side.data?.running) || sending;
+  const canSend = !sending && draft.trim() !== "";
+  const sendStyle = useMemo(
+    () => [styles.send, { opacity: canSend ? 1 : 0.4 }],
+    [styles.send, canSend],
+  );
+  const suggestionButtons = SUGGESTIONS.map((suggestion) => (
+    <Suggestion
+      key={suggestion}
+      text={suggestion}
+      style={styles.chip}
+      textStyle={styles.chipText}
+      onPick={send}
+    />
+  ));
 
   return (
     <View style={styles.root}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.list}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Side chat</Text>
+          <Text style={styles.subtitle}>Answers from this session. It keeps running.</Text>
+        </View>
+        {lines.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Start a new side chat"
+            style={styles.ghost}
+            onPress={reset}
+          >
+            <Text style={styles.ghostText}>New chat</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={styles.list}
+        onContentSizeChange={scrollToEnd}
+      >
+        {lines.length === 0 && !busy ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Ask something on the side</Text>
+            <Text style={styles.emptyText}>
+              Reads the latest of this session and answers without interrupting it.
+            </Text>
+            {suggestionButtons}
+          </View>
+        ) : null}
         {lines.map((line) => (
           <View key={line.key} style={line.role === "user" ? styles.user : styles.bot}>
-            <Text style={line.role === "user" ? styles.userText : styles.text}>{line.text}</Text>
+            <Text selectable style={line.role === "user" ? styles.userText : styles.text}>
+              {line.text}
+            </Text>
           </View>
         ))}
+        {busy ? <Text style={styles.thinking}>Thinking…</Text> : null}
       </ScrollView>
-      <Text style={styles.muted}>{status}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <View style={styles.bar}>
+      <View style={styles.composer}>
         <TextInput
           style={styles.input}
           value={draft}
@@ -131,25 +259,17 @@ export function BtwPanel({ agentId, theme }: PluginAgentPanelProps) {
           placeholder="Ask a side question"
           placeholderTextColor={theme.colors.foregroundMuted}
           multiline
-          onSubmitEditing={send}
+          onKeyPress={onKeyPress}
           accessibilityLabel="Side question"
         />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Send side question"
-          style={styles.button}
-          disabled={sending || draft.trim() === ""}
-          onPress={send}
+          style={sendStyle}
+          disabled={!canSend}
+          onPress={submit}
         >
-          <Text style={styles.buttonText}>Ask</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Start a new side chat"
-          style={styles.ghost}
-          onPress={reset}
-        >
-          <Text style={styles.text}>New</Text>
+          <Text style={styles.sendText}>↑</Text>
         </Pressable>
       </View>
     </View>
