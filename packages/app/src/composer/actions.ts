@@ -1,6 +1,6 @@
 import type { SelectedFile } from "@/attachments/selected-file";
 import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
-import type { ActiveTurnBehavior } from "@getpaseo/protocol/messages";
+import type { ActiveTurnBehavior, AgentAttachment } from "@getpaseo/protocol/messages";
 import type {
   AttachmentMetadata,
   ComposerAttachment,
@@ -196,14 +196,19 @@ export interface DispatchComposerAgentMessageInput {
   submission: MessageSubmissionWriter;
   activeTurnBehavior?: ActiveTurnBehavior;
   activeTurnId?: string;
+  agentAttachments?: AgentAttachment[];
 }
 
 export async function dispatchComposerAgentMessage(
   input: DispatchComposerAgentMessageInput,
 ): Promise<void> {
-  const wirePayload = splitComposerAttachmentsForSubmit(input.attachments, {
+  const split = splitComposerAttachmentsForSubmit(input.attachments, {
     format: input.attachmentSubmitFormat,
   });
+  const wirePayload = {
+    images: split.images,
+    attachments: [...split.attachments, ...(input.agentAttachments ?? [])],
+  };
   const clientMessageId = generateMessageId();
   const userMessage = createUserMessage({
     clientMessageId,

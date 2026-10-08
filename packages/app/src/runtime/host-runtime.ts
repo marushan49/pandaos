@@ -72,6 +72,10 @@ import { dispatchComposerAgentMessage, sendQueuedComposerMessageNow } from "@/co
 import { createMessageSubmissionWriter } from "@/composer/submission/writer";
 import { resolveComposerAttachmentSubmitFormat } from "@/composer/attachments/submit";
 import { encodeImages } from "@/utils/encode-images";
+import { buildRetrySubmission } from "@/agent-stream/turn-failure";
+import type { ComposerAttachment } from "@/attachments/types";
+import type { UserMessageItem } from "@/types/stream";
+import type { ActiveTurnBehavior, AgentAttachment } from "@getpaseo/protocol/messages";
 import { DirectorySync, type RefreshAgentDirectoryResult } from "@/runtime/directory-sync";
 import { ReplicaCache } from "@/runtime/replica-cache";
 import type { ReplicaRowStore } from "@/runtime/replica-cache/row-store";
@@ -2436,22 +2440,12 @@ export class HostRuntimeStore {
           useSessionStore.getState().sessions[serverId]?.queuedMessages.get(queuedAgentId) ?? [],
         write: (update) => useSessionStore.getState().setQueuedMessages(serverId, update),
       },
-      submitMessage: async ({ text, attachments }) => {
-        const supportsForgeAttachments =
-          useSessionStore.getState().sessions[serverId]?.serverInfo?.features?.forgeSearch === true;
-        await dispatchComposerAgentMessage({
-          client,
-          agentId,
+      submitMessage: ({ text, attachments }) =>
+        this.submitAgentMessage(serverId, agentId, {
           text,
           attachments,
-          attachmentSubmitFormat: resolveComposerAttachmentSubmitFormat({
-            supportsForgeAttachments,
-          }),
-          encodeImages,
-          submission: createMessageSubmissionWriter(serverId),
           activeTurnBehavior: "steer",
-        });
-      },
+        }),
     })
       .then((result) => {
         if (result.status === "failed") {
@@ -2466,6 +2460,35 @@ export class HostRuntimeStore {
       .finally(() => {
         this.queuedAgentDrainInFlight.delete(drainKey);
       });
+  }
+
+  resendAgentMessage(serverId: string, agentId: string, message: UserMessageItem): Promise<void> {
+    return this.submitAgentMessage(serverId, agentId, buildRetrySubmission(message));
+  }
+
+  private async submitAgentMessage(
+    serverId: string,
+    agentId: string,
+    input: {
+      text: string;
+      attachments: ComposerAttachment[];
+      agentAttachments?: AgentAttachment[];
+      activeTurnBehavior?: ActiveTurnBehavior;
+    },
+  ): Promise<void> {
+    const session = useSessionStore.getState().sessions[serverId];
+    const client = session?.client;
+    if (!client) throw new Error(`Host ${serverId} is not connected`);
+    await dispatchComposerAgentMessage({
+      client,
+      agentId,
+      ...input,
+      attachmentSubmitFormat: resolveComposerAttachmentSubmitFormat({
+        supportsForgeAttachments: session.serverInfo?.features?.forgeSearch === true,
+      }),
+      encodeImages,
+      submission: createMessageSubmissionWriter(serverId),
+    });
   }
 
   applyAgentTurnLiveness(

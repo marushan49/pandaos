@@ -45,6 +45,7 @@ export const TurnFooter = memo(function TurnFooter({
   supportsTimelineCursor,
   onForkAssistantTurn,
   onForkInFlightTurn,
+  failureCard,
 }: {
   isRunning: boolean;
   workingLabel?: string;
@@ -58,7 +59,15 @@ export const TurnFooter = memo(function TurnFooter({
   supportsTimelineCursor: boolean;
   onForkAssistantTurn?: AssistantTurnForkHandler;
   onForkInFlightTurn?: InFlightTurnForkHandler;
+  failureCard?: ReactNode;
 }) {
+  if (failureCard && !isRunning && !needsInput) {
+    return (
+      <TurnFooterRow>
+        <View style={stylesheet.failureSlot}>{failureCard}</View>
+      </TurnFooterRow>
+    );
+  }
   if (isRunning || needsInput || hasError) {
     return (
       <TurnFooterRow>
@@ -343,6 +352,10 @@ const stylesheet = StyleSheet.create((theme) => ({
     alignItems: "center",
     alignSelf: "flex-start",
     minHeight: 24,
+    paddingBottom: TURN_FOOTER_BOTTOM_SPACING,
+  },
+  failureSlot: {
+    width: "100%",
     paddingBottom: TURN_FOOTER_BOTTOM_SPACING,
   },
   activityStatus: {

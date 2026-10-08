@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { buildRetrySubmission } from "@/agent-stream/turn-failure";
 import type { AgentAttachment, ForgeSearchItem } from "@getpaseo/protocol/messages";
 import type {
   AttachmentMetadata,
@@ -419,6 +420,55 @@ describe("pickAndPersistImages", () => {
 });
 
 describe("dispatchComposerAgentMessage", () => {
+  it("resends a failed prompt with its images and attachments", async () => {
+    const client = createFakeSendClient();
+    const stream = createFakeStream();
+    const image = {
+      id: "img-1",
+      mimeType: "image/png",
+      storageType: "web-indexeddb" as const,
+      storageKey: "img-1",
+      createdAt: 1,
+    };
+    const file: AgentAttachment = {
+      type: "uploaded_file",
+      id: "file-1",
+      fileName: "notes.txt",
+      mimeType: "text/plain",
+      size: 4,
+      path: "/tmp/notes.txt",
+    };
+    const retry = buildRetrySubmission({
+      kind: "user_message",
+      id: "u1",
+      text: "fix the build",
+      timestamp: new Date(0),
+      images: [image],
+      attachments: [file],
+    });
+
+    await dispatchComposerAgentMessage({
+      client,
+      agentId: "agent",
+      ...retry,
+      encodeImages: async (images) => images.map(() => ({ data: "AA==", mimeType: "image/png" })),
+      submission: stream,
+    });
+
+    expect(client.calls).toHaveLength(1);
+    expect(client.calls[0]).toMatchObject({
+      agentId: "agent",
+      text: "fix the build",
+      options: { images: [{ data: "AA==", mimeType: "image/png" }], attachments: [file] },
+    });
+    expect(stream.tail.get("agent")?.[0]).toMatchObject({
+      kind: "user_message",
+      text: "fix the build",
+      images: [image],
+      attachments: [file],
+    });
+  });
+
   it("forwards the configured active-turn intent without provider capability checks", async () => {
     const client = createFakeSendClient();
     const stream = createFakeStream();
