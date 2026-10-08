@@ -13,6 +13,7 @@ export interface OverviewSummary {
   otherToolCount: number;
   paseoCallCount: number;
   failedCount: number;
+  failedUnrecovered: boolean;
   origins: Array<{ origin: ToolCallOrigin; count: number }>;
 }
 
@@ -41,13 +42,15 @@ export function buildOverviewGroup(run: ToolCallRun): OverviewToolCallGroup {
   let otherToolCount = 0;
   let paseoCallCount = 0;
   let failedCount = 0;
+  let lastCallFailed = false;
   const origins = new Map<string, { origin: ToolCallOrigin; count: number }>();
 
   for (const call of run.calls) {
     const descriptor = describeToolCall(call);
     const normalizedName = descriptor.name.trim().toLowerCase();
     isLoading ||= descriptor.status === "running" || descriptor.status === "executing";
-    if (descriptor.status === "failed") {
+    lastCallFailed = descriptor.status === "failed";
+    if (lastCallFailed) {
       failedCount += 1;
     }
     const origin = resolveToolCallOrigin(descriptor.name, descriptor.metadata);
@@ -78,6 +81,7 @@ export function buildOverviewGroup(run: ToolCallRun): OverviewToolCallGroup {
     otherToolCount,
     paseoCallCount,
     failedCount,
+    failedUnrecovered: lastCallFailed,
     origins: [...origins.values()],
   };
   const first = run.calls[0];

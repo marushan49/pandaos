@@ -73,7 +73,11 @@ import {
 } from "../../../executable-resolution/executable-resolution.js";
 import { createPathEquivalenceMatcher } from "../../../utils/path.js";
 import { spawnProcess } from "../../../utils/spawn.js";
-import { extractCodexTerminalSessionId, nonEmptyString } from "./tool-call-mapper-utils.js";
+import {
+  buildShellFailureMessage,
+  extractCodexTerminalSessionId,
+  nonEmptyString,
+} from "./tool-call-mapper-utils.js";
 import {
   buildCodexFeatures,
   CodexServiceTierSchema,
@@ -1653,7 +1657,14 @@ function mapCodexExecNotificationToToolCall(params: {
       ...(params.cwd ? { cwd: params.cwd } : {}),
     },
     output,
-    error: isFailure ? { message: params.stderr?.trim() || "Command failed" } : null,
+    error: isFailure
+      ? {
+          message:
+            params.stderr?.trim() ||
+            buildShellFailureMessage({ exitCode: params.exitCode, output: params.output }) ||
+            "Command failed",
+        }
+      : null,
     cwd: params.cwd ?? null,
   });
   if (!mapped) {

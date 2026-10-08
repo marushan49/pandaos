@@ -288,6 +288,7 @@ describe("tool call detail-level projection", () => {
         otherToolCount: 0,
         paseoCallCount: 0,
         failedCount: 1,
+        failedUnrecovered: true,
         origins: [],
       },
     });

@@ -82,6 +82,32 @@ function looksLikeCodexShellEnvelope(lines: string[]): boolean {
   return hasWallTime && hasExitCode;
 }
 
+const SHELL_FAILURE_TAIL_LINES = 3;
+const SHELL_FAILURE_MAX_LENGTH = 300;
+
+export function buildShellFailureMessage(params: {
+  exitCode?: number | null;
+  output?: unknown;
+}): string | null {
+  const tailLines =
+    typeof params.output === "string"
+      ? params.output
+          .split(/\r?\n/)
+          .map((line) => line.trimEnd())
+          .filter((line) => line.trim().length > 0)
+          .slice(-SHELL_FAILURE_TAIL_LINES)
+      : [];
+  const prefix = typeof params.exitCode === "number" ? `Exit ${params.exitCode}` : null;
+  if (tailLines.length === 0) {
+    return prefix;
+  }
+  const tail = tailLines.join("\n");
+  if (!prefix) {
+    return tail.slice(-SHELL_FAILURE_MAX_LENGTH);
+  }
+  return `${prefix}: ${tail.slice(-(SHELL_FAILURE_MAX_LENGTH - prefix.length - 2))}`;
+}
+
 export function extractCodexShellOutput(value: string | undefined): string | undefined {
   const text = nonEmptyString(value);
   if (!text) {
