@@ -389,7 +389,22 @@ export function buildStandardContextMenuItems(
 
 export function setupDefaultContextMenu(win: BrowserWindow): void {
   win.webContents.on("context-menu", (_event, params) => {
-    const menu = Menu.buildFromTemplate(buildStandardContextMenuItems(win.webContents, params));
+    const items = buildStandardContextMenuItems(win.webContents, params);
+    const selection = params.selectionText.trim();
+    if (selection && !params.isEditable) {
+      items.push(
+        { type: "separator" },
+        {
+          label: "Pin",
+          click: () => {
+            void win.webContents.executeJavaScript(
+              `window.dispatchEvent(new CustomEvent("paseo:pin-selection", { detail: ${JSON.stringify(selection)} }))`,
+            );
+          },
+        },
+      );
+    }
+    const menu = Menu.buildFromTemplate(items);
     menu.popup({ window: win });
   });
 }
