@@ -57,6 +57,7 @@ export interface VerifyRunResult {
   rawBytes: number;
   agentBytes: number;
   error?: string;
+  hint?: string;
 }
 
 type RecipeHost = Pick<DaemonPlaywrightHost, "executeLocal" | "openTab" | "releaseTab">;
@@ -261,8 +262,7 @@ export class RecipeRunner {
         ? { error: context.redactor.redact(failedCheck.detail ?? "Setup failed") }
         : {}),
     };
-    result.agentBytes = Buffer.byteLength(JSON.stringify({ ...result, agentBytes: 0 }), "utf8");
-    return result;
+    return sealResult(result, `${input.workspaceId}|${input.recipeName}`);
   }
 
   private async releaseTab(context: RunContext): Promise<void> {
@@ -1109,6 +1109,24 @@ export class RecipeRunner {
       command,
     });
   }
+}
+
+const lastFailureByRun = new Map<string, string>();
+
+const REPEAT_FAILURE_HINT =
+  "Same failure as the previous run, check login and app state before rerunning.";
+
+function sealResult(result: VerifyRunResult, key: string): VerifyRunResult {
+  const failure = result.checks.find((check) => !check.ok);
+  if (!failure || failure.name === "setup") {
+    lastFailureByRun.delete(key);
+  } else {
+    const signature = `${failure.name}\n${failure.detail ?? ""}`;
+    if (lastFailureByRun.get(key) === signature) result.hint = REPEAT_FAILURE_HINT;
+    lastFailureByRun.set(key, signature);
+  }
+  result.agentBytes = Buffer.byteLength(JSON.stringify({ ...result, agentBytes: 0 }), "utf8");
+  return result;
 }
 
 function finishActivity(
