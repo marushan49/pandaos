@@ -1106,7 +1106,16 @@ export class Session {
         setModel: (agentId, modelId) => agentManager.setAgentModel(agentId, modelId),
         setRoutingPolicy: (agentId, policy) => agentManager.setAgentRoutingPolicy(agentId, policy),
         setProvider: async (agentId, provider, modelId) => {
-          await agentManager.setAgentProvider(agentId, provider, modelId);
+          const targetModel = providerSnapshotManager
+            .getCachedSnapshot(agentManager.getAgent(agentId)?.cwd)
+            .records.find(({ entry }) => entry.provider === provider)
+            ?.entry.models?.find((model) => model.id === modelId);
+          await agentManager.setAgentProvider(
+            agentId,
+            provider,
+            modelId,
+            targetModel && (targetModel.thinkingOptions?.map((option) => option.id) ?? []),
+          );
         },
         setFeature: (agentId, featureId, value) =>
           agentManager.setAgentFeature(agentId, featureId, value),

@@ -40,9 +40,17 @@ labels, workspace, owner, and timestamps — and differs from it only in calling
 
 ## Conversation context
 
-`config.model` moves to the requested model of the new provider. `modeId`,
-`thinkingOptionId`, `featureValues`, and `providerOptions` are dropped: each names
-something only the previous provider offers.
+`config.model` moves to the requested model of the new provider. Across provider
+families, `modeId`, `thinkingOptionId`, `featureValues`, and `providerOptions` are
+dropped: each names something only the previous provider offers. Between sibling
+profiles (both resolve to the same base through `extends`, such as `codex-plus` and
+`codex-business`), mode and features carry over, and the thinking option carries over
+when the target model offers it (`carriedSessionSettings`). `providerOptions` stay
+per profile.
+
+A sibling profile still runs its own process with its own environment, so a Codex
+thread minted under one `CODEX_HOME` cannot be resumed under another. The switch
+always starts a fresh native session with the handoff note below.
 
 The native provider history does not move either. An OpenCode session is not a
 Claude session. The Paseo timeline remains and carries a `Switched provider: X → Y`

@@ -96,6 +96,7 @@ import {
 import { invokeRewindCapability, type RewindMode } from "./rewind/rewind.js";
 import { formatSystemNotificationPrompt, isSystemInjectedEnvelope } from "./agent-prompt.js";
 import { buildAgentHandoffNote } from "./handoff.js";
+import { carriedSessionSettings } from "./carried-session-settings.js";
 import { buildResourcePolicyPrompt, resolveResourcePolicy } from "../resource-policy.js";
 import type { ResourcePolicy } from "@getpaseo/protocol/messages";
 import { isStaleProviderSessionError } from "./stale-provider-session-error.js";
@@ -1106,10 +1107,15 @@ export class AgentManager {
     agent.config.routingNotice = notice ? { ...notice, status: "selected" } : undefined;
     await this.persistSnapshot(agent);
     this.emitState(agent);
+    const keptSelection =
+      notice?.fromModel === route.model &&
+      notice?.fromEffort === (route.profile.thinkingOptionId ?? null);
     await this.appendTimelineItem(agent.id, {
       type: "notification",
       level: "info",
-      message: `${notice?.fromProfile} → ${route.profile.provider}, ${route.model}, ${route.profile.thinkingOptionId ?? "default"}. ${route.reason}`,
+      message: keptSelection
+        ? `Switched provider: ${notice?.fromProfile} → ${route.profile.provider}. ${route.reason}`
+        : `${notice?.fromProfile} → ${route.profile.provider}, ${route.model}, ${route.profile.thinkingOptionId ?? "default"}. ${route.reason}`,
     });
   }
 
@@ -2008,18 +2014,24 @@ export class AgentManager {
     agentId: string,
     provider: AgentProvider,
     modelId: string | null,
+    thinkingOptionIds?: readonly string[],
   ): Promise<ManagedAgent> {
     return this.trackAgentRegistrationOperation(
       this.runLifecycleMutation(agentId, () =>
-        this.setAgentProviderInternal(agentId, provider, modelId),
+        this.setAgentProviderInternal(agentId, provider, modelId, thinkingOptionIds),
       ),
     );
+  }
+
+  private providerFamily(provider: AgentProvider): string {
+    return this.providerDefinitions.get(provider)?.derivedFromProviderId ?? provider;
   }
 
   private async setAgentProviderInternal(
     agentId: string,
     provider: AgentProvider,
     modelId: string | null,
+    thinkingOptionIds: readonly string[] | undefined,
   ): Promise<ManagedAgent> {
     const existing = this.requireSessionAgent(agentId);
     if (existing.provider === provider) {
@@ -2029,6 +2041,7 @@ export class AgentManager {
     const agent = await this.relaunchAgentSession(agentId, {
       provider,
       modelId,
+      thinkingOptionIds,
       cwd: existing.cwd,
       workspaceId: existing.workspaceId,
       notice: `Switched provider: ${existing.provider} → ${provider}`,
@@ -2048,6 +2061,7 @@ export class AgentManager {
     next: {
       provider: AgentProvider;
       modelId: string | null;
+      thinkingOptionIds?: readonly string[];
       cwd: string;
       workspaceId: string | undefined;
       notice: string;
@@ -2065,8 +2079,6 @@ export class AgentManager {
       existing = this.requireSessionAgent(agentId);
     }
 
-    // Mode, thinking and features name things only one provider offers, so they
-    // carry over only when the provider stays.
     const { storedConfig, launchConfig, paseoToolPolicy } = await this.prepareSessionConfig(
       sameProvider
         ? { ...existing.config, cwd: next.cwd }
@@ -2077,6 +2089,10 @@ export class AgentManager {
             systemPrompt: existing.config.systemPrompt,
             mcpServers: existing.config.mcpServers,
             toolPolicy: existing.config.toolPolicy,
+            ...carriedSessionSettings(existing.config, {
+              sameFamily: this.providerFamily(existing.provider) === this.providerFamily(provider),
+              thinkingOptionIds: next.thinkingOptionIds,
+            }),
           },
       agentId,
     );
@@ -5783,7 +5799,12 @@ export class AgentManager {
         routingPolicy: agent.config.routingPolicy,
       });
       if (this.routingSelection(agent) !== selection) return null;
-      if (agentRoutingMode(agent.labels) !== "auto")
+      if (
+        agentRoutingMode(agent.labels) !== "auto" &&
+        (!route ||
+          route.model !== agent.config.model ||
+          route.profile.thinkingOptionId !== agent.config.thinkingOptionId)
+      )
         throw new ProfileRoutingUnavailableError(
           "Your selected model will be retained. Choose Auto to allow another available route.",
           route?.resetsAt ?? null,
@@ -5858,6 +5879,10 @@ export class AgentManager {
   ): Promise<void> {
     this.requireEnabledProvider(profile.provider);
     const client = await this.requireAvailableClient({ provider: profile.provider });
+    const carried = carriedSessionSettings(agent.config, {
+      sameFamily: this.providerFamily(agent.provider) === this.providerFamily(profile.provider),
+    });
+    const modeId = profile.modeId ?? carried.modeId;
     const { storedConfig, launchConfig, paseoToolPolicy } = await this.prepareSessionConfig(
       {
         cwd: agent.cwd,
@@ -5868,9 +5893,9 @@ export class AgentManager {
         toolPolicy: agent.config.toolPolicy,
         provider: profile.provider,
         model,
-        modeId: profile.modeId,
+        modeId,
         thinkingOptionId: profile.thinkingOptionId,
-        featureValues: profile.featureValues,
+        featureValues: profile.featureValues ?? carried.featureValues,
       },
       agent.id,
     );
@@ -5919,7 +5944,7 @@ export class AgentManager {
       agent.capabilities = session.capabilities;
       agent.persistence = attachPersistenceCwd(session.describePersistence(), storedConfig.cwd);
       agent.runtimeInfo = undefined;
-      agent.currentModeId = profile.modeId ?? null;
+      agent.currentModeId = modeId ?? null;
       agent.availableModes = [];
       this.subscribeToSession(agent);
     } catch (error) {

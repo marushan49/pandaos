@@ -12901,6 +12901,7 @@ async function createCapacityFixture(
     uncertainRouting?: boolean;
     routingMode?: "manual" | "auto";
     quotaOnlyOrigin?: boolean;
+    separateFamilies?: boolean;
     routingPolicy?: AgentSessionConfig["routingPolicy"];
   } = {},
 ) {
@@ -12985,7 +12986,7 @@ async function createCapacityFixture(
     id,
     label: id,
     enabled: true,
-    harness: id === "claude" ? "claude" : "codex",
+    harness: id === "claude" || options.separateFamilies ? id : "codex",
     models: [
       {
         provider: id,
@@ -13550,7 +13551,7 @@ test("failed startup history closes the session without registering an agent", a
 });
 
 test.each(["429 quota exceeded", "Free usage exceeded, subscribe to Go"])(
-  "manual quota waiting never silently selects a free account and resumes the selected model after reset: %s",
+  "manual quota waiting never silently selects a free account of another provider family and resumes the selected model after reset: %s",
   async (quotaMessage) => {
     vi.useFakeTimers();
     const reset = new Date(Date.now() + 5000).toISOString();
@@ -13559,6 +13560,7 @@ test.each(["429 quota exceeded", "Free usage exceeded, subscribe to Go"])(
       quotaReset: reset,
       quotaMessage,
       quotaOnlyOrigin: true,
+      separateFamilies: true,
       failures: 1,
     });
     try {
@@ -13611,6 +13613,7 @@ test("an explicit Auto metadata patch wakes manual quota waiting and preserves o
     routingMode: "manual",
     quotaReset: new Date(Date.now() + 60_000).toISOString(),
     quotaOnlyOrigin: true,
+    separateFamilies: true,
     failures: 1,
   });
   try {
@@ -13867,6 +13870,7 @@ test("ordered routing update wakes a manual quota wait without replacing its Coo
     routingMode: "manual",
     quotaReset: new Date(Date.now() + 60_000).toISOString(),
     quotaOnlyOrigin: true,
+    separateFamilies: true,
     failures: 1,
   });
   try {
