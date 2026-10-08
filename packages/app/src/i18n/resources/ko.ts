@@ -2268,6 +2268,7 @@ export const ko: TranslationResources = {
     subAgentActivity: "서브에이전트 활동",
     input: "입력",
     output: "출력",
+    screenshot: "스크린샷",
   },
   toolCallGroup: {
     editedFiles: {
@@ -2460,7 +2461,15 @@ export const ko: TranslationResources = {
       emptyHint: "에이전트가 턴을 마치면 표시됩니다.",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      import: {
+        ...en.settings.browser.import,
+        googleSignIn: "최근 Google 로그인: {{date}}",
+        googleSignInStale:
+          "복사한 Google 세션은 자주 만료됩니다. Google은 PandaOS 브라우저에서 직접 한 번 로그인하세요 (핸드오프)",
+      },
+    },
     plugins: pluginSettings.ko,
     metadataGeneration: {
       title: "메타데이터 생성",

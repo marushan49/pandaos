@@ -40,6 +40,7 @@ export const BrowserActivityEventSchema = z.object({
     .object({
       status: z.enum(["passed", "failed"]),
       message: z.string(),
+      uncertain: z.boolean().optional(),
     })
     .optional(),
   updatedAt: z.number(),

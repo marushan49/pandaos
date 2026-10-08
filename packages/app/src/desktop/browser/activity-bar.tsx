@@ -13,16 +13,17 @@ import { AdaptiveModalSheet } from "@/components/adaptive-modal-sheet";
 import { Button } from "@/components/ui/button";
 import type { Theme } from "@/styles/theme";
 import {
-  browserActivityStatusBucket,
   describeBrowserActivityStep,
   describeNextBrowserActivityStep,
   formatBrowserActivityConfidence,
   isBrowserRunActive,
   summarizeBrowserActivity,
 } from "@/desktop/browser/activity";
+import { browserActivityTone } from "@/desktop/browser/activity-tone";
 
 interface BrowserActivityBarProps {
   activity: BrowserActivityEvent;
+  failureConfirmed: boolean;
   onControl: (action: "pause" | "resume") => void;
   onDismiss: () => void;
 }
@@ -37,7 +38,12 @@ const STEP_MARKERS: Record<BrowserActivityStep["status"], string> = {
   failed: "✕",
 };
 
-export function BrowserActivityBar({ activity, onControl, onDismiss }: BrowserActivityBarProps) {
+export function BrowserActivityBar({
+  activity,
+  failureConfirmed,
+  onControl,
+  onDismiss,
+}: BrowserActivityBarProps) {
   const { t } = useTranslation();
   const [stepsOpen, setStepsOpen] = useState(false);
   const active = isBrowserRunActive(activity);
@@ -50,7 +56,7 @@ export function BrowserActivityBar({ activity, onControl, onDismiss }: BrowserAc
   const confidence = formatBrowserActivityConfidence(activity.action);
   const meta = [phase, confidence].filter(Boolean).join(", ");
   const next = describeNextBrowserActivityStep(activity, t);
-  const bucket = browserActivityStatusBucket(activity);
+  const tone = browserActivityTone(activity, failureConfirmed);
   // Steps carry no ids; a step's position in the run is its identity.
   const stepRows = useMemo(() => {
     const steps =
@@ -84,9 +90,10 @@ export function BrowserActivityBar({ activity, onControl, onDismiss }: BrowserAc
   );
 
   let dotStyle = styles.dotDone;
-  if (bucket === "running") dotStyle = styles.dotRunning;
-  else if (bucket === "needs_input") dotStyle = styles.dotPaused;
-  else if (bucket === "failed") dotStyle = styles.dotFailed;
+  if (tone === "running") dotStyle = styles.dotRunning;
+  else if (tone === "paused") dotStyle = styles.dotPaused;
+  else if (tone === "failed") dotStyle = styles.dotFailed;
+  else if (tone === "neutral") dotStyle = styles.dotNeutral;
 
   return (
     <View style={styles.bar} testID="browser-activity-bar">
@@ -101,7 +108,10 @@ export function BrowserActivityBar({ activity, onControl, onDismiss }: BrowserAc
         testID="browser-activity-summary"
       >
         <View style={[styles.dot, dotStyle]} />
-        <Text numberOfLines={1} style={styles.summaryText}>
+        <Text
+          numberOfLines={1}
+          style={tone === "neutral" ? styles.summaryTextMuted : styles.summaryText}
+        >
           {summary}
         </Text>
         {meta ? (
@@ -261,9 +271,15 @@ const styles = StyleSheet.create((theme) => ({
   dotPaused: { backgroundColor: theme.colors.statusDotWarning },
   dotFailed: { backgroundColor: theme.colors.statusDotDanger },
   dotDone: { backgroundColor: theme.colors.statusDotSuccess },
+  dotNeutral: { backgroundColor: theme.colors.foregroundMuted },
   summaryText: {
     flexShrink: 1,
     color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+  },
+  summaryTextMuted: {
+    flexShrink: 1,
+    color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.sm,
   },
   meta: { flexShrink: 0, color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm },

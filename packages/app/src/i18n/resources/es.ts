@@ -2307,6 +2307,7 @@ export const es: TranslationResources = {
     subAgentActivity: "Actividad de subagente",
     input: "Aporte",
     output: "Producción",
+    screenshot: "Captura de pantalla",
   },
   toolCallGroup: {
     editedFiles: {
@@ -2503,7 +2504,15 @@ export const es: TranslationResources = {
       emptyHint: "Los datos aparecen cuando un agente termina un turno.",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      import: {
+        ...en.settings.browser.import,
+        googleSignIn: "Inicio de sesión de Google más reciente: {{date}}",
+        googleSignInStale:
+          "Las sesiones de Google copiadas suelen caducar. Para Google, inicia sesión una vez en el propio navegador de PandaOS (traspaso)",
+      },
+    },
     plugins: pluginSettings.es,
     metadataGeneration: {
       title: "Generación de metadatos",

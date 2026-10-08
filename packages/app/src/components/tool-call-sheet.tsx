@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/isolated-bottom-sheet-modal";
 import type { ToolCallIconComponent } from "@/utils/tool-call-icon";
 import { ToolCallDetailsContent } from "./tool-call-details";
+import type { BrowserScreenshotTarget } from "@/tool-calls/browser-screenshot";
 
 export interface ToolCallSheetData {
   toolName: string;
@@ -22,6 +23,7 @@ export interface ToolCallSheetData {
   errorText?: string;
   icon: ToolCallIconComponent;
   showLoadingSkeleton?: boolean;
+  screenshot?: { serverId: string; target: BrowserScreenshotTarget };
 }
 
 interface ToolCallSheetContextValue {
@@ -148,6 +150,7 @@ function ToolCallSheetContent({ data, onClose }: ToolCallSheetContentProps) {
     errorText,
     icon: IconComponent,
     showLoadingSkeleton,
+    screenshot,
   } = data;
 
   return (
@@ -177,6 +180,7 @@ function ToolCallSheetContent({ data, onClose }: ToolCallSheetContentProps) {
           errorText={errorText}
           fillAvailableHeight
           showLoadingSkeleton={showLoadingSkeleton}
+          screenshot={screenshot}
         />
       </BottomSheetScrollView>
     </View>
