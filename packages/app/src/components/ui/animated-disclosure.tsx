@@ -88,5 +88,7 @@ export function AnimatedDisclosure({ open, children }: AnimatedDisclosureProps) 
 const styles = StyleSheet.create(() => ({
   clip: {
     overflow: "hidden",
+    alignSelf: "stretch",
+    minWidth: 0,
   },
 }));
