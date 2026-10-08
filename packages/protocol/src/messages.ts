@@ -3974,6 +3974,8 @@ export const ServerInfoStatusPayloadSchema = z
         workspaceSetupRun: z.boolean().optional(),
         // COMPAT(workspaceTerminals): added in v0.8.0, remove gate after 2027-09-05.
         workspaceTerminals: z.boolean().optional(),
+        // COMPAT(autoTitles): added in v0.11.1, remove gate after 2027-10-08.
+        autoTitles: z.boolean().optional(),
         remoteBrowser: z.boolean().optional(),
         moveAgentWorkspace: z.boolean().optional(),
         // COMPAT(checkoutForgeSetAutoMerge): added in v0.2.0-beta.1. Remove the
@@ -4466,6 +4468,8 @@ export const WorkspaceDescriptorPayloadSchema = z
     // COMPAT(workspaceTitles): added in v0.1.97, drop the optional gate when floor >= v0.1.97.
 
     title: z.string().nullable().optional(),
+    // COMPAT(autoTitles): added in v0.11.1, remove optional after 2027-10-08.
+    titleLocked: z.boolean().optional(),
     // COMPAT(workspacePinning): added in v0.1.107, remove optional after 2027-01-12.
     pinnedAt: z.string().nullable().optional(),
     // COMPAT(workspaceLabels): added in v0.5.0, remove optional after 2027-08-14.
