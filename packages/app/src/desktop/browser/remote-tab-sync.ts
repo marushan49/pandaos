@@ -1,6 +1,7 @@
 import type { BrowserMirrorEvent } from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import { publishBrowserMirror } from "@/desktop/browser/mirror";
 import { isRemoteBrowserClosed, useBrowserStore } from "@/desktop/browser/store";
+import { useBrowserHistoryStore } from "@/desktop/browser/store/history";
 import {
   closedRemoteBrowserTabIds,
   duplicateRemoteBrowserRecordIds,
@@ -43,6 +44,25 @@ function openRemoteBindings(workspaceKey: string): Map<string, string | null> {
     bindings.set(browserId, browsersById[browserId]?.remoteBrowserId ?? null);
   }
   return bindings;
+}
+
+export function recordRemoteNavigation(serverId: string, url: string, title = ""): void {
+  const history = useBrowserHistoryStore.getState();
+  history.recordVisit({ serverId, rawUrl: url });
+  history.updateTitle({ serverId, rawUrl: url, title });
+}
+
+function recordTabHistory(
+  serverId: string | undefined,
+  previous: { url: string; title: string } | null,
+  tab: ListedRemoteTab,
+): void {
+  if (!serverId) return;
+  const history = useBrowserHistoryStore.getState();
+  if (previous?.url !== tab.url) history.recordVisit({ serverId, rawUrl: tab.url });
+  if (previous?.title !== tab.title) {
+    history.updateTitle({ serverId, rawUrl: tab.url, title: tab.title });
+  }
 }
 
 export function beginRemoteBrowserTabSync(workspaceKey: string) {
@@ -117,6 +137,7 @@ export function syncRemoteBrowserTabs(input: {
     } else if (record.url !== tab.url || record.title !== tab.title) {
       browserStore.updateBrowser(record.browserId, { url: tab.url, title: tab.title });
     }
+    recordTabHistory(input.serverId, record ?? null, tab);
     const localBrowserId = record?.browserId ?? tab.browserId;
     if (!openBrowserIds(workspaceKey).has(localBrowserId)) {
       useWorkspaceLayoutStore.getState().openTab({

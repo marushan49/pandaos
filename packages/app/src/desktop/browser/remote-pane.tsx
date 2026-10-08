@@ -52,9 +52,15 @@ import {
 import {
   beginRemoteBrowserTabSync,
   closeLocalBrowserTab,
+  recordRemoteNavigation,
   syncRemoteBrowserTabs,
   whileCreatingRemoteTab,
 } from "@/desktop/browser/remote-tab-sync";
+import {
+  RemoteUrlSuggestionList,
+  useRemoteUrlSuggestions,
+} from "@/desktop/browser/remote-url-suggestions";
+import { resolveTypedInput } from "@/desktop/browser/suggestions";
 import {
   isBrowserRunLocked,
   useActiveBrowserHandoff,
@@ -312,10 +318,11 @@ function RemoteBrowserPane({
       remoteBrowserId: result.browserId,
       url: result.url,
     });
+    recordRemoteNavigation(serverId, result.url);
     setDraftUrl(result.url);
     setShownUrl(result.url);
     await refreshFrame();
-  }, [browserId, draftUrl, execute, refreshFrame, updateBrowser]);
+  }, [browserId, draftUrl, execute, refreshFrame, serverId, updateBrowser]);
 
   const handleRetry = useCallback(() => {
     if (!mountedRef.current) return;
@@ -373,14 +380,41 @@ function RemoteBrowserPane({
         if (!mountedRef.current) return;
         if (result.command === "navigate") {
           updateBrowser(browserId, { url: result.url });
+          recordRemoteNavigation(serverId, result.url);
           setDraftUrl(result.url);
           setShownUrl(result.url);
         }
         await refreshFrame();
       });
     },
-    [browserId, enqueueRemoteOperation, execute, refreshFrame, updateBrowser],
+    [browserId, enqueueRemoteOperation, execute, refreshFrame, serverId, updateBrowser],
   );
+
+  const urlInputRef = useRef<EditingTextInputHandle | null>(null);
+  const setUrlInputText = useCallback((text: string) => {
+    urlInputRef.current?.replaceText(text);
+    setDraftUrl(text);
+  }, []);
+  const navigateTo = useCallback(
+    (url: string) => {
+      const currentBrowserId = remoteBrowserIdRef.current;
+      if (!currentBrowserId) return;
+      setUrlInputText(url);
+      runAndRefresh({ command: "navigate", args: { browserId: currentBrowserId, url } });
+    },
+    [runAndRefresh, setUrlInputText],
+  );
+  const urlSuggestions = useRemoteUrlSuggestions({
+    serverId,
+    workspaceId,
+    browserId,
+    enabled: canInteract,
+    onOpenUrl: navigateTo,
+    onSetInputText: setUrlInputText,
+  });
+  const closeUrlSuggestions = urlSuggestions.close;
+  const activateSelectedSuggestion = urlSuggestions.activateSelected;
+  const handleUrlTextChange = urlSuggestions.handleTextChange;
 
   const queueInputCommand = useCallback(
     (command: BrowserAutomationCommand) => {
@@ -602,14 +636,19 @@ function RemoteBrowserPane({
     [copySelection, queueInputCommand],
   );
 
+  const handleUrlChangeText = useCallback(
+    (text: string) => {
+      setDraftUrl(text);
+      handleUrlTextChange(text);
+    },
+    [handleUrlTextChange],
+  );
+
   const handleNavigate = useCallback(() => {
-    const currentBrowserId = remoteBrowserIdRef.current;
-    if (!currentBrowserId) return;
-    void runAndRefresh({
-      command: "navigate",
-      args: { browserId: currentBrowserId, url: normalizeWorkspaceBrowserUrl(draftUrl) },
-    });
-  }, [draftUrl, runAndRefresh]);
+    if (activateSelectedSuggestion()) return;
+    closeUrlSuggestions();
+    navigateTo(resolveTypedInput(draftUrl));
+  }, [activateSelectedSuggestion, closeUrlSuggestions, draftUrl, navigateTo]);
 
   const handleBack = useCallback(() => {
     const currentBrowserId = remoteBrowserIdRef.current;
@@ -657,6 +696,7 @@ function RemoteBrowserPane({
       const currentBrowserId = remoteBrowserIdRef.current;
       if (!currentBrowserId) return;
       onFocusPane?.();
+      closeUrlSuggestions();
       if (isWeb && !isCompact) remoteInputRef.current?.focus();
       const last = lastClickRef.current;
       const doubleClick =
@@ -679,7 +719,15 @@ function RemoteBrowserPane({
         await takePageCopy(currentBrowserId);
       });
     },
-    [enqueueRemoteOperation, execute, isCompact, onFocusPane, refreshFrame, takePageCopy],
+    [
+      closeUrlSuggestions,
+      enqueueRemoteOperation,
+      execute,
+      isCompact,
+      onFocusPane,
+      refreshFrame,
+      takePageCopy,
+    ],
   );
 
   const scrollSpeed = Number(useAppSettings().settings.browserScrollSpeed);
@@ -783,7 +831,8 @@ function RemoteBrowserPane({
 
   const handleUrlBlur = useCallback(() => {
     isEditingUrlRef.current = false;
-  }, []);
+    closeUrlSuggestions();
+  }, [closeUrlSuggestions]);
 
   const panResponder = useMemo(
     () =>
@@ -945,10 +994,12 @@ function RemoteBrowserPane({
               autoCorrect={false}
               editable={!runLocked}
               initialValue={shownUrl}
-              onChangeText={setDraftUrl}
+              onChangeText={handleUrlChangeText}
               onFocus={handleUrlFocus}
               onBlur={handleUrlBlur}
+              onKeyPress={urlSuggestions.handleKeyPress}
               onSubmitEditing={handleNavigate}
+              ref={urlInputRef}
               resetKey={`${remoteBrowserId ?? "initial"}|${shownUrl}`}
               style={styles.urlInput}
             />
@@ -1033,6 +1084,12 @@ function RemoteBrowserPane({
         ) : (
           <Text style={styles.status}>Connecting to Linux browser...</Text>
         )}
+        <RemoteUrlSuggestionList
+          visible={urlSuggestions.visible}
+          suggestions={urlSuggestions.suggestions}
+          selectedIndex={urlSuggestions.selectedIndex}
+          onActivate={urlSuggestions.handleActivateIndex}
+        />
       </View>
     </View>
   );
