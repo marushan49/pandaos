@@ -237,6 +237,30 @@ export const ptBR: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "Login expirado",
+        body: "O login no provedor expirou e não pôde ser renovado. Faça login de novo no host e tente novamente.",
+      },
+      limit: {
+        title: "Limite de uso atingido",
+        body: "A cota do provedor acabou por enquanto. Tente mais tarde ou mude para outro modelo.",
+      },
+      network: {
+        title: "Provedor inacessível",
+        body: "A conexão com o provedor caiu.",
+      },
+      other: {
+        title: "O turno falhou",
+        body: "O agente parou com um erro.",
+      },
+      promptSaved: "Seu prompt está salvo.",
+      nothingChanged: "Nada foi alterado.",
+      availableIn: "Disponível de novo em cerca de {{minutes}} min.",
+      providerSettings: "Configurações de provedores",
+      technicalDetails: "Detalhes técnicos",
+      retryFailed: "Não foi possível reenviar o prompt",
+    },
     turnFinished: "Turno encerrado",
     empty: "Comece a conversar com este agente...",
     scrollToBottom: "Rolar para o fim",
@@ -257,6 +281,7 @@ export const ptBR: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "Reconectar",
     states: {
       notFound: "Agente não encontrado",
       failedToLoad: "Falha ao carregar agente",

@@ -232,6 +232,30 @@ export const en = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "Sign-in expired",
+        body: "The provider sign-in expired and could not be renewed. Sign in again on the host, then retry.",
+      },
+      limit: {
+        title: "Usage limit reached",
+        body: "The provider's quota is used up for now. Retry later or switch to another model.",
+      },
+      network: {
+        title: "Provider unreachable",
+        body: "The connection to the provider broke off.",
+      },
+      other: {
+        title: "Turn failed",
+        body: "The agent stopped with an error.",
+      },
+      promptSaved: "Your prompt is saved.",
+      nothingChanged: "Nothing was changed.",
+      availableIn: "Available again in about {{minutes}} min.",
+      providerSettings: "Provider settings",
+      technicalDetails: "Technical details",
+      retryFailed: "Couldn't resend the prompt",
+    },
     turnFinished: "Turn finished",
     empty: "Start chatting with this agent...",
     scrollToBottom: "Scroll to bottom",
@@ -252,6 +276,7 @@ export const en = {
     },
   },
   agentPanel: {
+    reconnect: "Reconnect",
     states: {
       notFound: "Agent not found",
       failedToLoad: "Failed to load agent",

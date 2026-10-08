@@ -238,6 +238,30 @@ export const ru: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "Вход истёк",
+        body: "Сеанс входа у провайдера истёк и не продлился. Войдите снова на хосте и повторите.",
+      },
+      limit: {
+        title: "Лимит использования исчерпан",
+        body: "Квота провайдера пока исчерпана. Повторите позже или выберите другую модель.",
+      },
+      network: {
+        title: "Провайдер недоступен",
+        body: "Соединение с провайдером прервалось.",
+      },
+      other: {
+        title: "Ход завершился ошибкой",
+        body: "Агент остановился с ошибкой.",
+      },
+      promptSaved: "Ваш запрос сохранён.",
+      nothingChanged: "Ничего не изменено.",
+      availableIn: "Снова доступно примерно через {{minutes}} мин.",
+      providerSettings: "Настройки провайдеров",
+      technicalDetails: "Технические подробности",
+      retryFailed: "Не удалось повторно отправить запрос",
+    },
     turnFinished: "Ход завершён",
     empty: "Начните общаться с этим агентом...",
     scrollToBottom: "Прокрутить вниз",
@@ -258,6 +282,7 @@ export const ru: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "Переподключиться",
     states: {
       notFound: "Агент не найден",
       failedToLoad: "Не удалось загрузить агента",

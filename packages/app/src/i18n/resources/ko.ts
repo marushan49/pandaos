@@ -236,6 +236,30 @@ export const ko: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "로그인 만료",
+        body: "프로바이더 로그인이 만료되어 갱신하지 못했습니다. 호스트에서 다시 로그인한 뒤 재시도하세요.",
+      },
+      limit: {
+        title: "사용 한도 도달",
+        body: "프로바이더 할당량을 지금은 모두 사용했습니다. 나중에 재시도하거나 다른 모델로 바꾸세요.",
+      },
+      network: {
+        title: "프로바이더에 연결할 수 없음",
+        body: "프로바이더와의 연결이 끊어졌습니다.",
+      },
+      other: {
+        title: "턴 실패",
+        body: "에이전트가 오류로 멈췄습니다.",
+      },
+      promptSaved: "프롬프트는 저장되어 있습니다.",
+      nothingChanged: "변경된 내용은 없습니다.",
+      availableIn: "약 {{minutes}}분 후 다시 사용할 수 있습니다.",
+      providerSettings: "프로바이더 설정",
+      technicalDetails: "기술 세부 정보",
+      retryFailed: "프롬프트를 다시 보내지 못했습니다",
+    },
     turnFinished: "턴 종료",
     empty: "이 에이전트와 대화를 시작하세요...",
     scrollToBottom: "맨 아래로 스크롤",
@@ -256,6 +280,7 @@ export const ko: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "다시 연결",
     states: {
       notFound: "에이전트를 찾을 수 없습니다",
       failedToLoad: "에이전트를 불러오지 못했습니다",
