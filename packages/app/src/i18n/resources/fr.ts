@@ -1433,7 +1433,6 @@ export const fr: TranslationResources = {
       restored: "De retour dans la liste : {{name}}",
       needsYou_one: "{{count}} a besoin de vous",
       needsYou_other: "{{count}} ont besoin de vous",
-      settled: "Réglés ({{count}})",
       needsYouEmpty: {
         title: "Rien n'a besoin de vous pour l'instant",
         description:

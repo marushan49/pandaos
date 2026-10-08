@@ -1425,7 +1425,6 @@ export const en = {
       restored: "Back in the list: {{name}}",
       needsYou_one: "{{count}} needs you",
       needsYou_other: "{{count}} need you",
-      settled: "Settled ({{count}})",
       needsYouEmpty: {
         title: "Nothing needs you right now",
         description: "Workspaces with a failed agent or an open question show up here.",

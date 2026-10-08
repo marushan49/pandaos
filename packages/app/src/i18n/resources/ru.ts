@@ -1429,7 +1429,6 @@ export const ru: TranslationResources = {
       restored: "Снова в списке: {{name}}",
       needsYou_one: "{{count}} ждёт вас",
       needsYou_other: "{{count}} ждут вас",
-      settled: "Разобранные ({{count}})",
       needsYouEmpty: {
         title: "Сейчас вас ничего не ждёт",
         description:

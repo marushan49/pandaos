@@ -54,7 +54,6 @@ interface SidebarModel extends SidebarWorkspacesListResult {
   collapsedProjectKeys: ReadonlySet<string>;
   toggleProjectCollapsed: (projectViewKey: string) => void;
   shortcutModel: SidebarShortcutModel;
-  setAsideWorkspaces: SidebarWorkspaceEntry[];
   needsYouCount: number;
   needsYouOnly: boolean;
   toggleNeedsYouOnly: () => void;
@@ -247,7 +246,6 @@ export function SidebarModelProvider({
       collapsedProjectKeys,
       toggleProjectCollapsed,
       shortcutModel: projection.shortcutModel,
-      setAsideWorkspaces,
       needsYouCount: setAsidePartition.needsYouCount,
       needsYouOnly,
       toggleNeedsYouOnly,
@@ -255,7 +253,6 @@ export function SidebarModelProvider({
     [
       needsYouOnly,
       setAsidePartition.needsYouCount,
-      setAsideWorkspaces,
       toggleNeedsYouOnly,
       resolvedProjectFilters,
       collapsedProjectKeys,

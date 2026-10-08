@@ -1,7 +1,9 @@
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, CircleCheck } from "@/components/icons/ui-icons";
+import { Pressable } from "react-native";
+import { Check } from "@/components/icons/ui-icons";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { useHostFeature } from "@/runtime/host-features";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import { useSessionStore } from "@/stores/session-store";
@@ -43,26 +45,42 @@ export function MarkDoneButton({
   done,
   size,
   testID,
+  showMarkAction = true,
 }: {
   serverId: string;
   workspaceId: string;
   done?: boolean;
   size: "xs" | "sm" | "md";
   testID: string;
+  showMarkAction?: boolean;
 }) {
   const { t } = useTranslation();
   const toggle = useWorkspaceDoneToggle(serverId, workspaceId, done);
   if (!toggle) return null;
+  if (toggle.done) {
+    return (
+      <Pressable
+        onPress={toggle.toggle}
+        disabled={toggle.pending}
+        accessibilityRole="button"
+        accessibilityLabel={t("leitstand.board.reopen")}
+        testID={`${testID}-reopen`}
+      >
+        <StatusBadge size="xs" variant="success" label={t("sidebar.setAside.done")} />
+      </Pressable>
+    );
+  }
+  if (!showMarkAction) return null;
   return (
     <Button
       variant="ghost"
       size={size}
-      leftIcon={toggle.done ? CircleCheck : Check}
+      leftIcon={Check}
       onPress={toggle.toggle}
       loading={toggle.pending}
       disabled={toggle.pending}
-      accessibilityLabel={toggle.done ? t("leitstand.board.reopen") : t("leitstand.board.markDone")}
-      testID={`${testID}-${toggle.done ? "reopen" : "done"}`}
+      accessibilityLabel={t("leitstand.board.markDone")}
+      testID={`${testID}-done`}
     />
   );
 }
