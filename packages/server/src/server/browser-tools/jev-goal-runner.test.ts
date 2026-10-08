@@ -188,7 +188,13 @@ describe("JevBrowserGoalRunner", () => {
     );
 
     expect(result.status).toBe("uncertain");
-    expect(broker.calls.map((call) => call.command.command)).toEqual(["snapshot"]);
+    expect(broker.calls.map((call) => call.command.command)).toEqual([
+      "snapshot",
+      "snapshot",
+      "snapshot",
+    ]);
+    expect(result.message).toContain("2 fresh looks");
+    expect(result.message).toContain('button "Continue" @e2');
   });
 
   it("re-observes after a stale ref without retrying the same mutation", async () => {
