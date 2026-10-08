@@ -17,7 +17,10 @@ import type { SidebarWorkspaceEntry } from "@/hooks/sidebar-workspaces-view-mode
 import { useAppSettings } from "@/hooks/use-settings";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import { useSidebarSnoozeEnabled } from "@/sidebar-order-sync/host";
-import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
+import {
+  navigateToWorkspace,
+  useIsActiveWorkspace,
+} from "@/stores/navigation-active-workspace-store";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
 import type { Theme } from "@/styles/theme";
 import { getStatusDotColor } from "@/utils/status-dot-color";
@@ -127,10 +130,12 @@ export function SidebarWorkspaceSetAsideActions({
 }) {
   const { t } = useTranslation();
   const { onDone, onSnooze } = useWorkspaceSetAsideActions(workspace);
+  const active = useIsActiveWorkspace(workspace.serverId, workspace.workspaceId);
   const [focused, setFocused] = useState(false);
   const handleFocus = useCallback(() => setFocused(true), []);
   const handleBlur = useCallback(() => setFocused(false), []);
   if (!onDone && !onSnooze) return null;
+  if (isTouchPlatform && !active) return null;
   const shown = visible || focused;
   const buttonStyle = isTouchPlatform ? styles.touchAction : styles.hoverAction;
   return (

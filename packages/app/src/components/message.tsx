@@ -359,7 +359,10 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     marginBottom: theme.spacing[4],
   },
   bubble: {
-    backgroundColor: theme.colors.surface2,
+    backgroundColor: {
+      xs: theme.colors.surface1,
+      md: theme.colors.surface2,
+    },
     borderRadius: theme.borderRadius["2xl"],
     borderWidth: theme.borderWidth[1],
     borderColor: theme.colors.hairline,

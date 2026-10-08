@@ -22,6 +22,7 @@ import {
   pullRequestCurationStore,
   usePullRequestCuration,
 } from "@/git/pull-request-curation-store";
+import { useIsActiveWorkspace } from "@/stores/navigation-active-workspace-store";
 import { ChangeRequestSetItem, ChangeRequestSetList } from "./change-request-set";
 import { ManagedChangeRequestSetList } from "./managed-change-request-set";
 import { CheckIndicator } from "./check-indicator";
@@ -105,6 +106,7 @@ export function WorkspaceMetaRow({
   // Expansion is this row's own business: it survives no navigation and nothing else reads it,
   // so it stays local rather than becoming another field in the sidebar's persisted state.
   const [expanded, setExpanded] = useState(false);
+  const isActiveWorkspace = useIsActiveWorkspace(serverId, workspaceId);
   const handleToggle = useCallback(() => setExpanded((open) => !open), []);
   const curation = usePullRequestCuration(workspaceKey ?? "");
   const curatedPullRequests = useMemo(
@@ -149,6 +151,7 @@ export function WorkspaceMetaRow({
               item={item}
               hostBadge={hostBadge}
               leading={index === 0}
+              active={isActiveWorkspace}
               onToggleSet={handleToggle}
             />
           </Fragment>
@@ -209,12 +212,14 @@ function MetaItemNode({
   item,
   hostBadge,
   leading,
+  active,
   onToggleSet,
 }: {
   item: MetaRowItem;
   hostBadge: HostBadgeModel | null;
   /** First on the line, so this item's ink sets the rail the title above it already uses. */
   leading: boolean;
+  active: boolean;
   onToggleSet: () => void;
 }): ReactNode {
   if (item.kind === "branch") {
@@ -235,6 +240,7 @@ function MetaItemNode({
         summary={item.summary}
         soleNumber={item.soleNumber}
         expanded={item.expanded}
+        showWhenEmpty={active}
         onToggle={onToggleSet}
       />
     );
