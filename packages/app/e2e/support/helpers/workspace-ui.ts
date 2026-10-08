@@ -99,7 +99,8 @@ export async function expectReconnectingToastVisible(
   await expect(toast).toBeVisible({
     timeout: options?.timeout ?? 30_000,
   });
-  await expect(toast).toHaveText("Reconnecting to host");
+  await expect(toast).toHaveText(/^Reconnecting to host\s*Reconnect$/);
+  await expect(toast.getByRole("button", { name: "Reconnect", exact: true })).toBeVisible();
 }
 
 export async function expectReconnectingToastGone(
