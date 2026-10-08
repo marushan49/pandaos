@@ -2484,7 +2484,15 @@ export const ru: TranslationResources = {
       emptyHint: "Данные появятся, когда агент завершит ход.",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      import: {
+        ...en.settings.browser.import,
+        googleSignIn: "Последний вход в Google: {{date}}",
+        googleSignInStale:
+          "Скопированные сеансы Google часто истекают. Для Google войдите один раз прямо в браузере PandaOS (передача)",
+      },
+    },
     plugins: pluginSettings.ru,
     metadataGeneration: {
       title: "Генерация метаданных",

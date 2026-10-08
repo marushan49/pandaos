@@ -431,6 +431,7 @@ async function readChromiumCookies(
       value = decrypted;
     }
     const secure = Boolean(Number(row.is_secure));
+    const updatedMicros = Number(row.last_update_utc ?? 0) || Number(row.creation_utc ?? 0);
     cookies.push({
       name: String(row.name),
       value,
@@ -440,6 +441,9 @@ async function readChromiumCookies(
       httpOnly: Boolean(Number(row.is_httponly)),
       secure,
       ...sameSiteAttribute(Number(row.samesite), secure),
+      ...(updatedMicros > 0
+        ? { updatedAt: updatedMicros / 1_000_000 - CHROMIUM_EPOCH_OFFSET_SECONDS }
+        : {}),
     });
   }
   if (undecryptable > 0) throw new BrowserImportError(keyringHelp(browser, env.platform));

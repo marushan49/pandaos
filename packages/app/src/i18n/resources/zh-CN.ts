@@ -2421,7 +2421,15 @@ export const zhCN: TranslationResources = {
       emptyHint: "代理完成一轮后显示数据。",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      import: {
+        ...en.settings.browser.import,
+        googleSignIn: "最近一次 Google 登录：{{date}}",
+        googleSignInStale:
+          "复制的 Google 会话经常过期。请在 PandaOS 浏览器中直接登录一次 Google（交接）",
+      },
+    },
     plugins: pluginSettings["zh-CN"],
     metadataGeneration: {
       title: "元数据生成",

@@ -42,6 +42,10 @@ import {
 } from "../browser-import/browser-backup.js";
 import type { BrowserImportLogin } from "../browser-import/browser-cookie-import.js";
 import { BrowserImportError } from "../browser-import/browser-cookie-import.js";
+import {
+  newestGoogleSignInAt,
+  selectFresherImportedCookies,
+} from "../browser-import/cookie-freshness.js";
 import { EvidenceStore, formatEvidenceRef } from "./evidence-store.js";
 import {
   collectSnapshotNodes,
@@ -120,6 +124,7 @@ export interface ScreencastFrame {
 export interface ImportCookiesResult {
   cookieCount: number;
   domainCount: number;
+  newestGoogleSignInAt?: number;
 }
 
 export const DAEMON_PLAYWRIGHT_COMMANDS: readonly BrowserAutomationCommandName[] = [
@@ -1451,9 +1456,11 @@ export class DaemonPlaywrightHost {
     for (const [context, userDataDir] of this.contextProfileDirs) {
       await this.applyImportedCookies({ context, userDataDir, store });
     }
+    const googleSignInAt = newestGoogleSignInAt(store.cookies);
     return {
       cookieCount: cookies.length,
       domainCount: new Set(cookies.map((cookie) => cookie.domain.replace(/^\./, ""))).size,
+      ...(googleSignInAt === undefined ? {} : { newestGoogleSignInAt: googleSignInAt }),
     };
   }
 
@@ -1664,11 +1671,15 @@ export class DaemonPlaywrightHost {
     const markerPath = path.join(input.userDataDir, IMPORTED_COOKIES_MARKER);
     const applied = await readFile(markerPath, "utf8").catch(() => null);
     if (applied === input.store.version) return;
+    const cookies = selectFresherImportedCookies({
+      existing: await input.context.cookies(),
+      imported: input.store.cookies,
+    });
     try {
-      await input.context.addCookies(input.store.cookies);
+      await input.context.addCookies(cookies);
     } catch {
       let rejected = 0;
-      for (const cookie of input.store.cookies) {
+      for (const cookie of cookies) {
         await input.context.addCookies([cookie]).catch(() => {
           rejected += 1;
         });

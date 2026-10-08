@@ -2447,7 +2447,15 @@ export const ar: TranslationResources = {
       emptyHint: "تظهر الأرقام عندما ينهي وكيل دورة.",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      import: {
+        ...en.settings.browser.import,
+        googleSignIn: "أحدث تسجيل دخول إلى Google بتاريخ {{date}}",
+        googleSignInStale:
+          "غالبًا ما تنتهي صلاحية جلسات Google المنسوخة. سجّل الدخول إلى Google مرة واحدة في متصفح PandaOS نفسه (التسليم)",
+      },
+    },
     plugins: pluginSettings.ar,
     metadataGeneration: {
       title: "إنشاء البيانات الوصفية",
