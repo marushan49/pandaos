@@ -150,9 +150,9 @@ export function scoreSearchFields(
   return match ? { fieldRank: KEYWORD_FIELD_RANK, match } : null;
 }
 
-/** Join non-empty subtitle parts with " · ", dropping null/undefined/empty. */
+/** Join non-empty subtitle parts with ", ", dropping null/undefined/empty. */
 export function joinSubtitleParts(parts: readonly (string | null | undefined)[]): string {
-  return parts.filter((part): part is string => Boolean(part)).join(" · ");
+  return parts.filter((part): part is string => Boolean(part)).join(", ");
 }
 
 /**

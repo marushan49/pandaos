@@ -253,7 +253,7 @@ function orderedRoute(
     return candidateRoute(
       { profile, model, effort: route.thinkingOptionId },
       reset,
-      `Ordered route ${index + 1}/${policy.routes.length} selected ${profile.label} · ${model.id}${route.thinkingOptionId ? ` · ${route.thinkingOptionId}` : ""} ${cause}.${knownUsage ? ` Observed quota: ${knownUsage}.` : " Usage is unavailable; trying this explicitly allowed route."}`,
+      `Ordered route ${index + 1}/${policy.routes.length} selected ${profile.label}, ${model.id}${route.thinkingOptionId ? `, ${route.thinkingOptionId}` : ""} ${cause}.${knownUsage ? ` Observed quota: ${knownUsage}.` : " Usage is unavailable; trying this explicitly allowed route."}`,
     );
   }
   return unavailable(
@@ -525,7 +525,7 @@ async function decideRoute(
   return candidateRoute(
     candidate,
     reset,
-    `Jev selected ${candidate.profile.label} · ${candidate.model.id}${candidate.effort ? ` · ${candidate.effort}` : ""} for ${requirement}.${preserving ? " Jev preserved model and effort." : ""}${observedUsage ? ` Observed quota: ${observedUsage}.` : ""}`,
+    `Jev selected ${candidate.profile.label}, ${candidate.model.id}${candidate.effort ? `, ${candidate.effort}` : ""} for ${requirement}.${preserving ? " Jev preserved model and effort." : ""}${observedUsage ? ` Observed quota: ${observedUsage}.` : ""}`,
   );
 }
 

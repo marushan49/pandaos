@@ -144,7 +144,6 @@ export function WorkspaceMetaRow({
       <View style={styles.row}>
         {items.map((item, index) => (
           <Fragment key={item.kind}>
-            {index > 0 ? <Text style={styles.separator}>·</Text> : null}
             <MetaItemNode
               item={item}
               hostBadge={hostBadge}
@@ -432,7 +431,7 @@ const styles = StyleSheet.create((theme) => ({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1.5],
+    gap: theme.spacing[2],
     minWidth: 0,
   },
   item: {
@@ -460,12 +459,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   itemPressed: {
     opacity: 0.82,
-  },
-  separator: {
-    color: theme.colors.foregroundExtraMuted,
-    fontSize: theme.fontSize.sm,
-    lineHeight: 16,
-    flexShrink: 0,
   },
   // Tighter than the line's own gap so a run of chips reads as one item — see `LabelsItem`.
   // Shrinks at the same weight as the service name: both are arbitrary text somebody chose, so

@@ -257,7 +257,7 @@ test.describe("Usage item", () => {
       await expect(pinRow(sheet, "Claude", "Weekly")).not.toBeChecked();
       // The row reads its window, percent and reset; the checkbox state says it is pinned.
       await expect(pinRow(sheet, "Claude", "Session")).toHaveAccessibleName(
-        /^Pin Claude Session, \d+% left( · .+)?$/,
+        /^Pin Claude Session, \d+% left(, .+)?$/,
       );
       // Settings opens a second sheet; closing it restores the Usage sheet underneath.
       await expect(page.locator('[data-testid="usage-options-menu"]:visible')).toBeVisible();

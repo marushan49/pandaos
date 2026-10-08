@@ -11,7 +11,7 @@ describe("buildClaudeSubagentSubtitle", () => {
         effort: "high",
         usage: { totalTokens: 16_484 },
       }),
-    ).toBe("general-purpose · Opus 5 · High · 16.5k tokens");
+    ).toBe("general-purpose, Opus 5, High, 16.5k tokens");
   });
 
   it("uses the manifest label for dated and context-window model variants", () => {

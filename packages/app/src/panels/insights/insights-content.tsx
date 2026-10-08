@@ -67,7 +67,7 @@ export function InsightsContent(input: { serverId: string; workspaceId: string }
           {agent.title ?? agent.provider}
         </Text>
         <Text style={styles.muted} numberOfLines={1}>
-          {[agent.model, agent.thinkingOptionId, agent.status].filter(Boolean).join(" · ")}
+          {[agent.model, agent.thinkingOptionId, agent.status].filter(Boolean).join(", ")}
         </Text>
       </View>
 
@@ -101,7 +101,7 @@ export function InsightsContent(input: { serverId: string; workspaceId: string }
             <Text style={styles.sectionTitle}>{t("panels.insights.context")}</Text>
             <Text style={styles.muted}>
               {formatTokens(used)} / {formatTokens(max)}
-              {usage?.totalCostUsd ? ` · $${usage.totalCostUsd.toFixed(2)}` : ""}
+              {usage?.totalCostUsd ? `, $${usage.totalCostUsd.toFixed(2)}` : ""}
             </Text>
           </View>
           <View style={styles.track} testID="insights-context-bar">
@@ -201,7 +201,7 @@ function SessionHistorySection(input: { serverId: string }) {
             <Text style={styles.muted}>
               {summary.sessions}
               {summary.deleted > 0
-                ? ` · ${t("panels.insights.deletedCount", { count: summary.deleted })}`
+                ? `, ${t("panels.insights.deletedCount", { count: summary.deleted })}`
                 : ""}
             </Text>
             <Text style={styles.historyNumber}>{formatTokens(summary.tokens)}</Text>
@@ -273,7 +273,7 @@ function HistoryRow(input: { entry: AgentHistoryEntry }) {
             formatTimeAgo(new Date(when)),
           ]
             .filter(Boolean)
-            .join(" · ")}
+            .join(", ")}
           {entry.summary ? `\n${entry.summary}` : ""}
         </Text>
       </View>

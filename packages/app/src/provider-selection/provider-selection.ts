@@ -219,7 +219,7 @@ export function buildSelectedTriggerLabel(modelLabel: string): string {
  * label ships on several providers at once.
  */
 export function buildProviderQualifiedDescription(row: ProviderSelectionModelRow): string {
-  return row.description ? `${row.providerLabel} · ${row.description}` : row.providerLabel;
+  return row.description ? `${row.providerLabel}, ${row.description}` : row.providerLabel;
 }
 
 export function matchesModelSearch(

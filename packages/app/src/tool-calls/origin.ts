@@ -41,7 +41,7 @@ export function resolveToolCallOrigin(
   }
 
   if (normalizedName === "system_one_decide" || normalizedName.endsWith("_system_one_decide")) {
-    return { id: "system-one", label: "System One · Jev", colorName: "violet" };
+    return { id: "system-one", label: "System One, Jev", colorName: "violet" };
   }
 
   return null;

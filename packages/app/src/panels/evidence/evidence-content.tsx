@@ -321,7 +321,7 @@ function EvidenceArtifactRow(input: {
           {input.loading ? " …" : ""}
         </Text>
         <Text style={styles.mutedText} numberOfLines={1}>
-          {[captured, formatArtifactSize(input.artifact.bytes)].filter(Boolean).join(" · ")}
+          {[captured, formatArtifactSize(input.artifact.bytes)].filter(Boolean).join(", ")}
         </Text>
       </View>
       {canAnchor ? (

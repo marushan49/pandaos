@@ -515,16 +515,16 @@ describe("filterAndRankBuiltInResults", () => {
 
 describe("joinSubtitleParts", () => {
   it("joins all present parts with a middle dot", () => {
-    expect(joinSubtitleParts(["a", "b", "c"])).toBe("a · b · c");
+    expect(joinSubtitleParts(["a", "b", "c"])).toBe("a, b, c");
   });
 
   it("drops null and undefined parts", () => {
-    expect(joinSubtitleParts(["host", null, "master"])).toBe("host · master");
-    expect(joinSubtitleParts(["host", undefined, "master"])).toBe("host · master");
+    expect(joinSubtitleParts(["host", null, "master"])).toBe("host, master");
+    expect(joinSubtitleParts(["host", undefined, "master"])).toBe("host, master");
   });
 
   it("drops empty strings (Boolean parity — agents subtitle refactor guard)", () => {
-    expect(joinSubtitleParts(["", "paseo", "master"])).toBe("paseo · master");
+    expect(joinSubtitleParts(["", "paseo", "master"])).toBe("paseo, master");
   });
 
   it("returns an empty string when every part is null or empty", () => {
@@ -535,12 +535,12 @@ describe("joinSubtitleParts", () => {
     expect(joinSubtitleParts([null, "paseo", null])).toBe("paseo");
   });
 
-  it("builds the workspace subtitle in host · project · branch order", () => {
+  it("builds the workspace subtitle in host, project, branch order", () => {
     // Single-host: host gated away, project leads.
-    expect(joinSubtitleParts([null, "paseo", "master"])).toBe("paseo · master");
+    expect(joinSubtitleParts([null, "paseo", "master"])).toBe("paseo, master");
     // Multi-host: host first, then project, then branch.
-    expect(joinSubtitleParts(["host", "paseo", "master"])).toBe("host · paseo · master");
-    // No branch: degrades to project (or host · project).
+    expect(joinSubtitleParts(["host", "paseo", "master"])).toBe("host, paseo, master");
+    // No branch: degrades to project (or host, project).
     expect(joinSubtitleParts([null, "paseo", null])).toBe("paseo");
   });
 });

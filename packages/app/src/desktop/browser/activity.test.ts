@@ -140,7 +140,7 @@ describe("browser activity presentation", () => {
         }),
         t,
       ),
-    ).toBe("click · button “Save”");
+    ).toBe("click, button “Save”");
   });
 
   it("announces observing and deciding as one state, then the chosen action", () => {
@@ -160,7 +160,7 @@ describe("browser activity presentation", () => {
         }),
         t,
       ),
-    ).toBe('workspace.browser.activity.step {"step":2} · fill · textbox “Email” · ← account');
+    ).toBe('workspace.browser.activity.step {"step":2}, fill, textbox “Email”, ← account');
   });
 
   it("releases input only while paused or after the run", () => {

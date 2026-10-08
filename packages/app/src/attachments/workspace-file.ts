@@ -102,5 +102,5 @@ export function getWorkspaceFileAttachmentSubtitle(
   if (attachment.selection.kind === "whole_file") {
     return attachment.path;
   }
-  return `${attachment.path} · ${attachment.selection.startLine}-${attachment.selection.endLine}`;
+  return `${attachment.path}:${attachment.selection.startLine}-${attachment.selection.endLine}`;
 }

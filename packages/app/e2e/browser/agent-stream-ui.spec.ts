@@ -46,7 +46,7 @@ test.describe("Agent stream UI", () => {
     try {
       const toolGroup = page.getByTestId("tool-call-group").first();
       await expect(toolGroup).toContainText("Browser ×2", { timeout: 30_000 });
-      await expect(toolGroup).toContainText("System One · Jev");
+      await expect(toolGroup).toContainText("System One, Jev");
       await expect(toolGroup).toContainText("origin-marker-plugin");
       await agent.client.waitForFinish(agent.agentId, 30_000);
       await testInfo.attach("tool-origin-markers", {

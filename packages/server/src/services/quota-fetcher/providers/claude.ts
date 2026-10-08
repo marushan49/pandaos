@@ -284,7 +284,7 @@ function scopedWindows(limits: ScopedLimit[]): ProviderUsageWindow[] {
     // used", and the bar must not come and go between refreshes.
     return windowFromUsedPct({
       id,
-      label: `Weekly \u00b7 ${limit.name}`,
+      label: `Weekly, ${limit.name}`,
       utilizationPct: limit.usedPct,
       resetsAt: limit.resetsAt,
       tone: toneFromUsedPct(limit.usedPct),

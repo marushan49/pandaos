@@ -38,7 +38,7 @@ describe("buildOpenCodeSubagentSubtitle", () => {
         variant: "high",
         totalTokens: 16_484,
       }),
-    ).toBe("general · claude-sonnet-5 · High · 16.5k tokens");
+    ).toBe("general, claude-sonnet-5, High, 16.5k tokens");
   });
 
   it("keeps raw model ids visible without a label table", () => {
@@ -68,7 +68,7 @@ describe("foldOpenCodeSubagentPresentation", () => {
     expect(foldOpenCodeSubagentPresentation(state, { agentName: "general" })).toBeUndefined();
     expect(
       foldOpenCodeSubagentPresentation(state, { modelId: "claude-sonnet-5", totalTokens: 1_200 }),
-    ).toBe("general · claude-sonnet-5 · 1.2k tokens");
+    ).toBe("general, claude-sonnet-5, 1.2k tokens");
     expect(foldOpenCodeSubagentPresentation(state, { totalTokens: 1_200 })).toBeUndefined();
   });
 

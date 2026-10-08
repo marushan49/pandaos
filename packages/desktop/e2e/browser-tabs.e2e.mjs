@@ -901,7 +901,7 @@ async function runRegression({
   );
   assert(focusedGuest === true, "Electron did not focus the registered browser guest");
 
-  const deviceSizeMenuPainted = await selectDeviceSize(page, "iPhone SE · 375×667");
+  const deviceSizeMenuPainted = await selectDeviceSize(page, "iPhone SE, 375×667");
   assert(deviceSizeMenuPainted, "Device size menu did not paint above the browser surface");
   const deviceViewport = await waitForNativeViewport(page, browserId, { width: 375, height: 667 });
   recordViewportMismatch(
@@ -923,7 +923,7 @@ async function runRegression({
     `Screenshot after resize returned ${resizedScreenshot.width}×${resizedScreenshot.height}`,
   );
   const oversizedViewport = { width: 2560, height: 1440 };
-  await selectDeviceSize(page, "Desktop 1440p · 2560×1440");
+  await selectDeviceSize(page, "Desktop 1440p, 2560×1440");
   recordViewportMismatch(
     failures,
     "oversized preset preserves the requested guest viewport",
@@ -957,7 +957,7 @@ async function runRegression({
   if (presentation.capturesOutsideInput) {
     failures.push("oversized browser surface captures input outside its pane");
   }
-  await selectDeviceSize(page, "Desktop 1440p · 2560×1440");
+  await selectDeviceSize(page, "Desktop 1440p, 2560×1440");
   const repeatedResizePresentation = await readPresentation(page, browserId);
   assert(repeatedResizePresentation, "Repeated resize presentation geometry was unavailable");
   if (

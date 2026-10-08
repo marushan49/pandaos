@@ -313,7 +313,6 @@ function SessionRow({
               numberOfLines={1}
               testID={`agent-row-project-${agent.serverId}-${agent.id}`}
             />
-            <Text style={styles.sessionMetaSeparator}>·</Text>
             <HighlightedText
               text={branch}
               ranges={ranges.branch}
@@ -321,15 +320,11 @@ function SessionRow({
               numberOfLines={1}
               testID={`agent-row-branch-${agent.serverId}-${agent.id}`}
             />
-            <Text style={styles.sessionMetaSeparator}>·</Text>
             <AgentActivityTime date={agent.lastActivityAt} isMobile />
             {showHostColumn && agent.serverLabel ? (
-              <>
-                <Text style={styles.sessionMetaSeparator}>·</Text>
-                <Text style={styles.sessionMetaText} numberOfLines={1}>
-                  {agent.serverLabel}
-                </Text>
-              </>
+              <Text style={styles.sessionMetaText} numberOfLines={1}>
+                {agent.serverLabel}
+              </Text>
             ) : null}
           </View>
         ) : null}
@@ -678,7 +673,7 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: theme.spacing[1],
+    gap: theme.spacing[2],
     marginTop: 2,
   },
   rowTrailing: {
@@ -707,11 +702,6 @@ const styles = StyleSheet.create((theme) => ({
     maxWidth: "100%",
     fontSize: theme.fontSize.base,
     color: theme.colors.foregroundMuted,
-  },
-  sessionMetaSeparator: {
-    fontSize: theme.fontSize.base,
-    color: theme.colors.foregroundMuted,
-    opacity: 0.7,
   },
   rowColumns: {
     flexDirection: "row",

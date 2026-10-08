@@ -152,7 +152,7 @@ test("captures the compact import-session journey", async ({ page }, testInfo) =
       first: [scenario.importSessionId, "fixture-worktree", "fixture-unrelated"],
       folders: [
         [scenario.importSessionId, scenario.projectName],
-        ["fixture-worktree", `${scenario.projectName} · worktrees/review-fix`],
+        ["fixture-worktree", `${scenario.projectName}, worktrees/review-fix`],
         ["fixture-unrelated", scenario.reuseTarget.projectDisplayName],
       ],
     });
@@ -215,7 +215,7 @@ test("captures the desktop import sheet and command-center entry", async ({ page
     // asserts recency as an ordering between two rows nothing imports.
     await flow.expectRows({
       before: ["fixture-worktree", "fixture-unrelated"],
-      folders: [["fixture-worktree", `${scenario.projectName} · worktrees/review-fix`]],
+      folders: [["fixture-worktree", `${scenario.projectName}, worktrees/review-fix`]],
     });
     await flow.revealSession("fixture-unrelated");
     await capture(page, testInfo, "11-desktop-sheet-unscoped.png");

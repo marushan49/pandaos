@@ -60,7 +60,7 @@ export function UsageBalanceBar({ balance }: { balance: UsageBalance }) {
         </Text>
         <Text style={styles.value}>
           {amountText}
-          {resetLabel ? <Text style={styles.reset}>{` · ${resetLabel}`}</Text> : null}
+          {resetLabel ? <Text style={styles.reset}>{`, ${resetLabel}`}</Text> : null}
         </Text>
       </View>
       {usedPct != null ? (

@@ -55,9 +55,9 @@ function formatAdvisorNote(note: OmpAdvisorNote): string {
 
 function buildAdvisorLabel(noteCount: number, blockerCount: number): string {
   if (noteCount === 0) return "Advisor";
-  const label = `Advisor · ${noteCount} ${noteCount === 1 ? "note" : "notes"}`;
+  const label = `Advisor, ${noteCount} ${noteCount === 1 ? "note" : "notes"}`;
   return blockerCount > 0
-    ? `${label} · ${blockerCount} ${blockerCount === 1 ? "blocker" : "blockers"}`
+    ? `${label}, ${blockerCount} ${blockerCount === 1 ? "blocker" : "blockers"}`
     : label;
 }
 

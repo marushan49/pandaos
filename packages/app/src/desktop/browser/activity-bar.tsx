@@ -48,7 +48,7 @@ export function BrowserActivityBar({ activity, onControl, onDismiss }: BrowserAc
       ? t(`workspace.browser.activity.phase.${activity.phase}`)
       : null;
   const confidence = formatBrowserActivityConfidence(activity.action);
-  const meta = [phase, confidence].filter(Boolean).join(" · ");
+  const meta = [phase, confidence].filter(Boolean).join(", ");
   const next = describeNextBrowserActivityStep(activity, t);
   const bucket = browserActivityStatusBucket(activity);
   // Steps carry no ids; a step's position in the run is its identity.

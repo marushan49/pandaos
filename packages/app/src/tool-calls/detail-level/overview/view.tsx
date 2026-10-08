@@ -71,7 +71,7 @@ function useOverviewLabel(group: OverviewToolCallGroup): string {
     return summary;
   }
   const workedFor = t("toolCallGroup.workedFor", { duration: formatDuration(group.durationMs) });
-  return `${workedFor} · ${summary}`;
+  return `${workedFor}, ${summary}`;
 }
 
 export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView({

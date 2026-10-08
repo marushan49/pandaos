@@ -161,7 +161,7 @@ export async function expectNoUsageItem(page: Page): Promise<void> {
 
 /** A window row, which is itself the pin toggle: "Claude", "Session". */
 export function pinRow(scope: Locator, source: string, window: string): Locator {
-  // The row's label goes on with its percent and reset: "Pin Claude Session, 31% · resets in 2h".
+  // The row's label goes on with its percent and reset: "Pin Claude Session, 31%, resets in 2h".
   return scope.getByRole("checkbox", { name: new RegExp(`^Pin ${source} ${window}, `) });
 }
 

@@ -32,7 +32,7 @@ const PROFILE = {
   notes: "Use for UI work.",
 };
 
-const PROFILE_SUMMARY = "Mock Load Test · One minute stream · Approval test";
+const PROFILE_SUMMARY = "Mock Load Test, One minute stream, Approval test";
 
 test.describe("Agent profiles in the model picker", () => {
   test("an empty host still exposes agent profile settings from the picker", async ({ page }) => {

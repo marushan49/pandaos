@@ -77,8 +77,8 @@ function uniqueProfileName(input: {
   const labels = findCatalogLabels(input.favorite, input.entries);
   const candidates = [
     labels.model,
-    `${labels.provider} · ${labels.model}`,
-    `${labels.provider} · ${labels.model} (${input.favorite.modelId})`,
+    `${labels.provider}, ${labels.model}`,
+    `${labels.provider}, ${labels.model} (${input.favorite.modelId})`,
   ];
   for (const candidate of candidates) {
     if (!input.usedNames.has(candidate)) {

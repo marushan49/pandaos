@@ -257,7 +257,7 @@ describe("combined model selector data", () => {
       description: "claude-opus-5",
     };
 
-    expect(buildProviderQualifiedDescription(row)).toBe("Copilot · claude-opus-5");
+    expect(buildProviderQualifiedDescription(row)).toBe("Copilot, claude-opus-5");
     expect(buildProviderQualifiedDescription({ ...row, description: undefined })).toBe("Copilot");
   });
 

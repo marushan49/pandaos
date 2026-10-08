@@ -15,7 +15,7 @@ export function formatPullRequestActivityLocation(activity: PrPaneActivity): str
     parts.push(threadLabel);
   }
 
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 function formatPathAndLines(location: NonNullable<PrPaneActivity["location"]>): string {

@@ -112,7 +112,7 @@ function buildMeta(input: {
   if (serverName && !singleHost) {
     parts.unshift(serverName);
   }
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 function ScheduleMeta({

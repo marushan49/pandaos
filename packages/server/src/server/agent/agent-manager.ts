@@ -1105,7 +1105,7 @@ export class AgentManager {
     await this.appendTimelineItem(agent.id, {
       type: "notification",
       level: "info",
-      message: `${notice?.fromProfile} → ${route.profile.provider} · ${route.model} · ${route.profile.thinkingOptionId ?? "default"}. ${route.reason}`,
+      message: `${notice?.fromProfile} → ${route.profile.provider}, ${route.model}, ${route.profile.thinkingOptionId ?? "default"}. ${route.reason}`,
     });
   }
 

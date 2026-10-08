@@ -5,10 +5,10 @@ export function formatOmpSubagentTitle(title: string, resolvedModel?: string | n
 
   const separator = model.indexOf("/");
   if (separator <= 0 || separator === model.length - 1) {
-    return `${name} · ${model}`;
+    return `${name}, ${model}`;
   }
 
   const provider = model.slice(0, separator);
   const modelName = model.slice(separator + 1);
-  return `${name} · ${modelName} (${provider})`;
+  return `${name}, ${modelName} (${provider})`;
 }

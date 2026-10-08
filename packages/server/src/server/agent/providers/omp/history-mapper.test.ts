@@ -487,7 +487,7 @@ describe("OMP history mapper", () => {
           status: "completed",
           detail: {
             type: "plain_text",
-            label: "Advisor · 2 notes · 1 blocker",
+            label: "Advisor, 2 notes, 1 blocker",
             text: "[blocker] [security] Add an authorization check.\n\n[concern] Exercise the failure path.",
             icon: "brain",
           },
@@ -1228,13 +1228,13 @@ describe("OMP history mapper", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: echoId,
-          title: "task · gpt-5.5 (openai-codex)",
+          title: "task, gpt-5.5 (openai-codex)",
           status: "running",
           timestamp: "2026-07-07T02:00:00Z",
         }),
         expect.objectContaining({
           id: echoId,
-          title: "task · gpt-5.5 (openai-codex)",
+          title: "task, gpt-5.5 (openai-codex)",
           status: "completed",
           timestamp: "2026-07-07T02:00:03Z",
         }),

@@ -19,7 +19,7 @@ export function displayPercent(window: UsageWindow, displayAs: UsageDisplayAs): 
 
 /**
  * A window row's accessible label: what pinning it pins, then what the row shows. The row is a
- * checkbox, so its checked state says whether it is pinned: "Pin Claude Session, 31% · resets in
+ * checkbox, so its checked state says whether it is pinned: "Pin Claude Session, 31%, resets in
  * 2h", checked.
  */
 export function usageWindowRowLabel(input: {
@@ -27,7 +27,7 @@ export function usageWindowRowLabel(input: {
   value: string;
   trailing: string | null | undefined;
 }): string {
-  const summary = input.trailing ? `${input.value} · ${input.trailing}` : input.value;
+  const summary = input.trailing ? `${input.value}, ${input.trailing}` : input.value;
   return `${input.pinLabel}, ${summary}`;
 }
 

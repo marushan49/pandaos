@@ -980,7 +980,6 @@ function WorkspaceHeaderProjectRow({
           {subtitle}
         </Text>
       ) : null}
-      {showProject && hostBadge ? <Text style={styles.headerProjectSeparator}>·</Text> : null}
       {hostBadge ? <HostBadge badge={hostBadge} /> : null}
     </View>
   );
@@ -4368,7 +4367,7 @@ const styles = StyleSheet.create((theme) => ({
   headerProjectRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1.5],
+    gap: theme.spacing[2],
     minWidth: 0,
     flexShrink: 1,
   },
@@ -4380,11 +4379,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     flexShrink: 1,
     minWidth: 0,
-  },
-  headerProjectSeparator: {
-    color: theme.colors.foregroundExtraMuted,
-    fontSize: theme.fontSize.sm,
-    flexShrink: 0,
   },
   headerTitleSkeleton: {
     width: 220,

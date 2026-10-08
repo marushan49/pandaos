@@ -46,7 +46,7 @@ describe("OMP provider subagent mapper", () => {
       event: {
         id: "child-1",
         status: "running",
-        title: "explore · gpt-5.5 (openai-codex)",
+        title: "explore, gpt-5.5 (openai-codex)",
       },
     });
 
@@ -66,7 +66,7 @@ describe("OMP provider subagent mapper", () => {
       event: {
         id: "child-1",
         status: "completed",
-        title: "explore · claude-sonnet-5 (anthropic)",
+        title: "explore, claude-sonnet-5 (anthropic)",
       },
     });
   });

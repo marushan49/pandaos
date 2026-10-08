@@ -15,9 +15,7 @@ const notice: AgentRoutingNotice = {
 };
 it("formats structured profile/model/effort and the local reset without parsing timeline prose", () => {
   const result = formatRoutingNotice(notice, "de-DE");
-  expect(result).toContain(
-    "codex-plus · gpt-6.1-sol · medium → codex-business · gpt-6.1-sol · medium",
-  );
+  expect(result).toContain("codex-plus, gpt-6.1-sol, medium → codex-business, gpt-6.1-sol, medium");
   expect(result).toContain(
     new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(
       Date.parse(notice.resetsAt!),

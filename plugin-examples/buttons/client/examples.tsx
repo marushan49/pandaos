@@ -83,7 +83,7 @@ export function createButtonExamples(
     refreshes += 1;
     if (mode === "action") {
       header.update({ title: `Refresh workspace (${refreshes})` });
-      pill.update({ label: `Refreshed · ${refreshes}` });
+      pill.update({ label: `Refreshed: ${refreshes}` });
     }
   }
 

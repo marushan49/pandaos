@@ -331,7 +331,7 @@ describe("OMP agent client and session", () => {
         status: "completed",
         detail: {
           type: "plain_text",
-          label: "Advisor · 1 note",
+          label: "Advisor, 1 note",
           text: "[concern] Exercise the failure path.",
           icon: "brain",
         },

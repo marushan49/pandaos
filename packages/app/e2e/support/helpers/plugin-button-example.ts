@@ -85,7 +85,7 @@ export async function withButtonAuthorExample(
           await page.getByRole("button", { name: "Refresh context", exact: true }).click();
           await expect(
             page.getByRole("button", { name: "Refresh context", exact: true }),
-          ).toContainText("Refreshed · 2");
+          ).toContainText("Refreshed: 2");
           await capture(page, info, "01-actions");
           await page.setViewportSize(COMPACT);
           await capture(page, info, "02-compact-actions");

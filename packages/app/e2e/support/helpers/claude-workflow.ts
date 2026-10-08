@@ -38,7 +38,7 @@ export async function expectWorkflowRunning(page: Page): Promise<void> {
   const row = workflowRow(page);
   await expect(row).toBeVisible({ timeout: 60_000 });
   await expect(row).toContainText(WORKFLOW_ROW_DESCRIPTION);
-  await expect(row).toContainText(/Workflow(?: · .+)?/);
+  await expect(row).toContainText(/Workflow(?:, .+)?/);
   await expect(row.getByRole("progressbar", { name: "Agent running" })).toBeVisible();
 }
 
@@ -65,9 +65,7 @@ export async function openWorkflowTimeline(page: Page): Promise<void> {
   await workflowRow(page).click();
   const panel = page.getByTestId("provider-subagent-panel");
   await expect(panel).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId("provider-subagent-pane-subtitle")).toHaveText(
-    /Workflow(?: · .+)?/,
-  );
+  await expect(page.getByTestId("provider-subagent-pane-subtitle")).toHaveText(/Workflow(?:, .+)?/);
   await expect(panel.getByText("Start chatting with this agent...", { exact: true })).toHaveCount(
     0,
   );

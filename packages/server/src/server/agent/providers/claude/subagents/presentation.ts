@@ -21,7 +21,7 @@ export function buildClaudeSubagentSubtitle(
     formatEffort(facts.effort),
     formatTokens(facts.usage?.totalTokens),
   ].filter((part): part is string => part !== undefined);
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
 function readPart(value: string | undefined): string | undefined {

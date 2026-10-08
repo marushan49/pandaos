@@ -48,7 +48,7 @@ export function buildOpenCodeSubagentSubtitle(
     formatVariant(facts.variant),
     formatTokens(facts.totalTokens),
   ].filter((part): part is string => part !== undefined);
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
 /**

@@ -79,7 +79,7 @@ describe("Linear issue search", () => {
           id: "issue-uuid",
           identifier: "ENG-123",
           title: "Plugin attachments",
-          subtitle: "In Progress · Mohamed",
+          subtitle: "In Progress, Mohamed",
           url: issue.url,
           resourceType: "issue",
           text: [

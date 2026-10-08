@@ -118,7 +118,7 @@ function toIntervalWindow(modelName: string, model: MiniMaxModelRemain): UsageWi
   if (usedPct === null) return null;
   return windowFromUsedPct({
     id: `interval_${modelName}`,
-    label: `${modelName} · Interval`,
+    label: `${modelName}, Interval`,
     utilizationPct: usedPct,
     resetsAt: epochMsToIso(model.end_time),
     tone: toneForStatus(model.current_interval_status),
@@ -138,7 +138,7 @@ function toWeeklyWindow(modelName: string, model: MiniMaxModelRemain): UsageWind
   if (usedPct === null) return null;
   return windowFromUsedPct({
     id: `weekly_${modelName}`,
-    label: `${modelName} · Weekly`,
+    label: `${modelName}, Weekly`,
     utilizationPct: usedPct,
     resetsAt: epochMsToIso(model.weekly_end_time),
     tone: toneForStatus(model.current_weekly_status),

@@ -58,7 +58,7 @@ test.describe("Command center workspaces", () => {
       await expect(row).toContainText(WORKSPACE_TITLE);
       await expect(row).toContainText(WORKSPACE_BRANCH);
 
-      // The subtitle disambiguates by project: host · project · branch (multi-host).
+      // The subtitle disambiguates by project: host, project, branch (multi-host).
       const subtitle = row.getByTestId("command-center-workspace-subtitle");
       await expect(subtitle).toContainText(PRIMARY_HOST_LABEL);
       await expect(subtitle).toContainText(seeded.projectDisplayName);
@@ -122,7 +122,7 @@ test.describe("Command center workspaces", () => {
     }
   });
 
-  test("single-host workspace subtitle omits the host and shows project · branch", async ({
+  test("single-host workspace subtitle omits the host and shows project, branch", async ({
     page,
   }) => {
     const seeded = await seedWorkspace({
@@ -150,7 +150,7 @@ test.describe("Command center workspaces", () => {
       await expect(row).toBeVisible({ timeout: 30_000 });
 
       const subtitle = row.getByTestId("command-center-workspace-subtitle");
-      await expect(subtitle).toHaveText(`${seeded.projectDisplayName} · ${WORKSPACE_BRANCH}`);
+      await expect(subtitle).toHaveText(`${seeded.projectDisplayName}, ${WORKSPACE_BRANCH}`);
     } finally {
       await seeded.cleanup();
     }

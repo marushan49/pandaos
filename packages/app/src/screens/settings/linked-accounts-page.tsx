@@ -38,7 +38,7 @@ export function HostLinkedAccountsPage({ serverId }: { serverId: string }) {
       <SettingsRow
         key={account.configDir}
         label={account.username}
-        hint={`${account.host} · ${account.configDir}`}
+        hint={`${account.host}, ${account.configDir}`}
         testID={`linked-accounts-github-${account.username}`}
       />
     ));

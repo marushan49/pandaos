@@ -313,15 +313,15 @@ test("reports every named additional limit with its own duration identity", asyn
     windows: [
       {
         id: "limit:codex_bengalfox:five_hour",
-        label: "GPT-5.3-Codex-Spark · 5-hour",
+        label: "GPT-5.3-Codex-Spark, 5-hour",
         shortLabel: "GPT-5.3-Codex-Spark 5h",
       },
       {
         id: "limit:codex_bengalfox:weekly",
-        label: "GPT-5.3-Codex-Spark · Weekly",
+        label: "GPT-5.3-Codex-Spark, Weekly",
         shortLabel: "GPT-5.3-Codex-Spark wk",
       },
-      { id: "limit:another:7200s", label: "Another limit · 2-hour" },
+      { id: "limit:another:7200s", label: "Another limit, 2-hour" },
     ],
   });
 });
@@ -381,8 +381,8 @@ test("unknown lengths and code review never get a duration from their slot", asy
     windows: [
       { id: "unknown_primary", label: "Primary limit", shortLabel: "" },
       { id: "unknown_secondary", label: "Secondary limit", shortLabel: "" },
-      { id: "code_review:weekly", label: "Code review · Weekly", shortLabel: "Code review wk" },
-      { id: "code_review:five_hour", label: "Code review · 5-hour", shortLabel: "Code review 5h" },
+      { id: "code_review:weekly", label: "Code review, Weekly", shortLabel: "Code review wk" },
+      { id: "code_review:five_hour", label: "Code review, 5-hour", shortLabel: "Code review 5h" },
     ],
   });
 });

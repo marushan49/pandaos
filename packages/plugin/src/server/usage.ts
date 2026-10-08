@@ -133,7 +133,7 @@ export function windowFromReportedDuration(input: {
   const scope = input.scope;
   return windowFromUsedPct({
     id: scope ? `${scope.id}:${name.id}` : name.id,
-    label: scope ? `${scope.label} · ${name.label}` : name.label,
+    label: scope ? `${scope.label}, ${name.label}` : name.label,
     shortLabel: scope
       ? `${scope.label}${name.shortLabel ? ` ${name.shortLabel}` : ""}`
       : name.shortLabel,

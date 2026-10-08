@@ -64,7 +64,7 @@ export function AgentProfileRow({
     () => buildAgentProfileTags({ profile, entries, formatFeatureCount }),
     [entries, formatFeatureCount, profile],
   );
-  const summary = useMemo(() => tags.map((tag) => tag.label).join(" · "), [tags]);
+  const summary = useMemo(() => tags.map((tag) => tag.label).join(", "), [tags]);
 
   const rowStyle = useMemo(
     () => [settingsStyles.row, isFirst ? null : settingsStyles.rowBorder, styles.row],

@@ -29,7 +29,7 @@ describe("pull request activity location labels", () => {
           isOutdated: true,
         }),
       ),
-    ).toBe("packages/app/src/panel.tsx:10-12 · unresolved · outdated · thread PRRT_1");
+    ).toBe("packages/app/src/panel.tsx:10-12, unresolved, outdated, thread PRRT_1");
   });
 
   it("includes current/resolved state without noisy long thread IDs", () => {
@@ -43,6 +43,6 @@ describe("pull request activity location labels", () => {
           isOutdated: false,
         }),
       ),
-    ).toBe("packages/app/src/panel.tsx:12 · resolved · current");
+    ).toBe("packages/app/src/panel.tsx:12, resolved, current");
   });
 });

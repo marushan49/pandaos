@@ -129,9 +129,6 @@ function SectionHeader({ title, count, hint }: { title: string; count?: number; 
         {count !== undefined ? (
           <Text style={settingsStyles.sectionHeaderTitle}>{count}</Text>
         ) : null}
-        {count !== undefined && hint ? (
-          <Text style={settingsStyles.sectionHeaderTitle}>·</Text>
-        ) : null}
         {hint ? <Text style={settingsStyles.sectionHeaderTitle}>{hint}</Text> : null}
       </View>
     </View>
@@ -793,7 +790,7 @@ const sheetStyles = StyleSheet.create((theme) => ({
   sectionHeaderMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1],
+    gap: theme.spacing[2],
   },
   modelRow: {
     flexDirection: "row",

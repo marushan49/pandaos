@@ -153,7 +153,7 @@ const RESPONSIVE_DEVICE_LABEL_KEY = "workspace.browser.devices.responsive";
 function formatDevicePresetLabel(preset: DeviceSizePreset, responsiveLabel: string): string {
   const name = preset.id === "responsive" ? responsiveLabel : preset.name;
   if (preset.width && preset.height) {
-    return `${name} · ${preset.width}×${preset.height}`;
+    return `${name}, ${preset.width}×${preset.height}`;
   }
   return name;
 }
@@ -1652,7 +1652,7 @@ function BrowserElementAnnotationCard({
   }, [handleSubmit, onCancel]);
 
   const elementText = truncateText(selection.text.trim().replace(/\s+/g, " "), 60);
-  const elementLabel = elementText ? `${selection.tag} · ${elementText}` : selection.tag;
+  const elementLabel = elementText ? `${selection.tag}: ${elementText}` : selection.tag;
 
   if (!bounds) {
     return null;

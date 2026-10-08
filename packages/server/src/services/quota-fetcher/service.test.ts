@@ -1205,14 +1205,14 @@ describe("real provider usage fetchers", () => {
       windows: expect.arrayContaining([
         expect.objectContaining({
           id: "interval_MiniMax-M2.7",
-          label: "MiniMax-M2.7 · Interval",
+          label: "MiniMax-M2.7, Interval",
           usedPct: 25,
           remainingPct: 75,
           resetsAt: "2026-06-19T05:00:00.000Z",
         }),
         expect.objectContaining({
           id: "weekly_MiniMax-M2.7",
-          label: "MiniMax-M2.7 · Weekly",
+          label: "MiniMax-M2.7, Weekly",
           usedPct: 24,
           remainingPct: 76,
           resetsAt: "2026-06-26T00:00:00.000Z",
@@ -1509,7 +1509,7 @@ describe("ClaudeQuotaProvider scoped weekly limits", () => {
     const usage = await provider.fetchUsage();
 
     expect(usage.windows).toContainEqual(
-      expect.objectContaining({ id: "weekly_model_fable", label: "Weekly · Fable" }),
+      expect.objectContaining({ id: "weekly_model_fable", label: "Weekly, Fable" }),
     );
   });
 
@@ -1557,7 +1557,7 @@ describe("ClaudeQuotaProvider scoped weekly limits", () => {
     const usage = await provider.fetchUsage();
 
     expect(usage.windows).toContainEqual(
-      expect.objectContaining({ id: "weekly_surface_code", label: "Weekly · Code" }),
+      expect.objectContaining({ id: "weekly_surface_code", label: "Weekly, Code" }),
     );
   });
 
@@ -1658,7 +1658,7 @@ describe("ClaudeQuotaProvider scoped limit reconciliation", () => {
     expect(windows).toEqual([
       expect.objectContaining({
         id: "weekly_model_omelette",
-        label: "Weekly · Omelette",
+        label: "Weekly, Omelette",
         usedPct: 12,
       }),
     ]);
@@ -1669,7 +1669,7 @@ describe("ClaudeQuotaProvider scoped limit reconciliation", () => {
     expect(windows).toEqual([
       expect.objectContaining({
         id: "weekly_model_fable",
-        label: "Weekly · Fable",
+        label: "Weekly, Fable",
         usedPct: 2,
       }),
     ]);
@@ -1778,7 +1778,7 @@ describe("ClaudeQuotaProvider scoped limit reconciliation", () => {
     const after = await windowsFor({ limits: [scoped(model("Fable 5", "fable"), 2)] });
     expect(before[0]?.id).toBe("weekly_model_fable");
     expect(after[0]?.id).toBe("weekly_model_fable");
-    expect(after[0]?.label).toBe("Weekly · Fable 5");
+    expect(after[0]?.label).toBe("Weekly, Fable 5");
   });
 
   it("identity: a limit keeps one id whichever representation carries it", async () => {

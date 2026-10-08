@@ -138,14 +138,14 @@ describe("minimax usage source", () => {
       windows: expect.arrayContaining([
         expect.objectContaining({
           id: "interval_MiniMax-M2.7",
-          label: "MiniMax-M2.7 · Interval",
+          label: "MiniMax-M2.7, Interval",
           usedPct: 25,
           remainingPct: 75,
           resetsAt: "2026-06-19T05:00:00.000Z",
         }),
         expect.objectContaining({
           id: "weekly_MiniMax-M2.7",
-          label: "MiniMax-M2.7 · Weekly",
+          label: "MiniMax-M2.7, Weekly",
           usedPct: 24,
           remainingPct: 76,
           resetsAt: "2026-06-26T00:00:00.000Z",

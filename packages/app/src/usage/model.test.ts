@@ -158,7 +158,7 @@ describe("usageWindowRowLabel", () => {
         value: "31%",
         trailing: "resets in 2h",
       }),
-    ).toBe("Pin Claude Session, 31% · resets in 2h");
+    ).toBe("Pin Claude Session, 31%, resets in 2h");
     expect(usageWindowRowLabel({ pinLabel: "Pin Codex Weekly", value: "—", trailing: null })).toBe(
       "Pin Codex Weekly, —",
     );

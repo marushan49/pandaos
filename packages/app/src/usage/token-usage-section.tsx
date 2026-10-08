@@ -115,7 +115,7 @@ export function TokenUsageSection({ serverId }: { serverId: string }) {
           <SettingsRow
             key={row.provider}
             label={resolveProviderLabel(row.provider, snapshotEntries)}
-            hint={`${t("settings.tokenUsage.sessions", { count: row.sessions })} · ${t("settings.tokenUsage.turns", { count: row.turns })}`}
+            hint={`${t("settings.tokenUsage.sessions", { count: row.sessions })}, ${t("settings.tokenUsage.turns", { count: row.turns })}`}
           >
             <View style={styles.values}>
               <Text style={styles.number} dataSet={MONO_FONT_DATASET}>
@@ -135,7 +135,7 @@ export function TokenUsageSection({ serverId }: { serverId: string }) {
         {jevPurposes.map((purpose) => (
           <SettingsRow
             key={`jev-${purpose}`}
-            label={`Jev · ${t(`settings.systemOne.usage.purposes.${purpose}`)}`}
+            label={`Jev: ${t(`settings.systemOne.usage.purposes.${purpose}`)}`}
             hint={t(`settings.systemOne.usage.purposeHints.${purpose}`)}
           >
             <View style={styles.values}>

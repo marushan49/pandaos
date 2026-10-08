@@ -38,7 +38,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-opus-5-5",
     label: "Opus 5.5",
-    description: "Opus 5.5 · Latest release",
+    description: "Opus 5.5, latest release",
     defaultPriority: 3,
     minimumClaudeCodeVersion: "2.1.280",
     defaultThinkingOptionId: "medium",
@@ -49,7 +49,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-opus-5",
     label: "Opus 5",
-    description: "Opus 5 · Previous release",
+    description: "Opus 5, previous release",
     defaultPriority: 2,
     minimumClaudeCodeVersion: "2.1.219",
     contextWindowMaxTokens: 1_000_000,
@@ -60,7 +60,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-fable-5-1",
     label: "Fable 5.1",
-    description: "Fable 5.1 · Most powerful model",
+    description: "Fable 5.1, most powerful model",
     contextWindowMaxTokens: 1_000_000,
     effortLevels: CLAUDE_EFFORT_LEVELS.xhigh,
   },
@@ -69,7 +69,7 @@ export const CLAUDE_MODEL_MANIFEST = [
     // COMPAT(claudeFable5OneMillionId): added in v0.3.0, remove after 2027-02-06 once pre-v0.3.0 app preferences are outside support.
     aliases: ["claude-fable-5[1m]"],
     label: "Fable 5",
-    description: "Fable 5 · Previous release",
+    description: "Fable 5, previous release",
     minimumClaudeCodeVersion: "2.1.169",
     contextWindowMaxTokens: 1_000_000,
     effortLevels: CLAUDE_EFFORT_LEVELS.xhigh,
@@ -86,7 +86,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-opus-4-8",
     label: "Opus 4.8",
-    description: "Opus 4.8 · Previous release",
+    description: "Opus 4.8, previous release",
     defaultPriority: 1,
     contextWindowMaxTokens: 200_000,
     effortLevels: CLAUDE_EFFORT_LEVELS.xhigh,
@@ -96,7 +96,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-sonnet-5-5",
     label: "Sonnet 5.5",
-    description: "Sonnet 5.5 · Best for everyday tasks",
+    description: "Sonnet 5.5, best for everyday tasks",
     minimumClaudeCodeVersion: "2.1.284",
     defaultThinkingOptionId: "medium",
     contextWindowMaxTokens: 1_000_000,
@@ -105,7 +105,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-sonnet-5",
     label: "Sonnet 5",
-    description: "Sonnet 5 · Previous release",
+    description: "Sonnet 5, previous release",
     contextWindowMaxTokens: 200_000,
     effortLevels: CLAUDE_EFFORT_LEVELS.xhigh,
     supportsThinkingDisabled: true,
@@ -130,7 +130,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-opus-4-7",
     label: "Opus 4.7",
-    description: "Opus 4.7 · Previous release",
+    description: "Opus 4.7, previous release",
     contextWindowMaxTokens: 200_000,
     effortLevels: CLAUDE_EFFORT_LEVELS.xhigh,
     supportsThinkingDisabled: true,
@@ -148,7 +148,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-opus-4-6",
     label: "Opus 4.6",
-    description: "Opus 4.6 · Most capable for complex work",
+    description: "Opus 4.6, most capable for complex work",
     contextWindowMaxTokens: 200_000,
     effortLevels: CLAUDE_EFFORT_LEVELS.standard,
     supportsThinkingDisabled: true,
@@ -165,7 +165,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-sonnet-4-6",
     label: "Sonnet 4.6",
-    description: "Sonnet 4.6 · Best for everyday tasks",
+    description: "Sonnet 4.6, best for everyday tasks",
     contextWindowMaxTokens: 200_000,
     effortLevels: CLAUDE_EFFORT_LEVELS.standard,
     supportsThinkingDisabled: true,
@@ -173,7 +173,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-haiku-5-5",
     label: "Haiku 5.5",
-    description: "Haiku 5.5 · Fastest for high-volume tasks",
+    description: "Haiku 5.5, fastest for high-volume tasks",
     minimumClaudeCodeVersion: "2.1.293",
     defaultThinkingOptionId: "medium",
     contextWindowMaxTokens: 1_000_000,
@@ -182,7 +182,7 @@ export const CLAUDE_MODEL_MANIFEST = [
   {
     id: "claude-haiku-4-5",
     label: "Haiku 4.5",
-    description: "Haiku 4.5 · Fastest for quick answers",
+    description: "Haiku 4.5, fastest for quick answers",
     contextWindowMaxTokens: 200_000,
   },
 ] as const satisfies readonly ClaudeModelManifestEntry[];

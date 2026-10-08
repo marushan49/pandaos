@@ -107,7 +107,7 @@ export function ExecutionControls({
               .map((preset) => ({
                 id: preset.id,
                 label: preset.title,
-                description: [preset.group, preset.description].filter(Boolean).join(" · "),
+                description: [preset.group, preset.description].filter(Boolean).join(", "),
               }))}
             value={presetId}
             onSelect={onPresetChange}

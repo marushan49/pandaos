@@ -1029,7 +1029,7 @@ describe("ImportSessionSheet", () => {
     ]);
     expect(
       screen.getAllByTestId(/^import-session-row-folder-/).map((folder) => folder.textContent),
-    ).toEqual(["paseo", "/tmp/scratch", "paseo", "paseo · .dev/worktrees/zebra"]);
+    ).toEqual(["paseo", "/tmp/scratch", "paseo", "paseo, .dev/worktrees/zebra"]);
   });
 
   it("leaves the folder off every row when the sheet is scoped to one workspace", async () => {

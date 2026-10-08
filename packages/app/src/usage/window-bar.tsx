@@ -122,7 +122,7 @@ function WindowRowContent({
             <Text style={styles.value}>
               {value}
               {trailing ? (
-                <Text style={isAtRisk ? styles.atRisk : styles.reset}>{` · ${trailing}`}</Text>
+                <Text style={isAtRisk ? styles.atRisk : styles.reset}>{`, ${trailing}`}</Text>
               ) : null}
             </Text>
           </View>
