@@ -127,12 +127,16 @@ export function SidebarWorkspaceSetAsideActions({
 }) {
   const { t } = useTranslation();
   const { onDone, onSnooze } = useWorkspaceSetAsideActions(workspace);
+  const [focused, setFocused] = useState(false);
+  const handleFocus = useCallback(() => setFocused(true), []);
+  const handleBlur = useCallback(() => setFocused(false), []);
   if (!onDone && !onSnooze) return null;
+  const shown = visible || focused;
   const buttonStyle = isTouchPlatform ? styles.touchAction : styles.hoverAction;
   return (
     <View
-      style={visible ? styles.actions : styles.actionsHidden}
-      pointerEvents={visible ? "auto" : "none"}
+      style={shown ? styles.actions : styles.actionsHidden}
+      pointerEvents={shown ? "auto" : "none"}
     >
       {onSnooze ? (
         <Button
@@ -140,6 +144,8 @@ export function SidebarWorkspaceSetAsideActions({
           size="xs"
           leftIcon={Clock}
           onPress={onSnooze}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           style={buttonStyle}
           accessibilityLabel={t("sidebar.setAside.snooze")}
           testID={`sidebar-workspace-snooze-${workspace.workspaceKey}`}
@@ -151,6 +157,8 @@ export function SidebarWorkspaceSetAsideActions({
           size="xs"
           leftIcon={Check}
           onPress={onDone}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           style={buttonStyle}
           accessibilityLabel={t("sidebar.setAside.done")}
           testID={`sidebar-workspace-done-${workspace.workspaceKey}`}
