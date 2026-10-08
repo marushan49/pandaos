@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatUnsureStop, gateConfidence, nextBrowserStepWindow } from "./jev-fallback.js";
+import {
+  formatUnsureStop,
+  gateConfidence,
+  nextBrowserStepWindow,
+  parseScrollPosition,
+  scrollEndHint,
+  scrollOutcome,
+} from "./jev-fallback.js";
 
 describe("gateConfidence", () => {
   it("executes a confident action of any kind", () => {
@@ -36,6 +43,35 @@ describe("gateConfidence", () => {
         unsureSoFar: 2,
       }),
     ).toBe("stop");
+  });
+});
+
+describe("scroll progress", () => {
+  it("parses the position the page reports and rejects anything else", () => {
+    expect(parseScrollPosition("[600,3000]")).toEqual({ top: 600, height: 3000 });
+    for (const bad of ["null", "[1]", '["a",2]', "[1,null]", "not json", "{}"]) {
+      expect(parseScrollPosition(bad)).toBeUndefined();
+    }
+  });
+
+  it("counts a changed position or a grown document as progress", () => {
+    const before = { top: 0, height: 3000 };
+    expect(scrollOutcome(before, { top: 600, height: 3000 })).toBe("moved");
+    expect(scrollOutcome({ top: 2400, height: 3000 }, { top: 2400, height: 4200 })).toBe("moved");
+  });
+
+  it("calls an unchanged position the end of the page", () => {
+    expect(scrollOutcome({ top: 2400, height: 3000 }, { top: 2400, height: 3000 })).toBe("end");
+  });
+
+  it("stays unknown when either position could not be read", () => {
+    expect(scrollOutcome(undefined, { top: 0, height: 1 })).toBe("unknown");
+    expect(scrollOutcome({ top: 0, height: 1 }, undefined)).toBe("unknown");
+  });
+
+  it("names the direction in the hint", () => {
+    expect(scrollEndHint("SCROLL_DOWN")).toContain("Seite ist am Ende, kein weiteres Scrollen");
+    expect(scrollEndHint("SCROLL_UP")).toContain("Seite ist am Anfang");
   });
 });
 

@@ -25,6 +25,59 @@ export function gateConfidence(input: ConfidenceGateInput): ConfidenceGate {
   return "retry";
 }
 
+export const SCROLL_OPERATIONS: ReadonlySet<string> = new Set(["SCROLL_DOWN", "SCROLL_UP"]);
+
+export interface ScrollPosition {
+  top: number;
+  height: number;
+}
+
+export type ScrollOutcome = "moved" | "end" | "unknown";
+
+export const SCROLL_POSITION_FUNCTION = `() => {
+  const root = document.scrollingElement || document.documentElement;
+  let top = window.scrollY;
+  let height = root.scrollHeight;
+  for (const element of document.querySelectorAll("*")) {
+    if (element === root || element === document.body) continue;
+    if (element.scrollHeight - element.clientHeight <= 1) continue;
+    if (!/(auto|scroll)/.test(getComputedStyle(element).overflowY)) continue;
+    top += element.scrollTop;
+    height += element.scrollHeight;
+  }
+  return [Math.round(top), Math.round(height)];
+}`;
+
+export function parseScrollPosition(resultJson: string): ScrollPosition | undefined {
+  try {
+    const parsed: unknown = JSON.parse(resultJson);
+    if (!Array.isArray(parsed) || parsed.length !== 2) return undefined;
+    const [top, height] = parsed;
+    return typeof top === "number" &&
+      typeof height === "number" &&
+      Number.isFinite(top) &&
+      Number.isFinite(height)
+      ? { top, height }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function scrollOutcome(
+  before: ScrollPosition | undefined,
+  after: ScrollPosition | undefined,
+): ScrollOutcome {
+  if (!before || !after) return "unknown";
+  return before.top === after.top && before.height === after.height ? "end" : "moved";
+}
+
+export function scrollEndHint(operation: string): string {
+  return operation === "SCROLL_UP"
+    ? "Seite ist am Anfang, kein weiteres Scrollen nach oben möglich."
+    : "Seite ist am Ende, kein weiteres Scrollen möglich.";
+}
+
 export interface UnsureStop {
   reason: string;
   operation: string;

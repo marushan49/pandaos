@@ -15,7 +15,16 @@ import {
   type TypeSafeDecisionSource,
   type TypeSafeUsage,
 } from "./jev-client.js";
-import { formatUnsureStop, gateConfidence } from "./jev-fallback.js";
+import {
+  formatUnsureStop,
+  gateConfidence,
+  parseScrollPosition,
+  SCROLL_OPERATIONS,
+  SCROLL_POSITION_FUNCTION,
+  scrollEndHint,
+  scrollOutcome,
+  type ScrollPosition,
+} from "./jev-fallback.js";
 
 const DEFAULT_MAX_STEPS = 12;
 const DEFAULT_MIN_CONFIDENCE = 0.5;
@@ -129,6 +138,15 @@ interface BrowserPage {
   title: string;
   snapshot: string;
   elements: ObservedElement[];
+}
+
+interface ScrollEnd {
+  stateKey: string;
+  operation: string;
+}
+
+function scrollEndNote(end: ScrollEnd | undefined, stateKey: string): string | undefined {
+  return end?.stateKey === stateKey ? scrollEndHint(end.operation) : undefined;
 }
 
 interface Candidate<T> {
@@ -261,6 +279,7 @@ export class JevBrowserGoalRunner {
     let lastModel: string | undefined;
     let unsureSoFar = 0;
     let lastRejection: UnsureRejection | undefined;
+    let scrollEnd: ScrollEnd | undefined;
     activity.update({ phase: "observing", step: 1 });
     let page = await this.observe(browserId, context);
     // The only pause point: after an action and before the snapshot the next decision uses.
@@ -273,6 +292,47 @@ export class JevBrowserGoalRunner {
         steps: [...activitySteps],
       });
       return this.observe(browserId, context);
+    };
+    const stopMessage = (rejection: UnsureRejection): string =>
+      formatUnsureStop({
+        ...rejection,
+        minConfidence,
+        looks: unsureSoFar,
+        goal: redactValues(input.goal, redactions),
+        done: steps
+          .filter((entry) => entry.outcome === "executed")
+          .map((entry) => (entry.target ? `${entry.operation} ${entry.target}` : entry.operation)),
+        title: redactValues(page.title, redactions),
+        url: redactValues(page.url, redactions),
+        browserId,
+        controls: visibleControls(page, redactions),
+      });
+
+    const repeatedResult = (
+      end: ScrollEnd | undefined,
+      stateKey: string,
+      operation: TypeSafeChoiceAnswer,
+    ): JevBrowserGoalResult => {
+      if (end?.stateKey === stateKey && end.operation === operation.choice) {
+        return resultFor(
+          "uncertain",
+          page,
+          steps,
+          stopMessage({
+            reason: "The page is at its end, no further scrolling is possible.",
+            operation: operation.choice,
+            confidence: operation.confidence,
+          }),
+          lastModel,
+        );
+      }
+      return resultFor(
+        "blocked",
+        page,
+        steps,
+        "Jev repeated an action that Paseo already consumed for this page state.",
+        lastModel,
+      );
     };
 
     for (let step = 1; step <= maxSteps; step += 1) {
@@ -301,6 +361,7 @@ export class JevBrowserGoalRunner {
         redactions,
         minConfidence,
         rejection: lastRejection,
+        pageNote: scrollEndNote(scrollEnd, stateKey),
       });
       const decision = await this.decisionSource.decide(request);
       addDecisionUsage(usage, decision.usage);
@@ -345,27 +406,7 @@ export class JevBrowserGoalRunner {
       }
       if (judgement.kind === "unsure") {
         if (judgement.stop) {
-          return resultFor(
-            "uncertain",
-            page,
-            steps,
-            formatUnsureStop({
-              ...judgement.rejection,
-              minConfidence,
-              looks: unsureSoFar,
-              goal: redactValues(input.goal, redactions),
-              done: steps
-                .filter((entry) => entry.outcome === "executed")
-                .map((entry) =>
-                  entry.target ? `${entry.operation} ${entry.target}` : entry.operation,
-                ),
-              title: redactValues(page.title, redactions),
-              url: redactValues(page.url, redactions),
-              browserId,
-              controls: visibleControls(page, redactions),
-            }),
-            lastModel,
-          );
+          return resultFor("uncertain", page, steps, stopMessage(judgement.rejection), lastModel);
         }
         unsureSoFar += 1;
         lastRejection = judgement.rejection;
@@ -379,16 +420,11 @@ export class JevBrowserGoalRunner {
 
       const actionKey = `${operation.choice}:${selected.target ?? ""}:${selected.valueName ?? ""}`;
       if (excluded.has(actionKey)) {
-        return resultFor(
-          "blocked",
-          page,
-          steps,
-          "Jev repeated an action that Paseo already consumed for this page state.",
-          lastModel,
-        );
+        return repeatedResult(scrollEnd, stateKey, operation);
       }
       excluded.add(actionKey);
       excludedActions.set(stateKey, excluded);
+      const scrollBefore = await this.readScrollPosition(operation.choice, browserId, context);
       const action = activityStepFor({
         operation: operation.choice,
         confidence: operation.confidence,
@@ -404,6 +440,16 @@ export class JevBrowserGoalRunner {
         target: selected.target,
         value: selected.value,
         context,
+      });
+      scrollEnd = await this.followScroll({
+        operation: operation.choice,
+        ok: payload.ok,
+        before: scrollBefore,
+        browserId,
+        context,
+        stateKey,
+        excluded,
+        actionKey,
       });
       steps.push(
         traceFor({
@@ -475,6 +521,47 @@ export class JevBrowserGoalRunner {
       snapshot: payload.result.snapshot,
       elements: parseObservedElements(payload.result.snapshot),
     };
+  }
+
+  private async readScrollPosition(
+    operation: string,
+    browserId: string,
+    context: JevBrowserGoalContext,
+  ): Promise<ScrollPosition | undefined> {
+    if (!SCROLL_OPERATIONS.has(operation)) return undefined;
+    try {
+      const payload = await this.execute(context, {
+        command: "evaluate",
+        args: { browserId, function: SCROLL_POSITION_FUNCTION },
+      });
+      return payload.ok && payload.result.command === "evaluate"
+        ? parseScrollPosition(payload.result.resultJson)
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async followScroll(params: {
+    operation: string;
+    ok: boolean;
+    before: ScrollPosition | undefined;
+    browserId: string;
+    context: JevBrowserGoalContext;
+    stateKey: string;
+    excluded: Set<string>;
+    actionKey: string;
+  }): Promise<ScrollEnd | undefined> {
+    if (!params.ok || !SCROLL_OPERATIONS.has(params.operation)) return undefined;
+    await this.delay(WAIT_MS);
+    const outcome = scrollOutcome(
+      params.before,
+      await this.readScrollPosition(params.operation, params.browserId, params.context),
+    );
+    if (outcome === "moved") params.excluded.delete(params.actionKey);
+    return outcome === "end"
+      ? { stateKey: params.stateKey, operation: params.operation }
+      : undefined;
   }
 
   private async passesAlready(params: {
@@ -668,6 +755,7 @@ function buildDecisionRequest(params: {
   redactions: string[];
   minConfidence: number;
   rejection: UnsureRejection | undefined;
+  pageNote: string | undefined;
 }): TypeSafeDecisionRequest {
   const redact = (value: string) => redactValues(value, params.redactions);
   return {
@@ -688,6 +776,7 @@ function buildDecisionRequest(params: {
         description: value.description ?? name,
       })),
       recent_actions: params.steps.slice(-8),
+      ...(params.pageNote ? { page_note: params.pageNote } : {}),
       ...(params.rejection
         ? {
             previous_attempt: {
