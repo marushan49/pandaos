@@ -45,19 +45,32 @@ export const TurnFailureCard = memo(function TurnFailureCard({
     }
   }, [onRetry]);
 
+  const retryFirst = failure.kind !== "auth";
   const retryButton =
     onRetry && failure.prompt ? (
-      <Button key="retry" testID="turn-failure-retry" loading={retrying} onPress={handleRetry}>
+      <Button
+        key="retry"
+        variant={retryFirst ? "default" : "secondary"}
+        testID="turn-failure-retry"
+        loading={retrying}
+        onPress={handleRetry}
+      >
         {t("common.actions.retry")}
       </Button>
     ) : null;
   const providersButton = onOpenProviders ? (
-    <Button key="providers" testID="turn-failure-providers" onPress={onOpenProviders}>
+    <Button
+      key="providers"
+      variant={retryFirst ? "secondary" : "default"}
+      testID="turn-failure-providers"
+      onPress={onOpenProviders}
+    >
       {t("agentStream.turnFailure.providerSettings")}
     </Button>
   ) : null;
-  const [primary, secondary] =
-    failure.kind === "auth" ? [providersButton, retryButton] : [retryButton, providersButton];
+  const [primary, secondary] = retryFirst
+    ? [retryButton, providersButton]
+    : [providersButton, retryButton];
   const showSecondary = failure.kind === "auth" || failure.kind === "limit";
 
   const body = [
