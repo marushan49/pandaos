@@ -783,6 +783,12 @@ export class HostRuntimeController {
     this.activeClient?.ensureConnected(options);
   }
 
+  reconnectNow(): Promise<void> {
+    this.connectionLastProbedAt.clear();
+    this.activeClient?.ensureConnected();
+    return this.runProbeCycleNow();
+  }
+
   markAgentDirectorySyncLoading(): void {
     const status = this.snapshot.hasEverLoadedAgentDirectory ? "revalidating" : "initial_loading";
     this.updateSnapshot({
@@ -2489,6 +2495,10 @@ export class HostRuntimeStore {
       encodeImages,
       submission: createMessageSubmissionWriter(serverId),
     });
+  }
+
+  reconnectHost(serverId: string): Promise<void> {
+    return this.controllers.get(serverId)?.reconnectNow() ?? Promise.resolve();
   }
 
   applyAgentTurnLiveness(
