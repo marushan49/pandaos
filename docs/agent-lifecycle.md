@@ -16,7 +16,7 @@ Each live agent in `AgentManager` carries a `lastStatus` of `initializing`, `idl
 
 A failed foreground turn does not move the agent to `error`. It ends `idle`, with the raw provider error in `lastError` and a `[System Error]` assistant row in the timeline. Only a failure outside a foreground turn sets `error`. The next prompt, a completed turn, or a cancel clears `lastError`.
 
-The app reads `lastError`, not the agent status, to tell a failed turn from a finished one (`packages/app/src/agent-stream/turn-failure.ts`). While it is set, the turn footer shows the failure card instead of "Turn finished", and the trailing `[System Error]` row moves into the card's collapsed technical details. The card's Retry resends the last user prompt through the composer send path, with its images and attachments. The card lives in the app core, not in a plugin: plugin timeline renderers get no send capability, and the footer is not a timeline item a transformer can replace.
+The app reads `lastError`, not the agent status, to tell a failed turn from a finished one (`packages/app/src/agent-stream/turn-failure.ts`). While it is set, the turn footer shows the failure card instead of "Turn finished", and the trailing `[System Error]` row moves into the card's collapsed technical details. Older `[System Error]` rows render as error notification rows, so a failed turn never reads as a finished one. The card's Retry resends the last user prompt through the composer send path, with its images and attachments. The card lives in the app core, not in a plugin: plugin timeline renderers get no send capability, and the footer is not a timeline item a transformer can replace.
 
 ## Session titles
 
