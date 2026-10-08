@@ -323,6 +323,7 @@ export function setupWindowStatePersistence(win: BrowserWindow, store: WindowSta
 export function buildStandardContextMenuItems(
   contents: WebContents,
   params: Electron.ContextMenuParams,
+  options?: { openLinkInApp?: (url: string) => void },
 ): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = [];
 
@@ -346,8 +347,15 @@ export function buildStandardContextMenuItems(
   }
 
   if (params.linkURL && /^https?:/i.test(params.linkURL)) {
+    const openLinkInApp = options?.openLinkInApp;
+    if (openLinkInApp) {
+      items.push({
+        label: "Open in PandaOS Browser",
+        click: () => openLinkInApp(params.linkURL),
+      });
+    }
     items.push({
-      label: "Open Link in Browser",
+      label: "Open in System Browser",
       click: () => {
         void shell.openExternal(params.linkURL);
       },
@@ -387,9 +395,30 @@ export function buildStandardContextMenuItems(
   return items;
 }
 
+async function openLinkInPandaosBrowser(win: BrowserWindow, url: string): Promise<void> {
+  const script = `(() => {
+    const detail = { url: ${JSON.stringify(url)}, handled: false };
+    window.dispatchEvent(new CustomEvent("paseo:open-link-in-browser", { detail }));
+    return detail.handled;
+  })()`;
+  let handled = false;
+  try {
+    handled = (await win.webContents.executeJavaScript(script)) === true;
+  } catch {
+    handled = false;
+  }
+  if (!handled) {
+    await shell.openExternal(url);
+  }
+}
+
 export function setupDefaultContextMenu(win: BrowserWindow): void {
   win.webContents.on("context-menu", (_event, params) => {
-    const items = buildStandardContextMenuItems(win.webContents, params);
+    const items = buildStandardContextMenuItems(win.webContents, params, {
+      openLinkInApp: (url) => {
+        void openLinkInPandaosBrowser(win, url);
+      },
+    });
     const selection = params.selectionText.trim();
     if (selection && !params.isEditable) {
       items.push(
