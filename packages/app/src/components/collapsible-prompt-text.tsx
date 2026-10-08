@@ -142,9 +142,11 @@ function MeasuredPromptText({
           {message}
         </Text>
       </Animated.View>
-      <Text aria-hidden style={measurerStyle} onLayout={handleMeasurerLayout}>
-        {message}
-      </Text>
+      <View aria-hidden style={styles.measurerClip}>
+        <Text style={measurerStyle} onLayout={handleMeasurerLayout}>
+          {message}
+        </Text>
+      </View>
       {collapsible ? (
         <Button
           variant="ghost"
@@ -187,6 +189,10 @@ export function CollapsiblePromptText({ message, textStyle, dataSet }: Collapsib
 
 const styles = StyleSheet.create((theme) => ({
   clip: {
+    overflow: "hidden",
+  },
+  measurerClip: {
+    height: 0,
     overflow: "hidden",
   },
   measurer: {
