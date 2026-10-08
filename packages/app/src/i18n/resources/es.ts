@@ -2307,6 +2307,7 @@ export const es: TranslationResources = {
     subAgentActivity: "Actividad de subagente",
     input: "Aporte",
     output: "Producción",
+    screenshot: "Captura de pantalla",
   },
   toolCallGroup: {
     editedFiles: {

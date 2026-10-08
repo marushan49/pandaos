@@ -5,6 +5,7 @@ import type {
   BrowserActivityStep,
   BrowserHandoff,
 } from "@getpaseo/protocol/browser-activity/rpc-schemas";
+import { browserActivityTone, isDefinitiveFailure } from "@/desktop/browser/activity-tone";
 import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
 
 function activityKey(serverId: string, workspaceId: string, browserId: string): string {
@@ -17,10 +18,12 @@ function handoffKey(serverId: string, handoffId: string): string {
 
 interface BrowserActivityState {
   byBrowser: Record<string, BrowserActivityEvent>;
+  confirmedFailureByBrowser: Record<string, string>;
   /** Every known handoff by id, so a chat card can show how its own handoff ended. */
   handoffs: Record<string, BrowserHandoff>;
   activeHandoffByBrowser: Record<string, BrowserHandoff>;
   apply: (serverId: string, event: BrowserActivityEvent) => void;
+  confirmFailure: (serverId: string, event: BrowserActivityEvent) => void;
   applyHandoff: (serverId: string, handoff: BrowserHandoff) => void;
   /** A new subscription re-sends live runs and handoffs; drop the ones that ended while disconnected. */
   resetServer: (serverId: string) => void;
@@ -42,6 +45,7 @@ const FINISHED_BANNER_MS = 8000;
 
 export const useBrowserActivityStore = create<BrowserActivityState>((set, get) => ({
   byBrowser: {},
+  confirmedFailureByBrowser: {},
   handoffs: {},
   activeHandoffByBrowser: {},
   apply: (serverId, event) => {
@@ -51,10 +55,21 @@ export const useBrowserActivityStore = create<BrowserActivityState>((set, get) =
         [activityKey(serverId, event.workspaceId, event.browserId)]: event,
       },
     }));
-    if (event.phase === "finished") {
+    if (event.phase !== "finished") return;
+    if (isDefinitiveFailure(event)) {
+      setTimeout(() => get().confirmFailure(serverId, event), FINISHED_BANNER_MS);
+    } else {
       setTimeout(() => get().dismiss(serverId, event), FINISHED_BANNER_MS);
     }
   },
+  confirmFailure: (serverId, event) =>
+    set((state) => {
+      const key = activityKey(serverId, event.workspaceId, event.browserId);
+      if (state.byBrowser[key]?.runId !== event.runId) return state;
+      return {
+        confirmedFailureByBrowser: { ...state.confirmedFailureByBrowser, [key]: event.runId },
+      };
+    }),
   applyHandoff: (serverId, handoff) =>
     set((state) => {
       const browserKey = activityKey(serverId, handoff.workspaceId, handoff.browserId);
@@ -92,7 +107,8 @@ export const useBrowserActivityStore = create<BrowserActivityState>((set, get) =
       const key = activityKey(serverId, event.workspaceId, event.browserId);
       if (state.byBrowser[key]?.runId !== event.runId) return state;
       const { [key]: _dismissed, ...byBrowser } = state.byBrowser;
-      return { byBrowser };
+      const { [key]: _confirmed, ...confirmedFailureByBrowser } = state.confirmedFailureByBrowser;
+      return { byBrowser, confirmedFailureByBrowser };
     }),
 }));
 
@@ -103,6 +119,20 @@ export function useBrowserActivity(
 ): BrowserActivityEvent | null {
   return useBrowserActivityStore((state) =>
     browserId ? (state.byBrowser[activityKey(serverId, workspaceId, browserId)] ?? null) : null,
+  );
+}
+
+export function useBrowserFailureConfirmed(
+  serverId: string,
+  workspaceId: string,
+  browserId: string | null | undefined,
+  event: BrowserActivityEvent | null,
+): boolean {
+  return useBrowserActivityStore((state) =>
+    browserId && event
+      ? state.confirmedFailureByBrowser[activityKey(serverId, workspaceId, browserId)] ===
+        event.runId
+      : false,
   );
 }
 
@@ -138,11 +168,13 @@ export function isBrowserRunLocked(event: BrowserActivityEvent | null): boolean 
 
 export function browserActivityStatusBucket(
   event: BrowserActivityEvent | null,
+  failureConfirmed = true,
 ): SidebarStateBucket | null {
   if (!event) return null;
-  if (event.phase === "paused") return "needs_input";
-  if (event.phase !== "finished") return "running";
-  return event.result?.status === "failed" ? "failed" : null;
+  const tone = browserActivityTone(event, failureConfirmed);
+  if (tone === "paused") return "needs_input";
+  if (tone === "running") return "running";
+  return tone === "failed" ? "failed" : null;
 }
 
 /** Operation names are protocol tokens, like command names, and stay untranslated. */

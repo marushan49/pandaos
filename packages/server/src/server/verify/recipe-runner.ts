@@ -54,6 +54,7 @@ export interface VerifyRunResult {
   consoleErrors: number;
   failedRequests: number;
   evidenceRef: string | null;
+  screenshotRef?: string;
   rawBytes: number;
   agentBytes: number;
   error?: string;
@@ -97,6 +98,7 @@ interface RunContext {
   rawArtifactBytes: number;
   allowGoal: boolean;
   activity: BrowserActivityRun | null;
+  lastScreenshotRef: string | null;
 }
 
 const DEFAULT_WAIT_TEXT_TIMEOUT_MS = 15_000;
@@ -204,6 +206,7 @@ export class RecipeRunner {
       rawArtifactBytes: 0,
       allowGoal: input.allowGoal ?? true,
       activity: null,
+      lastScreenshotRef: null,
     };
     const startedAt = Date.now();
     let failedCheck: RecipeCheckResult | null = null;
@@ -235,6 +238,7 @@ export class RecipeRunner {
       throw error;
     }
     const status = failedCheck ? "fail" : "pass";
+    const screenshotRef = await this.captureEndScreenshot(context, failedCheck !== null);
     finishActivity(context, failedCheck, recipeSteps.length);
     await this.writeRunEvidence({ context, recipeName: input.recipeName, status, startedAt });
     await this.evidence.finishRun({ runId: manifest.runId, status });
@@ -256,6 +260,7 @@ export class RecipeRunner {
       consoleErrors: counts.consoleErrors,
       failedRequests: counts.failedRequests,
       evidenceRef: formatEvidenceRef({ workspaceId: input.workspaceId, runId: manifest.runId }),
+      ...(screenshotRef ? { screenshotRef } : {}),
       rawBytes: context.rawArtifactBytes,
       agentBytes: 0,
       ...(failedCheck && failedCheck.name === "setup"
@@ -263,6 +268,24 @@ export class RecipeRunner {
         : {}),
     };
     return sealResult(result, `${input.workspaceId}|${input.recipeName}`);
+  }
+
+  private async captureEndScreenshot(context: RunContext, failed: boolean): Promise<string | null> {
+    if (!failed && context.lastScreenshotRef) return context.lastScreenshotRef;
+    if (!context.browserId) return context.lastScreenshotRef;
+    const payload = await this.execute(context, {
+      command: "screenshot",
+      args: {
+        browserId: context.browserId,
+        fullPage: false,
+        reveal: false,
+        runId: context.runId,
+        artifactName: failed ? "run-failure" : "run-final",
+      },
+    }).catch(() => null);
+    return payload?.ok && payload.result.command === "screenshot" && payload.result.evidenceRef
+      ? payload.result.evidenceRef
+      : context.lastScreenshotRef;
   }
 
   private async releaseTab(context: RunContext): Promise<void> {
@@ -620,6 +643,7 @@ export class RecipeRunner {
       return fail("screenshot", "Screenshot returned no evidence reference");
     }
     context.rawArtifactBytes += payload.result.bytes ?? 0;
+    context.lastScreenshotRef = payload.result.evidenceRef;
     return { name: `screenshot ${step.name}`, ok: true };
   }
 

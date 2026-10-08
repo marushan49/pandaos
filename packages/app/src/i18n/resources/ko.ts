@@ -2268,6 +2268,7 @@ export const ko: TranslationResources = {
     subAgentActivity: "서브에이전트 활동",
     input: "입력",
     output: "출력",
+    screenshot: "스크린샷",
   },
   toolCallGroup: {
     editedFiles: {

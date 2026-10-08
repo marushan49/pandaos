@@ -2253,6 +2253,7 @@ export const ar: TranslationResources = {
     subAgentActivity: "نشاط الوكيل الفرعي",
     input: "مدخل",
     output: "الإخراج",
+    screenshot: "لقطة شاشة",
   },
   toolCallGroup: {
     editedFiles: {

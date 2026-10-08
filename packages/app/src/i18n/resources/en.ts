@@ -2288,6 +2288,7 @@ export const en = {
     subAgentActivity: "Sub-agent activity",
     input: "Input",
     output: "Output",
+    screenshot: "Screenshot",
   },
   toolCallGroup: {
     editedFiles: {

@@ -2291,6 +2291,7 @@ export const ru: TranslationResources = {
     subAgentActivity: "Активность субагента",
     input: "Входные данные",
     output: "Выходные данные",
+    screenshot: "Скриншот",
   },
   toolCallGroup: {
     editedFiles: {

@@ -99,6 +99,7 @@ export interface JevBrowserGoalResult {
   steps: JevBrowserGoalTraceEntry[];
   model?: string;
   usage?: JevBrowserGoalUsage;
+  screenshotRef?: string;
 }
 
 export interface JevBrowserGoalUsage {
@@ -191,21 +192,21 @@ export class JevBrowserGoalRunner {
           });
     const usage: JevBrowserGoalUsage = { decisions: 0, inputTokens: 0, outputTokens: 0 };
     try {
-      const result = {
-        ...(await this.decideUntilDone({
-          input,
-          context,
-          browserId,
-          values,
-          redactions,
-          activity: reporter ?? ownRun ?? NOOP_BROWSER_ACTIVITY,
-          usage,
-        })),
+      const decided = await this.decideUntilDone({
+        input,
+        context,
+        browserId,
+        values,
+        redactions,
+        activity: reporter ?? ownRun ?? NOOP_BROWSER_ACTIVITY,
         usage,
-      };
+      });
+      const screenshotRef = reporter ? undefined : await this.captureScreenshot(context, browserId);
+      const result = { ...decided, usage, ...(screenshotRef ? { screenshotRef } : {}) };
       ownRun?.finish({
         status: result.status === "passed" ? "passed" : "failed",
         message: result.message,
+        ...(result.status === "uncertain" ? { uncertain: true } : {}),
       });
       if (input.separateTab && !input.browserId && !reporter && result.status === "passed") {
         await this.execute(context, { command: "close_tab", args: { browserId } }).catch(
@@ -219,6 +220,23 @@ export class JevBrowserGoalRunner {
         message: error instanceof Error ? error.message : String(error),
       });
       throw error;
+    }
+  }
+
+  private async captureScreenshot(
+    context: JevBrowserGoalContext,
+    browserId: string,
+  ): Promise<string | undefined> {
+    try {
+      const payload = await this.execute(context, {
+        command: "screenshot",
+        args: { browserId, fullPage: false, reveal: false },
+      });
+      return payload.ok && payload.result.command === "screenshot"
+        ? payload.result.evidenceRef
+        : undefined;
+    } catch {
+      return undefined;
     }
   }
 

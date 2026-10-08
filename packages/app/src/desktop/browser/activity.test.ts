@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   BrowserActivityEvent,
   BrowserHandoff,
@@ -175,5 +175,49 @@ describe("browser activity presentation", () => {
         event({ phase: "finished", result: { status: "failed", message: "x" } }),
       ),
     ).toBe("failed");
+  });
+});
+
+describe("browser activity banner timers", () => {
+  const failed = (uncertain?: boolean) =>
+    event({
+      phase: "finished",
+      result: { status: "failed", message: "x", ...(uncertain ? { uncertain } : {}) },
+    });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    useBrowserActivityStore.setState({
+      byBrowser: {},
+      confirmedFailureByBrowser: {},
+      handoffs: {},
+      activeHandoffByBrowser: {},
+    });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("dismisses an uncertain run after 8 seconds and confirms a definitive failure", () => {
+    const store = useBrowserActivityStore.getState();
+    store.apply("server-1", { ...failed(true), runId: "run-u" });
+    vi.advanceTimersByTime(8000);
+    expect(lookup("server-1", "ws-1", "tab-a")).toBeUndefined();
+
+    store.apply("server-1", { ...failed(), runId: "run-f" });
+    vi.advanceTimersByTime(8000);
+    expect(lookup("server-1", "ws-1", "tab-a")?.runId).toBe("run-f");
+    expect(
+      useBrowserActivityStore.getState().confirmedFailureByBrowser["server-1\u0000ws-1\u0000tab-a"],
+    ).toBe("run-f");
+  });
+
+  it("never lets an earlier run's timers touch a run that replaced it", () => {
+    const store = useBrowserActivityStore.getState();
+    store.apply("server-1", { ...failed(), runId: "run-f" });
+    vi.advanceTimersByTime(3000);
+    store.apply("server-1", event({ runId: "run-next" }));
+    vi.advanceTimersByTime(10000);
+    expect(lookup("server-1", "ws-1", "tab-a")?.runId).toBe("run-next");
+    expect(useBrowserActivityStore.getState().confirmedFailureByBrowser).toEqual({});
   });
 });

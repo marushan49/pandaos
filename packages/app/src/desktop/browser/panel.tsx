@@ -17,6 +17,7 @@ import {
   browserActivityStatusBucket,
   useActiveBrowserHandoff,
   useBrowserActivity,
+  useBrowserFailureConfirmed,
   useBrowserActivityStore,
 } from "@/desktop/browser/activity";
 import { BrowserActivityBar, BrowserHandoffBar } from "@/desktop/browser/activity-bar";
@@ -76,13 +77,19 @@ function useBrowserPanelDescriptor(
     context.workspaceId,
     browser?.remoteBrowserId,
   );
+  const failureConfirmed = useBrowserFailureConfirmed(
+    context.serverId,
+    context.workspaceId,
+    browser?.remoteBrowserId,
+    activity,
+  );
   const handoff = useActiveBrowserHandoff(
     context.serverId,
     context.workspaceId,
     browser?.remoteBrowserId,
   );
   const loadingBucket = browser?.isLoading ? "running" : null;
-  const runBucket = browserActivityStatusBucket(activity) ?? loadingBucket;
+  const runBucket = browserActivityStatusBucket(activity, failureConfirmed) ?? loadingBucket;
   const url = browser?.url ?? DEFAULT_BROWSER_URL;
   const icon = createBrowserTabIcon(browser?.faviconUrl ?? null);
   const { t } = useTranslation();
@@ -115,6 +122,12 @@ function BrowserPanel() {
 
   const handoff = useActiveBrowserHandoff(serverId, workspaceId, remoteBrowserId ?? undefined);
   const activity = useBrowserActivity(serverId, workspaceId, remoteBrowserId ?? undefined);
+  const failureConfirmed = useBrowserFailureConfirmed(
+    serverId,
+    workspaceId,
+    remoteBrowserId,
+    activity,
+  );
   const client = useHostRuntimeClient(serverId);
   const [handoffAction, setHandoffAction] = useState<BrowserHandoffAction | null>(null);
   const control = useCallback(
@@ -149,7 +162,12 @@ function BrowserPanel() {
           <BrowserHandoffBar handoff={handoff} pendingAction={handoffAction} onEnd={control} />
         ) : null}
         {activity ? (
-          <BrowserActivityBar activity={activity} onControl={control} onDismiss={dismiss} />
+          <BrowserActivityBar
+            activity={activity}
+            failureConfirmed={failureConfirmed}
+            onControl={control}
+            onDismiss={dismiss}
+          />
         ) : null}
         <BrowserPane
           browserId={target.browserId}

@@ -60,6 +60,7 @@ import {
   useActiveBrowserHandoff,
   useBrowserActivity,
   useBrowserActivityStore,
+  useBrowserFailureConfirmed,
 } from "@/desktop/browser/activity";
 import { BrowserActivityBar, BrowserHandoffBar } from "@/desktop/browser/activity-bar";
 import {
@@ -219,6 +220,12 @@ function RemoteBrowserPane({
     viewportSize,
   });
   const activity = useBrowserActivity(serverId, workspaceId, remoteBrowserId);
+  const failureConfirmed = useBrowserFailureConfirmed(
+    serverId,
+    workspaceId,
+    remoteBrowserId,
+    activity,
+  );
   const handoff = useActiveBrowserHandoff(serverId, workspaceId, remoteBrowserId);
   const [handoffAction, setHandoffAction] = useState<"finish_handoff" | "cancel_handoff" | null>(
     null,
@@ -985,6 +992,7 @@ function RemoteBrowserPane({
       {activity ? (
         <BrowserActivityBar
           activity={activity}
+          failureConfirmed={failureConfirmed}
           onControl={handleActivityControl}
           onDismiss={handleActivityDismiss}
         />

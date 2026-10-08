@@ -2231,6 +2231,7 @@ export const zhCN: TranslationResources = {
     subAgentActivity: "Sub-agent 活动",
     input: "输入",
     output: "输出",
+    screenshot: "截图",
   },
   toolCallGroup: {
     editedFiles: {

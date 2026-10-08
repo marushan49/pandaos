@@ -43,6 +43,7 @@ import {
   Scissors,
   MicVocal,
   FileSymlink,
+  Image as ImageIcon,
 } from "@/components/icons/ui-icons";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { ICON_SIZE, MOTION, webTransition, type Theme } from "@/styles/theme";
@@ -71,6 +72,7 @@ import type { TaskActivity, TodoEntry, UserMessageImageAttachment } from "@/type
 import type { AgentAttachment } from "@getpaseo/protocol/messages";
 import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
 import { buildToolCallPresentation } from "@/tool-calls/presentation";
+import { findBrowserScreenshot } from "@/tool-calls/browser-screenshot";
 import { ToolCallOriginIndicator } from "@/tool-calls/origin-indicator";
 import type { ToolCallOrigin } from "@/tool-calls/origin";
 import { resolveToolCallIcon } from "@/utils/tool-call-icon";
@@ -2422,6 +2424,7 @@ interface ExpandableBadgeProps {
   borderlessWhenExpanded?: boolean;
   pill?: boolean;
   pillTrailing?: ReactNode;
+  trailingIcon?: ComponentType<{ size?: number; color?: string }>;
   animateDetails?: boolean;
   testID?: string;
 }
@@ -2844,6 +2847,11 @@ function ExpandableBadgeDetails({
   return animate ? <AnimatedDisclosure open={open}>{wrapper}</AnimatedDisclosure> : wrapper;
 }
 
+function BadgeTrailingIcon({ icon }: { icon?: ComponentType<{ size?: number; color?: string }> }) {
+  const ThemedIcon = useMemo(() => (icon ? withUnistyles(icon) : null), [icon]);
+  return ThemedIcon ? <ThemedIcon size={14} uniProps={foregroundMutedColorMapping} /> : null;
+}
+
 export const ExpandableBadge = memo(function ExpandableBadge({
   label,
   style,
@@ -2861,6 +2869,7 @@ export const ExpandableBadge = memo(function ExpandableBadge({
   borderlessWhenExpanded = false,
   pill,
   pillTrailing,
+  trailingIcon,
   animateDetails,
   testID,
   originTags,
@@ -3170,6 +3179,7 @@ export const ExpandableBadge = memo(function ExpandableBadge({
             onOpenFileHoverIn={handleOpenFileHoverIn}
             onOpenFileHoverOut={handleOpenFileHoverOut}
           />
+          <BadgeTrailingIcon icon={trailingIcon} />
           <PillHeaderTail
             enabled={pill}
             trailing={pillTrailing}
@@ -3191,6 +3201,14 @@ export const ExpandableBadge = memo(function ExpandableBadge({
   );
 }, areExpandableBadgePropsEqual);
 
+function sameBadgeTrailing(previous: ExpandableBadgeProps, next: ExpandableBadgeProps) {
+  return (
+    previous.pill === next.pill &&
+    previous.pillTrailing === next.pillTrailing &&
+    previous.trailingIcon === next.trailingIcon
+  );
+}
+
 function areExpandableBadgePropsEqual(previous: ExpandableBadgeProps, next: ExpandableBadgeProps) {
   if (previous.label !== next.label) return false;
   if (previous.secondaryLabel !== next.secondaryLabel) return false;
@@ -3203,8 +3221,7 @@ function areExpandableBadgePropsEqual(previous: ExpandableBadgeProps, next: Expa
   if (previous.isLastInSequence !== next.isLastInSequence) return false;
   if (previous.disableOuterSpacing !== next.disableOuterSpacing) return false;
   if (previous.borderlessWhenExpanded !== next.borderlessWhenExpanded) return false;
-  if (previous.pill !== next.pill) return false;
-  if (previous.pillTrailing !== next.pillTrailing) return false;
+  if (!sameBadgeTrailing(previous, next)) return false;
   if (previous.animateDetails !== next.animateDetails) return false;
   if (previous.testID !== next.testID) return false;
   if (previous.onToggle !== next.onToggle) return false;
@@ -3231,6 +3248,7 @@ interface ToolCallProps {
   defaultExpanded?: boolean;
   forceInline?: boolean;
   maxDetailHeight?: number;
+  serverId?: string;
 }
 
 export const ToolCall = memo(function ToolCall({
@@ -3250,6 +3268,7 @@ export const ToolCall = memo(function ToolCall({
   defaultExpanded,
   forceInline = false,
   maxDetailHeight = 400,
+  serverId,
 }: ToolCallProps) {
   const { openToolCall } = useToolCallSheet();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
@@ -3270,6 +3289,11 @@ export const ToolCall = memo(function ToolCall({
     }
     return undefined;
   }, [detail, args, result]);
+
+  const screenshot = useMemo(() => {
+    const target = serverId ? findBrowserScreenshot(toolName, effectiveDetail) : null;
+    return serverId && target ? { serverId, target } : undefined;
+  }, [serverId, toolName, effectiveDetail]);
 
   const presentation = useMemo(
     () =>
@@ -3306,6 +3330,7 @@ export const ToolCall = memo(function ToolCall({
         errorText: presentation.errorText,
         icon: presentation.icon,
         showLoadingSkeleton: presentation.isLoadingDetails,
+        screenshot,
       });
     } else {
       setIsExpanded((prev) => !prev);
@@ -3320,6 +3345,7 @@ export const ToolCall = memo(function ToolCall({
     presentation.icon,
     presentation.isLoadingDetails,
     effectiveDetail,
+    screenshot,
   ]);
 
   useEffect(() => {
@@ -3359,6 +3385,7 @@ export const ToolCall = memo(function ToolCall({
         errorText={presentation.errorText}
         maxHeight={maxDetailHeight}
         showLoadingSkeleton={presentation.isLoadingDetails}
+        screenshot={screenshot}
       />
     );
   }, [
@@ -3368,6 +3395,7 @@ export const ToolCall = memo(function ToolCall({
     presentation.errorText,
     presentation.isLoadingDetails,
     maxDetailHeight,
+    screenshot,
   ]);
 
   if (presentation.isPlan && effectiveDetail?.type === "plan") {
@@ -3388,6 +3416,7 @@ export const ToolCall = memo(function ToolCall({
       secondaryLabel={presentation.summary}
       originTags={originTags}
       icon={presentation.icon}
+      trailingIcon={screenshot ? ImageIcon : undefined}
       isExpanded={shouldRenderInline && isExpanded}
       onToggle={presentation.canOpenDetails ? handleToggle : undefined}
       onOpenFile={handleOpenFile}
@@ -3416,5 +3445,6 @@ function areToolCallPropsEqual(previous: ToolCallProps, next: ToolCallProps) {
   if (previous.defaultExpanded !== next.defaultExpanded) return false;
   if (previous.forceInline !== next.forceInline) return false;
   if (previous.maxDetailHeight !== next.maxDetailHeight) return false;
+  if (previous.serverId !== next.serverId) return false;
   return true;
 }

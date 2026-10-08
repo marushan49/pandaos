@@ -22,6 +22,8 @@ import { inlineUnistylesStyle } from "@/styles/unistyles-inline-style";
 import { CODE_SURFACE_DATASET } from "@/styles/code-surface";
 import { extensionFromPath, highlightToKeyedLines } from "@/utils/highlight-cache";
 import { HighlightedLines } from "./highlighted-content";
+import { BrowserScreenshotPreview } from "./browser-screenshot-preview";
+import type { BrowserScreenshotTarget } from "@/tool-calls/browser-screenshot";
 import { DiffViewer } from "./diff-viewer";
 import { getCodeInsets } from "./code-insets";
 import { isWeb } from "@/constants/platform";
@@ -37,6 +39,7 @@ interface ToolCallDetailsContentProps {
   maxHeight?: number;
   fillAvailableHeight?: boolean;
   showLoadingSkeleton?: boolean;
+  screenshot?: { serverId: string; target: BrowserScreenshotTarget };
 }
 
 interface DetailStyles {
@@ -787,6 +790,7 @@ export function ToolCallDetailsContent({
   maxHeight,
   fillAvailableHeight = false,
   showLoadingSkeleton = false,
+  screenshot,
 }: ToolCallDetailsContentProps) {
   const { t } = useTranslation();
   const resolvedMaxHeight = fillAvailableHeight ? undefined : (maxHeight ?? 300);
@@ -794,6 +798,15 @@ export function ToolCallDetailsContent({
   const diffLines = useDiffLines(detail);
 
   const sections: ReactNode[] = buildDetailSections(toolName, detail, diffLines, ds, t);
+  if (screenshot) {
+    sections.unshift(
+      <BrowserScreenshotPreview
+        key="browser-screenshot"
+        serverId={screenshot.serverId}
+        target={screenshot.target}
+      />,
+    );
+  }
 
   if (errorText) {
     sections.push(<ErrorSection key="error" errorText={errorText} ds={ds} />);

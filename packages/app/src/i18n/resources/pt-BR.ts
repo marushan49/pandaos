@@ -2291,6 +2291,7 @@ export const ptBR: TranslationResources = {
     subAgentActivity: "Atividade do subagente",
     input: "Entrada",
     output: "Saída",
+    screenshot: "Captura de tela",
   },
   toolCallGroup: {
     editedFiles: {
