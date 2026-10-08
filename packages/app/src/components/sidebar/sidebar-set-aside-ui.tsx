@@ -225,7 +225,7 @@ const styles = StyleSheet.create((theme) => ({
     top: 0,
     bottom: 0,
     right: "100%",
-    width: SCRIM_WIDTH,
+    width: SCRIM_WIDTH / 2,
   },
   fillSidebar: {
     backgroundColor: theme.colors.surfaceSidebar,
