@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
   createProfileRouter,
+  formatResetTime,
   ProfileRoutingUnavailableError,
   validateRoutingPolicy,
   type RoutingProfile,
@@ -482,12 +483,60 @@ it.each([undefined, "manual"] as const)(
   },
 );
 
-it("keeps a manual quota failure on its selected provider even when another account is free", async () => {
+it("moves a manual quota failure to the first free sibling profile with the same model and effort", async () => {
   const reset = "2026-09-30T13:00:00Z";
   const f = fixture([
     usage("codex-plus", 100, reset),
     usage("codex-work"),
     usage("codex-business"),
+  ]);
+  const route = await f.router({ ...f.input, routingMode: "manual", fallback: "quota" });
+  expect(route).toMatchObject({
+    model: "gpt-6.1-sol",
+    resetsAt: new Date(reset).toISOString(),
+    profile: { provider: "codex-work", thinkingOptionId: "medium" },
+  });
+  expect(route?.reason).toContain(`Limit reached on codex-plus until ${formatResetTime(reset)}`);
+  expect(f.decide).not.toHaveBeenCalled();
+  f.setNow(reset);
+  await expect(
+    f.router({ ...f.input, routingMode: "manual", fallback: "quota", recordFailure: false }),
+  ).rejects.toThrow("Your selected provider");
+});
+
+it("skips a sibling that already failed or lacks the selected effort", async () => {
+  const reset = "2026-09-30T13:00:00Z";
+  const catalog = profiles.map((profile) =>
+    profile.id === "codex-work"
+      ? {
+          ...profile,
+          models: [{ ...profile.models[0], thinkingOptions: [{ id: "low", label: "Low" }] }],
+        }
+      : profile,
+  );
+  const f = fixture(
+    [usage("codex-plus", 100, reset), usage("codex-work"), usage("codex-business")],
+    catalog,
+  );
+  await expect(
+    f.router({ ...f.input, routingMode: "manual", fallback: "quota" }),
+  ).resolves.toMatchObject({ profile: { provider: "codex-business" } });
+  await expect(
+    f.router({
+      ...f.input,
+      routingMode: "manual",
+      fallback: "quota",
+      attemptedProfileIds: ["codex-business"],
+    }),
+  ).rejects.toThrow("Your selected provider");
+});
+
+it("keeps waiting in manual mode when every sibling profile is quota-limited too", async () => {
+  const reset = "2026-09-30T13:00:00Z";
+  const f = fixture([
+    usage("codex-plus", 100, reset),
+    usage("codex-work", 100, reset),
+    usage("codex-business", 100, reset),
   ]);
   await expect(
     f.router({ ...f.input, routingMode: "manual", fallback: "quota" }),
@@ -500,6 +549,29 @@ it("keeps a manual quota failure on its selected provider even when another acco
   await expect(
     f.router({ ...f.input, routingMode: "manual", currentRetry: true }),
   ).resolves.toBeNull();
+});
+
+it("keeps waiting in manual mode when only another provider family is free", async () => {
+  const reset = "2026-09-30T13:00:00Z";
+  const other: RoutingProfile = {
+    ...profiles[1],
+    id: "claude",
+    label: "Claude",
+    harness: "claude",
+  };
+  const f = fixture([usage("codex-plus", 100, reset), usage("claude")], [profiles[0], other]);
+  await expect(f.router({ ...f.input, routingMode: "manual", fallback: "quota" })).rejects.toThrow(
+    "Your selected provider",
+  );
+  expect(f.decide).not.toHaveBeenCalled();
+});
+
+it("keeps manual capacity retries on the selected profile even when a sibling is free", async () => {
+  const f = fixture();
+  await expect(
+    f.router({ ...f.input, routingMode: "manual", fallback: "capacity" }),
+  ).rejects.toThrow("temporarily at capacity");
+  expect(f.decide).not.toHaveBeenCalled();
 });
 
 it("aborts the actual TypeSafe request at the shared two-second usage and decision deadline", async () => {

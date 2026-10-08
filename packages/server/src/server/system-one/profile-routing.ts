@@ -145,13 +145,11 @@ export function createProfileRouter(options: ProfileRouterOptions): ProfileRoute
           );
         return null;
       }
-      if (input.routingMode !== "auto") {
-        return unavailable(
-          input.fallback === "capacity" && !currentLimited
-            ? "Your selected model is temporarily at capacity. Retrying the same model; choose Auto to allow another available route."
-            : "Your selected provider is quota-limited. Waiting for its reset; choose Auto to allow another available route.",
+      if (input.routingMode !== "auto")
+        return (
+          (currentLimited ? siblingRoute(profiles, eligible, usage, input, reset, now) : null) ??
+          unavailable(manualWaitMessage(input, currentLimited))
         );
-      }
       if (policy) return orderedRoute(policy, input, eligible, usage, reset, unavailable);
       return await selectAvailableRoute(
         options,
@@ -166,6 +164,53 @@ export function createProfileRouter(options: ProfileRouterOptions): ProfileRoute
       clearTimeout(timeout);
     }
   };
+}
+
+function siblingRoute(
+  profiles: RoutingProfile[],
+  eligible: RoutingProfile[],
+  usage: Map<string, ProviderUsage>,
+  input: ProfileRouteInput,
+  reset: string | null,
+  now: number,
+): ProfileRoute | null {
+  const harness = profiles.find((profile) => profile.id === input.provider)?.harness;
+  if (input.fallback !== "quota" || !harness || !input.model) return null;
+  const routes = new Set(input.attemptedRoutes ?? []);
+  for (const profile of eligible) {
+    if (profile.id === input.provider || profile.harness !== harness) continue;
+    if (profileAvailability(usage.get(profile.id), now) !== "available") continue;
+    const model = profile.models.find(
+      (entry) => entry.id === input.model && entry.isSelectable !== false,
+    );
+    if (!model || routes.has(JSON.stringify([profile.id, model.id]))) continue;
+    if (
+      input.thinkingOptionId &&
+      !model.thinkingOptions?.some((option) => option.id === input.thinkingOptionId)
+    )
+      continue;
+    const until = reset ? ` until ${formatResetTime(reset)}` : "";
+    return candidateRoute(
+      { profile, model, effort: input.thinkingOptionId },
+      reset,
+      `Limit reached on ${input.provider}${until}; continuing on ${profile.label} with the same model, effort and permissions.`,
+    );
+  }
+  return null;
+}
+
+function manualWaitMessage(input: ProfileRouteInput, currentLimited: boolean): string {
+  return input.fallback === "capacity" && !currentLimited
+    ? "Your selected model is temporarily at capacity. Retrying the same model; choose Auto to allow another available route."
+    : "Your selected provider is quota-limited. Waiting for its reset; choose Auto to allow another available route.";
+}
+
+export function formatResetTime(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(iso));
 }
 
 function profilesForPolicy(

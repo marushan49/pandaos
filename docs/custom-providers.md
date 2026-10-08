@@ -321,6 +321,8 @@ Each profile appears as a separate provider in the Paseo app. You can select whi
 
 System One routing uses these registered provider entries as account identities. `daemon.agentProfiles` remains a launch bundle; it does not define quota accounts. Existing `daemon.systemOne.routing` lists restrict automatic model/effort choices to supported catalog entries. A provider-specific list overrides its harness list; unlisted providers use their supported catalog. Changing accounts can preserve an explicitly chosen effort even when that effort is excluded from automatic escalation. Model or effort changes require Jev reassessment.
 
+An explicit (non-Auto) model choice never moves to another model. When its profile hits a quota limit, PandaOS moves the agent to the first sibling profile in config order that extends the same base, offers the same model and thinking option, and shows free usage. Mode and features come along, and the timeline records `Switched provider: X → Y` with the reset time. Without such a sibling the agent waits for the reset. Capacity errors never switch accounts.
+
 You can also combine profiles with model overrides to pin specific models per profile:
 
 ```json
