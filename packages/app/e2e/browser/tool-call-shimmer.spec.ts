@@ -196,7 +196,7 @@ test("measures an overview heading that becomes loading after its idle mount", a
       idleGroupHandle,
     );
 
-    await group.click();
+    await group.getByRole("button").first().click();
     const runningChild = page.getByTestId("tool-call-badge").last();
     await expect(runningChild).toBeVisible();
     const header = await readShimmerEvidence(group);
