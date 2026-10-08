@@ -255,6 +255,8 @@ Identity badges — the project icon, the sidebar host badge, and the PR-panel p
 
 New status pills use `<StatusBadge>`. Identity, shortcut, and interactive link badges remain separate because color does not encode status there.
 
+A badge, chevron, or count beside text never leaves its container. In a row, the text side gets `flexShrink: 1` and `minWidth: 0` and truncates with `numberOfLines={1}`; the badge and chevron get `flexShrink: 0`. On web a flex child's minimum width is its content, so without `minWidth: 0` the text cannot shrink and pushes the trailing parts past the rounded edge.
+
 ---
 
 ## 14. Motion

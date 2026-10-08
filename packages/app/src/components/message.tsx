@@ -1174,6 +1174,8 @@ const expandableBadgeStylesheet = StyleSheet.create((theme) => ({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
+    minWidth: 0,
   },
   labelRow: {
     flex: 1,
@@ -1183,15 +1185,18 @@ const expandableBadgeStylesheet = StyleSheet.create((theme) => ({
   },
   labelRowPill: {
     flexShrink: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
   },
   pillTrailingSlot: {
     marginLeft: theme.spacing[2],
+    flexShrink: 0,
   },
   pillChevron: {
     marginLeft: theme.spacing[2],
+    flexShrink: 0,
   },
   iconBadge: {
     width: 22,
