@@ -600,10 +600,10 @@ export const ru: TranslationResources = {
         stepOf: "Шаг {{step}}/{{total}}",
         checkingPage: "Проверка страницы",
         recheckPage: "Проверить страницу снова",
-        paused: "Пауза · управление у вас",
+        paused: "Пауза, управление у вас",
         pausing: "Перехват управления после этого шага",
         passed: "Запуск пройден",
-        failed: "Запуск не пройден · {{message}}",
+        failed: "Запуск не пройден: {{message}}",
         takeOver: "Взять управление",
         resume: "Продолжить",
         dismiss: "Скрыть статус запуска",
@@ -1078,7 +1078,7 @@ export const ru: TranslationResources = {
         scopeProjectHint:
           "Все рабочие пространства проекта используют эту учётную запись, если не задали свою.",
         scopeWorkspaceHint: "Действует только здесь и переопределяет учётную запись проекта.",
-        inherited: "{{host}} · унаследовано от проекта",
+        inherited: "{{host}}, унаследовано от проекта",
         savedProject:
           "Все рабочие пространства проекта теперь используют учётную запись из {{path}}",
         clearedProject: "Проект снова использует учётную запись по умолчанию",
@@ -1858,7 +1858,7 @@ export const ru: TranslationResources = {
       toggle: "Также запустить чат с {{model}}",
     },
     auto: "Авто",
-    autoDescription: "Jev выбирает по доступной квоте · не более 2 секунд",
+    autoDescription: "Jev выбирает по доступной квоте, не более 2 секунд",
     title: "Выберите провайдера",
     selectModel: "Выберите модель",
     selectedModel: "Выберите модель ({{model}})",
@@ -2435,7 +2435,7 @@ export const ru: TranslationResources = {
       sessions_other: "{{count}} сессий",
       turns_one: "{{count}} ход",
       turns_other: "{{count}} ходов",
-      tokens: "вход {{input}} · выход {{output}}",
+      tokens: "вход {{input}}, выход {{output}}",
       empty: "Токены ещё не использовались",
       emptyHint: "Данные появятся, когда агент завершит ход.",
     },
@@ -2856,7 +2856,7 @@ export const ru: TranslationResources = {
         unlocked:
           "Up-to-date apps register here when they connect. Turn on the lock to admit only these devices.",
         thisDevice: "This device",
-        lastSeen: "Last seen {{when}} · app {{version}}",
+        lastSeen: "Last seen {{when}}, app {{version}}",
         revoke: "Remove",
       },
       skills: {
