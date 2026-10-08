@@ -57,6 +57,23 @@ function navigateDeps(): NavigateToWorkspaceDeps {
   };
 }
 
+export function useIsActiveWorkspace(
+  serverId: string | null | undefined,
+  workspaceId: string | null | undefined,
+): boolean {
+  const params = useLocalSearchParams<{
+    serverId?: string | string[];
+    workspaceId?: string | string[];
+  }>();
+  const selection = parseActiveWorkspaceSelection({ pathname: usePathname(), params });
+  return Boolean(
+    serverId &&
+    workspaceId &&
+    selection?.serverId === serverId &&
+    selection?.workspaceId === workspaceId,
+  );
+}
+
 export function hydrateLastWorkspaceSelection(): Promise<void> {
   return lastWorkspaceSelectionStore.hydrate();
 }

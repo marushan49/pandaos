@@ -47,12 +47,14 @@ export function ChangeRequestSetItem({
   summary,
   soleNumber,
   expanded,
+  showWhenEmpty = false,
   onToggle,
 }: {
   summary: RelatedPullRequestsSummary;
   /** Set when the set holds exactly one change request: the line names it instead of counting. */
   soleNumber: number | null;
   expanded: boolean;
+  showWhenEmpty?: boolean;
   onToggle: () => void;
 }) {
   const { t } = useTranslation();
@@ -72,7 +74,7 @@ export function ChangeRequestSetItem({
   const allMerged = summary.total > 0 && summary.mergedCount === summary.total;
   const accessibilityState = useMemo(() => ({ expanded }), [expanded]);
 
-  if (isCompact && summary.total === 0 && !expanded) return null;
+  if (isCompact && summary.total === 0 && !expanded && !showWhenEmpty) return null;
 
   return (
     <Pressable
