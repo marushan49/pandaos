@@ -42,11 +42,8 @@ import {
 } from "../browser-import/browser-backup.js";
 import type { BrowserImportLogin } from "../browser-import/browser-cookie-import.js";
 import { BrowserImportError } from "../browser-import/browser-cookie-import.js";
-import {
-  newestGoogleSignInAt,
-  selectFresherImportedCookies,
-} from "../browser-import/cookie-freshness.js";
 import { EvidenceStore, formatEvidenceRef } from "./evidence-store.js";
+import { createBrowserSecretRedactor, type SecretRedactor } from "./secret-redaction.js";
 import {
   collectSnapshotNodes,
   formatSnapshotYaml,
@@ -124,7 +121,6 @@ export interface ScreencastFrame {
 export interface ImportCookiesResult {
   cookieCount: number;
   domainCount: number;
-  newestGoogleSignInAt?: number;
 }
 
 export const DAEMON_PLAYWRIGHT_COMMANDS: readonly BrowserAutomationCommandName[] = [
@@ -473,18 +469,19 @@ export class DaemonPlaywrightHost {
           message: error.message,
         });
       }
+      const message = await this.redactFailureMessage(input.command, error);
       if (isTimeoutError(error)) {
         return browserToolsFailure({
           requestId,
           code: "browser_timeout",
-          message: `Browser automation timed out: ${truncateErrorMessage(error)}`,
+          message: `Browser automation timed out: ${message}`,
           retryable: true,
         });
       }
       return browserToolsFailure({
         requestId,
         code: "browser_unknown_error",
-        message: truncateErrorMessage(error),
+        message,
       });
     }
   }
@@ -611,7 +608,15 @@ export class DaemonPlaywrightHost {
           ...(input.agentId ? { agentId: input.agentId } : {}),
         });
         const dialogs = takeDialogs(tab);
-        return { ...result, ...(dialogs.length > 0 ? { dialogs } : {}) };
+        const redactsResult = command.command === "snapshot" || command.command === "logs";
+        if (!redactsResult && dialogs.length === 0) {
+          return result;
+        }
+        const redactor = await this.redactorFor(tab);
+        return {
+          ...(redactsResult ? redactResultContent(result, redactor) : result),
+          ...(dialogs.length > 0 ? { dialogs: dialogs.map((d) => redactDialog(d, redactor)) } : {}),
+        };
       }
     }
   }
@@ -1338,11 +1343,41 @@ export class DaemonPlaywrightHost {
       },
       { source: functionSource, elementSelector: selector ?? null },
     );
-    const resultJson = JSON.stringify(raw ?? null) ?? "null";
+    const redactor = await this.redactorFor(tab);
+    const resultJson = JSON.stringify(redactor.redactDeep(raw ?? null)) ?? "null";
     if (Buffer.byteLength(resultJson, "utf8") <= MAX_EVALUATE_JSON_BYTES) {
       return { resultJson, truncated: false };
     }
     return { resultJson: resultJson.slice(0, MAX_EVALUATE_JSON_BYTES), truncated: true };
+  }
+
+  private async redactorFor(tab: DaemonBrowserTab): Promise<SecretRedactor> {
+    const [logins, cookies, fieldValues] = await Promise.all([
+      this.readSavedLogins().catch(() => {
+        this.logger.warn("Saved password redaction unavailable; unlock the host keyring.");
+        return [];
+      }),
+      tab.context.cookies().catch(() => []),
+      readPasswordFieldValues(tab.page),
+    ]);
+    return createBrowserSecretRedactor({
+      passwords: logins.map((login) => login.password),
+      cookieValues: cookies.map((cookie) => cookie.value),
+      fieldValues,
+    });
+  }
+
+  private async redactFailureMessage(
+    command: BrowserAutomationCommand,
+    error: unknown,
+  ): Promise<string> {
+    const raw = error instanceof Error ? error.message : String(error);
+    const tab = "browserId" in command.args ? this.tabs.get(command.args.browserId) : undefined;
+    if (!tab || tab.page.isClosed()) {
+      return truncateErrorMessage(raw);
+    }
+    const redactor = await this.redactorFor(tab).catch(() => null);
+    return truncateErrorMessage(redactor ? redactor.redact(raw) : raw);
   }
 
   private async ensureContext(input: {
@@ -1456,11 +1491,9 @@ export class DaemonPlaywrightHost {
     for (const [context, userDataDir] of this.contextProfileDirs) {
       await this.applyImportedCookies({ context, userDataDir, store });
     }
-    const googleSignInAt = newestGoogleSignInAt(store.cookies);
     return {
       cookieCount: cookies.length,
       domainCount: new Set(cookies.map((cookie) => cookie.domain.replace(/^\./, ""))).size,
-      ...(googleSignInAt === undefined ? {} : { newestGoogleSignInAt: googleSignInAt }),
     };
   }
 
@@ -1671,15 +1704,11 @@ export class DaemonPlaywrightHost {
     const markerPath = path.join(input.userDataDir, IMPORTED_COOKIES_MARKER);
     const applied = await readFile(markerPath, "utf8").catch(() => null);
     if (applied === input.store.version) return;
-    const cookies = selectFresherImportedCookies({
-      existing: await input.context.cookies(),
-      imported: input.store.cookies,
-    });
     try {
-      await input.context.addCookies(cookies);
+      await input.context.addCookies(input.store.cookies);
     } catch {
       let rejected = 0;
-      for (const cookie of cookies) {
+      for (const cookie of input.store.cookies) {
         await input.context.addCookies([cookie]).catch(() => {
           rejected += 1;
         });
@@ -1976,6 +2005,74 @@ async function withKeyboardModifiers(
       await page.keyboard.up(modifier);
     }
   }
+}
+
+function redactResultContent(
+  payload: BrowserToolsResponsePayload,
+  redactor: SecretRedactor,
+): BrowserToolsResponsePayload {
+  if (!payload.ok) {
+    return payload;
+  }
+  const { result } = payload;
+  if (result.command === "snapshot") {
+    return {
+      ...payload,
+      result: {
+        ...result,
+        snapshot: redactor.redact(result.snapshot),
+        title: redactor.redact(result.title),
+      },
+    };
+  }
+  if (result.command === "logs") {
+    return {
+      ...payload,
+      result: {
+        ...result,
+        console: result.console.map((entry) => ({
+          ...entry,
+          message: redactor.redact(entry.message),
+        })),
+        network: result.network.map((entry) =>
+          Object.assign({}, entry, { url: redactor.redact(entry.url) }),
+        ),
+      },
+    };
+  }
+  return payload;
+}
+
+function redactDialog(
+  dialog: BrowserAutomationDialogEvent,
+  redactor: SecretRedactor,
+): BrowserAutomationDialogEvent {
+  return {
+    ...dialog,
+    message: redactor.redact(dialog.message),
+    ...(dialog.defaultValue !== undefined
+      ? { defaultValue: redactor.redact(dialog.defaultValue) }
+      : {}),
+    ...(dialog.promptText !== undefined ? { promptText: redactor.redact(dialog.promptText) } : {}),
+  };
+}
+
+async function readPasswordFieldValues(page: Page): Promise<string[]> {
+  const perFrame = await Promise.all(
+    page.frames().map((frame) =>
+      frame
+        .evaluate(
+          "Array.from(document.querySelectorAll('input[type=password]'), (input) => input.value)",
+        )
+        .then((values) => (Array.isArray(values) ? values.filter(isString) : []))
+        .catch(() => []),
+    ),
+  );
+  return perFrame.flat();
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
 }
 
 function truncateErrorMessage(error: unknown): string {
