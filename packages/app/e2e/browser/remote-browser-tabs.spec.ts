@@ -90,6 +90,7 @@ test("closing a daemon tab removes its mirror after reload and preserves the use
 }) => {
   test.setTimeout(90_000);
   const pages = await startTestPages();
+  const otherApplication = await startTestPages();
   const seeded = await seedWorkspace({ repoPrefix: "remote-browser-close-" });
   const client = await connectDaemonClient<DaemonClient>({
     clientIdPrefix: "remote-browser-close",
@@ -113,7 +114,7 @@ test("closing a daemon tab removes its mirror after reload and preserves the use
 
     const created = await client.executeRemoteBrowserCommand({
       workspaceId: seeded.workspaceId,
-      command: { command: "new_tab", args: { url: `${pages.url}tall` } },
+      command: { command: "new_tab", args: { url: `${otherApplication.url}tall` } },
     });
     if (!created.ok || created.result.command !== "new_tab") {
       throw new Error("The daemon did not create the mirror tab");
@@ -133,6 +134,7 @@ test("closing a daemon tab removes its mirror after reload and preserves the use
     await client.close();
     await seeded.cleanup();
     pages.server.close();
+    otherApplication.server.close();
   }
 });
 
