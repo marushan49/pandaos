@@ -327,6 +327,11 @@ export const ptBR: TranslationResources = {
     },
   },
   message: {
+    prompt: {
+      showFull_one: "Mostrar o prompt completo ({{count}} linha)",
+      showFull_other: "Mostrar o prompt completo ({{count}} linhas)",
+      collapse: "Recolher o prompt",
+    },
     diagram: {
       diagram: "Diagrama",
       zoomIn: "Aproximar",

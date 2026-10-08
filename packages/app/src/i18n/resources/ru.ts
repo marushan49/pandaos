@@ -327,6 +327,11 @@ export const ru: TranslationResources = {
     },
   },
   message: {
+    prompt: {
+      showFull_one: "Показать весь промпт, строк: {{count}}",
+      showFull_other: "Показать весь промпт, строк: {{count}}",
+      collapse: "Свернуть промпт",
+    },
     diagram: {
       diagram: "Диаграмма",
       zoomIn: "Увеличить масштаб",

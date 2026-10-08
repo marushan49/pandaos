@@ -47,6 +47,7 @@ import {
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { ICON_SIZE, MOTION, webTransition, type Theme } from "@/styles/theme";
 import { AnimatedDisclosure } from "@/components/ui/animated-disclosure";
+import { CollapsiblePromptText } from "@/components/collapsible-prompt-text";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import Animated, {
   Easing,
@@ -557,9 +558,11 @@ export const UserMessage = memo(function UserMessage({
             </View>
           ) : null}
           {hasText ? (
-            <Text selectable style={userMessageStylesheet.text} dataSet={MESSAGE_TEXT_DATASET}>
-              {message}
-            </Text>
+            <CollapsiblePromptText
+              message={message}
+              textStyle={userMessageStylesheet.text}
+              dataSet={MESSAGE_TEXT_DATASET}
+            />
           ) : null}
         </View>
         {hasText ? (

@@ -328,6 +328,11 @@ export const es: TranslationResources = {
     },
   },
   message: {
+    prompt: {
+      showFull_one: "Mostrar el prompt completo ({{count}} línea)",
+      showFull_other: "Mostrar el prompt completo ({{count}} líneas)",
+      collapse: "Contraer el prompt",
+    },
     diagram: {
       diagram: "Diagrama",
       zoomIn: "Acercar",

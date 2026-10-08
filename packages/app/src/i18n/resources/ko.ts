@@ -324,6 +324,11 @@ export const ko: TranslationResources = {
     },
   },
   message: {
+    prompt: {
+      showFull_one: "프롬프트 전체 보기({{count}}줄)",
+      showFull_other: "프롬프트 전체 보기({{count}}줄)",
+      collapse: "프롬프트 접기",
+    },
     diagram: {
       diagram: "다이어그램",
       zoomIn: "확대",
