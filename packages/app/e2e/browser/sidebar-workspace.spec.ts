@@ -461,7 +461,7 @@ test.describe("Sidebar workspace list", () => {
 
       await focusWorkspaceRowWithKeyboard(page, workspace.workspaceId);
       await expectWorkspaceHoverCardOpen(page);
-      await page.keyboard.press("Tab");
+      await page.keyboard.press("Shift+Tab");
       await expectWorkspaceHoverCardClosed(page);
     } finally {
       await workspace.cleanup();
