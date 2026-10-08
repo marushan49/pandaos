@@ -113,7 +113,6 @@ async function openDesktopWorkspaceList(page: Page) {
   await expect(row).toBeVisible();
   await toggleTrailing(page, "Diff stats");
   await page.mouse.move(0, 0);
-  await toggleTrailing(page, "Diff stats");
   await expect(row.getByText("+12.3k", { exact: true })).toBeVisible();
   return titleWidth(row);
 }

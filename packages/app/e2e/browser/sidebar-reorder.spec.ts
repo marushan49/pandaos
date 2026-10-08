@@ -53,7 +53,6 @@ async function pressWorkspaceRow(rows: Locator) {
 async function quickDragFirstRowAfterSecond(
   rows: Locator,
   pressRow: (rows: Locator) => Promise<void>,
-  ordering: "manual" | "activity" = "manual",
 ) {
   await expect(rows).toHaveCount(2);
   const before = await rowTestIds(rows);
@@ -75,12 +74,10 @@ async function quickDragFirstRowAfterSecond(
     .toBeLessThan(targetBox.y - targetBox.height / 2);
   await page.mouse.up();
 
-  await expect
-    .poll(() => rowTestIds(rows))
-    .toEqual(ordering === "manual" ? [before[1], before[0]] : before);
+  await expect.poll(() => rowTestIds(rows)).toEqual([before[1], before[0]]);
 }
 
-test("projects and pinned chats reorder while workspaces follow latest activity", async ({
+test("projects, workspaces and pinned chats keep the order the person set despite new activity", async ({
   page,
 }) => {
   const firstProject = await seedWorkspace({ repoPrefix: "sidebar-reorder-first-" });
@@ -121,11 +118,14 @@ test("projects and pinned chats reorder while workspaces follow latest activity"
     await expect
       .poll(() => rowTestIds(workspaceRows))
       .toEqual([secondWorkspaceTestId, firstWorkspaceTestId]);
-    await quickDragFirstRowAfterSecond(workspaceRows, pressWorkspaceRow, "activity");
+    await quickDragFirstRowAfterSecond(workspaceRows, pressWorkspaceRow);
+    await expect
+      .poll(() => rowTestIds(workspaceRows))
+      .toEqual([firstWorkspaceTestId, secondWorkspaceTestId]);
     const activeAgent = await firstProject.client.createAgent({
       provider: "mock",
-      cwd: firstProject.workspaceDirectory,
-      workspaceId: firstProject.workspaceId,
+      cwd: secondWorkspace.workspace.workspaceDirectory,
+      workspaceId: secondWorkspace.workspace.id,
       title: "Newest sidebar activity",
       modeId: "load-test",
       model: "e2e-fast-stream",

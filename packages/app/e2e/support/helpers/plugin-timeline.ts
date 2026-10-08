@@ -133,13 +133,11 @@ export async function expectWholeCompletedCard(page: Page): Promise<void> {
 }
 
 export async function expectBothConsecutiveTools(page: Page): Promise<void> {
-  // read and grep are consecutive source calls in the fixture. Overview used to
-  // send only the later call to the plugin, so the read card never existed.
   const read = page.getByRole("heading", { name: "Tool read complete", exact: true }).first();
   await read.scrollIntoViewIfNeeded();
   await expect(read).toBeVisible();
   const grep = page.getByRole("heading", { name: "Tool grep complete", exact: true }).first();
   await grep.scrollIntoViewIfNeeded();
   await expect(grep).toBeVisible();
-  await expect(page.getByText("timeline-transform-e2e").first()).toBeVisible();
+  await expect(page.getByText(PLUGIN_ID)).toHaveCount(0);
 }
