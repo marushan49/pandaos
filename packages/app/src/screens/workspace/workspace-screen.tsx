@@ -4451,6 +4451,8 @@ const styles = StyleSheet.create((theme) => ({
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
+    minWidth: 0,
     gap: {
       xs: theme.spacing[1],
       md: theme.spacing[2],

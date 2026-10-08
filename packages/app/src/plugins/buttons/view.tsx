@@ -65,6 +65,7 @@ function headerButtonStyle(compact: boolean, state: IconButtonChromeState, disab
   return [
     styles.headerButton,
     styles.button,
+    styles.headerButtonWidth,
     (state.hovered || state.pressed || state.open) && styles.active,
     disabled && styles.disabled,
   ];
@@ -619,6 +620,8 @@ const styles = StyleSheet.create((theme) => ({
   headerButtons: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
+    minWidth: 0,
     gap: { xs: theme.spacing[1], md: theme.spacing[2] },
   },
   headerButton: {
@@ -634,6 +637,7 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.borderAccent,
   },
   button: { flexShrink: 1, minWidth: 0, maxWidth: 160 },
+  headerButtonWidth: { maxWidth: 360 },
   active: { backgroundColor: theme.colors.surface2 },
   disabled: { opacity: theme.opacity[50] },
   tooltipLabel: { fontSize: theme.fontSize.sm, color: theme.colors.foreground },
