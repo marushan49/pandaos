@@ -2325,6 +2325,8 @@ export const ptBR: TranslationResources = {
   renameModal: {
     rename: "Renomear",
     saving: "Salvando...",
+    autoTitleHint: "Deixe em branco para nomear automaticamente a partir da conversa.",
+    titleSetByYou: "Título definido por você",
   },
   sidebarCallout: {
     dismiss: "Dispensar",

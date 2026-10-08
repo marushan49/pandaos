@@ -27,7 +27,8 @@ import * as Clipboard from "expo-clipboard";
 import { copyAgentTranscript } from "@/agent-transcript/copy";
 import type { TranscriptFormat } from "@/agent-transcript/serialize";
 import { useTranslation } from "react-i18next";
-import { ChevronDown } from "@/components/icons/ui-icons";
+import { ChevronDown, Lock } from "@/components/icons/ui-icons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { Theme } from "@/styles/theme";
@@ -268,6 +269,7 @@ function buildWorkspaceFileLocation(
 
 const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
 const ThemedChevronDown = withUnistyles(ChevronDown);
+const ThemedLock = withUnistyles(Lock);
 
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
@@ -986,9 +988,32 @@ function WorkspaceHeaderProjectRow({
   );
 }
 
+function WorkspaceTitleLock() {
+  const { t } = useTranslation();
+  const label = t("renameModal.titleSetByYou");
+  return (
+    <Tooltip delayDuration={300} enabledOnDesktop enabledOnMobile={false}>
+      <TooltipTrigger asChild>
+        <View
+          accessible
+          accessibilityLabel={label}
+          style={styles.headerTitleLock}
+          testID="workspace-header-title-lock"
+        >
+          <ThemedLock size={12} uniProps={mutedColorMapping} />
+        </View>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start" offset={6}>
+        <Text style={styles.headerTitleLockTooltip}>{label}</Text>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 interface WorkspaceHeaderTitleBarProps {
   isLoading: boolean;
   title: string;
+  titleLocked: boolean;
   subtitle: string;
   isSubtitleDistinct: boolean;
   currentBranchName: string | null;
@@ -1018,6 +1043,7 @@ interface WorkspaceHeaderTitleBarProps {
 function WorkspaceHeaderTitleBar({
   isLoading,
   title,
+  titleLocked,
   subtitle,
   isSubtitleDistinct,
   currentBranchName,
@@ -1051,7 +1077,10 @@ function WorkspaceHeaderTitleBar({
         </View>
       ) : (
         <View style={styles.headerTitleTextGroup}>
-          <ScreenTitle testID="workspace-header-title">{title}</ScreenTitle>
+          <View style={styles.headerTitleRow}>
+            <ScreenTitle testID="workspace-header-title">{title}</ScreenTitle>
+            {titleLocked ? <WorkspaceTitleLock /> : null}
+          </View>
           <WorkspaceHeaderProjectRow
             subtitle={subtitle}
             isSubtitleDistinct={isSubtitleDistinct}
@@ -1210,6 +1239,7 @@ interface WorkspaceHeaderFields {
   isWorkspaceHeaderSubtitleDistinct: boolean;
   isGitCheckout: boolean;
   currentBranchName: string | null;
+  workspaceTitleLocked: boolean;
 }
 
 function buildWorkspaceHeaderCheckoutState(input: {
@@ -1245,9 +1275,11 @@ function deriveWorkspaceHeaderFields(input: {
       isWorkspaceHeaderSubtitleDistinct: false,
       isGitCheckout: false,
       currentBranchName: null,
+      workspaceTitleLocked: false,
     };
   }
   return {
+    workspaceTitleLocked: input.workspace?.titleLocked === true,
     isWorkspaceHeaderLoading: false,
     workspaceHeaderTitle: renderState.title,
     workspaceHeaderSubtitle: renderState.subtitle,
@@ -1866,6 +1898,7 @@ function WorkspaceScreenContent({
     isWorkspaceHeaderSubtitleDistinct,
     isGitCheckout,
     currentBranchName,
+    workspaceTitleLocked,
   } = deriveWorkspaceHeaderFields({
     workspace: workspaceDescriptor,
     checkoutState: workspaceHeaderCheckoutState,
@@ -4061,6 +4094,7 @@ function WorkspaceScreenContent({
               <WorkspaceHeaderTitleBar
                 isLoading={isWorkspaceHeaderLoading}
                 title={workspaceHeaderTitle}
+                titleLocked={workspaceTitleLocked}
                 subtitle={workspaceHeaderSubtitle}
                 isSubtitleDistinct={isWorkspaceHeaderSubtitleDistinct}
                 currentBranchName={currentBranchName}
@@ -4118,6 +4152,7 @@ function WorkspaceScreenContent({
       workspaceDirectory,
       workspaceHeaderSubtitle,
       workspaceHeaderTitle,
+      workspaceTitleLocked,
       isWorkspaceHeaderSubtitleDistinct,
       workspaceScripts,
     ],
@@ -4297,6 +4332,7 @@ function WorkspaceScreenContent({
           onImported={navigateToImportedAgent}
         />
         <WorkspaceTabRenameModal
+          serverId={normalizedServerId}
           renamingTab={isRouteFocused ? renamingTab : null}
           onSubmit={handleRenameModalSubmit}
           onClose={handleRenameModalClose}
@@ -4368,6 +4404,20 @@ const styles = StyleSheet.create((theme) => ({
     },
   },
 
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  headerTitleLock: {
+    flexShrink: 0,
+  },
+  headerTitleLockTooltip: {
+    color: theme.colors.popoverForeground,
+    fontSize: theme.fontSize.sm,
+  },
   headerProjectRow: {
     flexDirection: "row",
     alignItems: "center",

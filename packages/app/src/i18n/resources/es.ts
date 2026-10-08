@@ -2341,6 +2341,8 @@ export const es: TranslationResources = {
   renameModal: {
     rename: "Rebautizar",
     saving: "Guardando...",
+    autoTitleHint: "Déjalo vacío para que se nombre automáticamente a partir de la conversación.",
+    titleSetByYou: "Título puesto por ti",
   },
   sidebarCallout: {
     dismiss: "Despedir",

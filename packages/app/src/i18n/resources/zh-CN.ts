@@ -2265,6 +2265,8 @@ export const zhCN: TranslationResources = {
   renameModal: {
     rename: "重命名",
     saving: "正在保存...",
+    autoTitleHint: "留空则根据对话自动命名。",
+    titleSetByYou: "由你设置的标题",
   },
   sidebarCallout: {
     dismiss: "关闭",

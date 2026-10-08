@@ -2312,6 +2312,8 @@ export const ja: TranslationResources = {
   renameModal: {
     rename: "名前を変更",
     saving: "保存中...",
+    autoTitleHint: "空欄にすると、会話から自動で名前が付きます。",
+    titleSetByYou: "あなたが設定したタイトル",
   },
   sidebarCallout: {
     dismiss: "閉じる",

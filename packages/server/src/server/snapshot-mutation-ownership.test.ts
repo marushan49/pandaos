@@ -167,6 +167,7 @@ describe("snapshot mutation ownership boundary", () => {
     );
     expect(updateAgentMetadata).toHaveBeenCalledWith("agent-1", {
       title: "Renamed agent",
+      titleSource: "manual",
       labels: { lane: "phase-1a" },
     });
     expect(onMessage).toHaveBeenCalledWith({

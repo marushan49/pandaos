@@ -478,11 +478,14 @@ function parseStructuredBranchNamePrompt(
       .split("\n")
       .find((line) => line.trim().length > 0)
       ?.trim() ?? "Mock task";
-  const title = firstLine
-    .replace(/^["'`]+|["'`]+$/g, "")
-    .replace(/\s+/g, " ")
-    .slice(0, 80)
-    .trim();
+  const currentTitle = text.match(/The session is currently titled ("(?:[^"\\]|\\.)*")\./)?.[1];
+  const title = currentTitle
+    ? (JSON.parse(currentTitle) as string)
+    : firstLine
+        .replace(/^["'`]+|["'`]+$/g, "")
+        .replace(/\s+/g, " ")
+        .slice(0, 80)
+        .trim();
   const branch =
     title
       .toLowerCase()

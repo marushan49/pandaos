@@ -2322,6 +2322,8 @@ export const en = {
   renameModal: {
     rename: "Rename",
     saving: "Saving...",
+    autoTitleHint: "Leave it empty to name it automatically from the conversation.",
+    titleSetByYou: "Title set by you",
   },
   sidebarCallout: {
     dismiss: "Dismiss",

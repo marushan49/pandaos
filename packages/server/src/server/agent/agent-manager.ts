@@ -595,8 +595,11 @@ interface WriteLabelsResult {
   live: boolean;
 }
 
+type TitleWriteSource = "manual" | "generated";
+
 interface AgentMetadataPatch {
   title?: string;
+  titleSource?: TitleWriteSource;
   labels?: AgentLabelPatch;
 }
 
@@ -781,6 +784,7 @@ export class AgentManager {
   private readonly foregroundMutationTails = new Map<string, Promise<void>>();
   private readonly runs = new AgentRunState();
   private readonly subscribers = new Set<SubscriptionRecord>();
+  private readonly titleResetListeners = new Set<(agentId: string) => void>();
   private readonly idFactory: () => string;
   private readonly registry?: AgentStorage;
   private readonly durableTimelineStore?: AgentTimelineStore;
@@ -2610,7 +2614,11 @@ export class AgentManager {
     this.emitState(agent);
   }
 
-  async setTitle(agentId: string, title: string): Promise<void> {
+  async setTitle(
+    agentId: string,
+    title: string,
+    source: TitleWriteSource = "manual",
+  ): Promise<void> {
     const agent = this.requireAgent(agentId);
     const normalizedTitle = title.trim();
     if (!normalizedTitle) {
@@ -2625,8 +2633,19 @@ export class AgentManager {
     }
     this.touchUpdatedAt(agent);
     await this.persistSnapshot(agent, { title: normalizedTitle });
-    await this.registry?.setTitle(agentId, normalizedTitle);
+    await this.registry?.setTitle(agentId, normalizedTitle, source);
     this.emitState(agent, { persist: false });
+  }
+
+  async resetTitle(agentId: string): Promise<void> {
+    await this.requireRegistry().resetTitle(agentId);
+    this.notifyAgentState(agentId);
+    for (const listener of this.titleResetListeners) listener(agentId);
+  }
+
+  onTitleReset(listener: (agentId: string) => void): () => void {
+    this.titleResetListeners.add(listener);
+    return () => this.titleResetListeners.delete(listener);
   }
 
   async setLabels(agentId: string, labels: Record<string, string>): Promise<void> {
@@ -2668,7 +2687,7 @@ export class AgentManager {
 
     const nextRecord = {
       ...record,
-      ...(patch.title ? { title: patch.title, titleSource: "manual" as const } : {}),
+      ...(patch.title ? { title: patch.title, titleSource: patch.titleSource ?? "manual" } : {}),
       ...(patch.labels ? { labels: applyLabelPatch(record.labels, patch.labels) } : {}),
       updatedAt: this.nextStoredUpdatedAt(record),
     };
@@ -2878,6 +2897,7 @@ export class AgentManager {
     agentId: string,
     updates: {
       title?: string;
+      titleSource?: TitleWriteSource;
       labels?: Record<string, string>;
     },
   ): Promise<void> {
@@ -2890,13 +2910,14 @@ export class AgentManager {
     agentId: string,
     updates: {
       title?: string;
+      titleSource?: TitleWriteSource;
       labels?: Record<string, string>;
     },
   ): Promise<void> {
     const liveAgent = this.getAgent(agentId);
     if (liveAgent) {
       if (updates.title) {
-        await this.setTitle(agentId, updates.title);
+        await this.setTitle(agentId, updates.title, updates.titleSource);
       }
       if (updates.labels) {
         await this.writeLabels(agentId, updates.labels);

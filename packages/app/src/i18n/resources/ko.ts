@@ -2302,6 +2302,8 @@ export const ko: TranslationResources = {
   renameModal: {
     rename: "이름 변경",
     saving: "저장하는 중...",
+    autoTitleHint: "비워 두면 대화 내용에 따라 자동으로 이름이 지정됩니다.",
+    titleSetByYou: "직접 설정한 제목",
   },
   sidebarCallout: {
     dismiss: "닫기",

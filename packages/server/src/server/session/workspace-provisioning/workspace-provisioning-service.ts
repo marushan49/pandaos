@@ -242,7 +242,7 @@ export function createWorkspaceProvisioningService(deps: {
       projectId: project.projectId,
       ...initialWorkspacePlacement({ source: "checkout", cwd: normalizedCwd, checkout }),
       title: title?.trim() || null,
-      titleSource: title?.trim() ? (context?.titleSource ?? "manual") : undefined,
+      titleSource: title?.trim() ? (context?.titleSource ?? "provisional") : undefined,
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -276,7 +276,7 @@ export function createWorkspaceProvisioningService(deps: {
         mainRepoRoot: repoRoot,
       }),
       title: input.title,
-      titleSource: input.title ? (input.titleSource ?? "manual") : undefined,
+      titleSource: input.title ? (input.titleSource ?? "provisional") : undefined,
       createdAt: timestamp,
       updatedAt: timestamp,
       ...(input.untrustedSource ? { untrustedSource: input.untrustedSource } : {}),

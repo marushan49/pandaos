@@ -812,3 +812,7 @@ export function resolveWorkspaceName(input: {
 export function resolveWorkspaceDisplayName(record: PersistedWorkspaceRecord): string {
   return resolveWorkspaceName({ title: record.title, derivedDisplayName: record.displayName });
 }
+
+export function isWorkspaceTitleLocked(record: PersistedWorkspaceRecord): true | undefined {
+  return record.titleSource === "manual" && record.title ? true : undefined;
+}

@@ -20,11 +20,24 @@ The app reads `lastError`, not the agent status, to tell a failed turn from a fi
 
 ## Session titles
 
-An explicit title or rename belongs to you. Automatic metadata cannot replace it, even when the name matches a prompt preview or generation was already running.
+Titles follow the topic until you name the session yourself. `titleSource` on the agent and workspace records decides who may change a title:
 
-Greetings and initial capability questions leave naming provisional. The first concrete request uses the existing metadata provider to name the task, with up to two earlier user messages as context. Agent and workspace naming share a request. The resulting title stays stable; later messages do not continually rename the session. A later task can name a workspace left provisional by an introductory message, without changing its Git branch.
+| Source        | Set by                                                                                                                                                        | Automatic renaming                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `manual`      | Your rename in the app or CLI (`update_agent_request`, `workspace.title.set.request`), and a creator title with `config.titlePinned` (Hub executions)         | Never                                         |
+| `generated`   | The title model, and any title a creator passes at create time (MCP `create_agent`, `paseo run --title`, app create) or an agent sets with MCP `update_agent` | At the 1st, 4th and 10th prompt, then never   |
+| `provisional` | The prompt preview, or an empty rename                                                                                                                        | At the next concrete prompt                   |
+| none          | Records from before titles had a source                                                                                                                       | Only when the title is the old prompt preview |
 
-Existing names remain unchanged unless they match the actual first user message's old preview format. Failed generation leaves the current provisional name available for a later request. No extra provider or metadata endpoint is configured for naming.
+Creator titles are suggestions. Orchestrators pass titles like "Reviewer: ..." that you would otherwise rename by hand, so they are stored as `generated` and stay visible until the first milestone. There is no separate `suggested` value on disk because an older daemon rejects an agent record with an unknown `titleSource` and would hide the agent after a rollback. Records already stored as `manual` stay locked, since a creator title and your rename are indistinguishable there.
+
+Prompt counting skips greetings and capability questions (`isSetupPrompt`). At each milestone the request carries the last six user messages, each cut to 2000 characters, and the current title with the instruction to return it unchanged unless the topic changed materially. A `provisional` title is named fresh without that anchor. `titleMilestone` records the prompt count of the last run, so a history replay after a restart does not rename the session again. Writes compare the title read before generation, and a rename that lands meanwhile wins.
+
+Before asking the model at a milestone, Paseo asks Jev (System One) whether the current title still fits. A confident "same" keeps the title without a model call. Jev answers closed questions only and cannot write a title, so it is a gate, not the title model. When System One is off, has no key, or fails, the model runs. The title model comes from `agents.metadataGeneration.providers`, then the small default models, then the agent's own model; see [data-model.md](data-model.md#agent-metadata-generation).
+
+The workspace follows its agent's title unless the workspace is `manual`. A `provisional` workspace, one without a title, or one still showing this agent's previous title takes the new title. A workspace already named after another agent keeps its name, so two agents in one workspace do not take turns renaming it. Renaming never changes the Git branch.
+
+An empty rename hands the title back. For an agent the daemon sets `provisional` and generates a title from the conversation right away; a closed agent gets it at its next prompt. For a workspace the title clears and the next agent title fills it. Clients offer this only when `server_info.features.autoTitles` is set. The workspace header shows a lock when `titleLocked` is set on the workspace descriptor, meaning you named it.
 
 ## Runtime residency
 

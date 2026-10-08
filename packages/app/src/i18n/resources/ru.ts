@@ -2325,6 +2325,8 @@ export const ru: TranslationResources = {
   renameModal: {
     rename: "Переименовать",
     saving: "Сохранение...",
+    autoTitleHint: "Оставьте пустым, чтобы название создавалось автоматически по разговору.",
+    titleSetByYou: "Название задано вами",
   },
   sidebarCallout: {
     dismiss: "Закрыть",

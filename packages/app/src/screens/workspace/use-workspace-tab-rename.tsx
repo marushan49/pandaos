@@ -5,6 +5,7 @@ import type { ListTerminalsResponse } from "@getpaseo/protocol/messages";
 import { useTranslation } from "react-i18next";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
 import { useSessionStore } from "@/stores/session-store";
+import { useHostFeature } from "@/runtime/host-features";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 
 interface RenamingTabState {
@@ -97,17 +98,20 @@ export function useWorkspaceTabRename(
 }
 
 export interface WorkspaceTabRenameModalProps {
+  serverId: string;
   renamingTab: RenamingTabState | null;
   onClose: () => void;
   onSubmit: (nextTitle: string) => Promise<void>;
 }
 
 export function WorkspaceTabRenameModal({
+  serverId,
   renamingTab,
   onClose,
   onSubmit,
 }: WorkspaceTabRenameModalProps) {
   const { t } = useTranslation();
+  const autoTitles = useHostFeature(serverId, "autoTitles") && renamingTab?.kind === "agent";
   const title =
     renamingTab?.kind === "terminal"
       ? t("workspace.tabs.menu.renameTerminal")
@@ -123,6 +127,8 @@ export function WorkspaceTabRenameModal({
       initialValue={initialValue}
       submitLabel={t("workspace.tabs.menu.rename")}
       maxLength={200}
+      allowEmpty={autoTitles}
+      description={autoTitles ? t("renameModal.autoTitleHint") : undefined}
       onClose={onClose}
       onSubmit={onSubmit}
       testID={testID}

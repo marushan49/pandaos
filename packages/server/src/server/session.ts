@@ -196,6 +196,7 @@ import { resolveWorkspaceIdForPath } from "./resolve-workspace-id-for-path.js";
 import {
   resolveProjectDisplayName,
   resolveWorkspaceDisplayName,
+  isWorkspaceTitleLocked,
   resolveWorkspaceName,
   type PersistedProjectRecord,
   type PersistedWorkspaceRecord,
@@ -3977,7 +3978,7 @@ export class Session {
     try {
       const result = await updateAgentCommand(
         { agentManager: this.agentManager },
-        { agentId, name, labels },
+        { agentId, name, labels, allowTitleReset: true },
       );
 
       if (!result.accepted) {
@@ -4277,7 +4278,7 @@ export class Session {
       const updated = await this.workspaceRegistry.update(workspaceId, (existing) => ({
         ...existing,
         title: nextTitle,
-        titleSource: "manual",
+        titleSource: nextTitle ? "manual" : "provisional",
         updatedAt,
       }));
       if (!updated) {
@@ -6457,6 +6458,7 @@ export class Session {
       workspaceKind: workspace.kind,
       name: resolveWorkspaceDisplayName(workspace),
       title: workspace.title,
+      titleLocked: isWorkspaceTitleLocked(workspace),
       pinnedAt: workspace.pinnedAt,
       doneAt: workspace.doneAt,
       handoff: workspace.handoff,
@@ -7589,7 +7591,7 @@ export class Session {
       {
         expectsInitialAgent: Boolean(request.firstAgentContext),
         workspaceId,
-        titleSource: explicitTitle ? "manual" : "provisional",
+        titleSource: "provisional",
       },
     );
     await this.syncWorkspaceGitObserverForWorkspace(workspace);

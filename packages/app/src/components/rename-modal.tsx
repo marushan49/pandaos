@@ -23,6 +23,7 @@ export interface AdaptiveRenameModalProps {
   maxLength?: number;
   /** For fields where empty is an answer, e.g. clearing an override back to a default. */
   allowEmpty?: boolean;
+  description?: string;
   testID?: string;
 }
 
@@ -37,6 +38,7 @@ export function AdaptiveRenameModal({
   validate,
   maxLength,
   allowEmpty = false,
+  description,
   testID,
 }: AdaptiveRenameModalProps) {
   const { t } = useTranslation();
@@ -127,6 +129,7 @@ export function AdaptiveRenameModal({
       testID={testID}
     >
       <View style={styles.body}>
+        {description ? <Text style={styles.description}>{description}</Text> : null}
         <AdaptiveTextInput
           ref={inputRef}
           initialValue={initialValue}
@@ -186,6 +189,10 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: 1,
     borderColor: theme.colors.border,
     fontSize: theme.fontSize.base,
+  },
+  description: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.sm,
   },
   errorText: {
     color: theme.colors.palette.red[300],

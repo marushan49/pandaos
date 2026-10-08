@@ -710,7 +710,7 @@ test("actual MCP initial prompts own provisional titles while explicit child rol
       callerAgentId: task.snapshot.id,
     });
     expect((await storage.get(child.snapshot.id))?.title).toBe("Independent verifier");
-    expect((await storage.get(child.snapshot.id))?.titleSource).toBe("manual");
+    expect((await storage.get(child.snapshot.id))?.titleSource).toBe("generated");
   } finally {
     await removeRealAgentManagerWorkdir({ agentManager, storage, workdir });
   }

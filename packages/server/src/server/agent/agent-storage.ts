@@ -86,6 +86,7 @@ const STORED_AGENT_SCHEMA = z.object({
   lastUserMessageAt: z.string().nullable().optional(),
   title: z.string().nullable().optional(),
   titleSource: z.enum(["manual", "provisional", "generated"]).optional(),
+  titleMilestone: z.number().int().nonnegative().optional(),
   labels: z.record(z.string(), z.string()).default({}),
   lastStatus: AgentStatusSchema.default("closed"),
   lastModeId: z.string().nullable().optional(),
@@ -146,7 +147,15 @@ function preserveSnapshotMetadata(
   record.pluginTimelineItems = existing?.pluginTimelineItems;
   record.questionResponseStartedAt = existing?.questionResponseStartedAt;
   record.titleSource = existing?.titleSource;
+  record.titleMilestone = existing?.titleMilestone;
   if (existing && existing.archivedAt !== undefined) record.archivedAt = existing.archivedAt;
+}
+
+function initialTitleSource(
+  config: Pick<AgentSessionConfig, "title" | "titlePinned">,
+): "manual" | "generated" | "provisional" {
+  if (!config.title) return "provisional";
+  return config.titlePinned ? "manual" : "generated";
 }
 
 export function parseStoredAgentRecord(value: unknown): StoredAgentRecord {
@@ -387,7 +396,7 @@ export class AgentStorage {
 
       preserveSnapshotMetadata(record, existing);
       if (hasTitleOverride && options?.title && existing?.title !== options.title)
-        record.titleSource = agent.config.title ? "manual" : "provisional";
+        record.titleSource = initialTitleSource(agent.config);
       return record;
     });
   }
@@ -459,11 +468,23 @@ export class AgentStorage {
     });
   }
 
-  async setTitle(agentId: string, title: string): Promise<void> {
+  async setTitle(
+    agentId: string,
+    title: string,
+    source: "manual" | "generated" = "manual",
+  ): Promise<void> {
     await this.load();
     await this.queueRecordMutation(agentId, (existing) => {
       if (!existing) throw new Error(`Agent ${agentId} not found`);
-      return { ...existing, title, titleSource: "manual" };
+      return { ...existing, title, titleSource: source };
+    });
+  }
+
+  async resetTitle(agentId: string): Promise<void> {
+    await this.load();
+    await this.queueRecordMutation(agentId, (existing) => {
+      if (!existing) throw new Error(`Agent ${agentId} not found`);
+      return { ...existing, titleSource: "provisional", updatedAt: new Date().toISOString() };
     });
   }
 
@@ -472,19 +493,22 @@ export class AgentStorage {
     title: string,
     expectedTitle: string | null,
     source: "provisional" | "generated",
+    milestone?: number,
   ): Promise<boolean> {
     await this.load();
     let applied = false;
     await this.queueRecordMutation(agentId, (existing) => {
       if (!existing) throw new Error(`Agent ${agentId} not found`);
-      if (
-        existing.titleSource === "manual" ||
-        existing.titleSource === "generated" ||
-        (existing.title ?? null) !== expectedTitle
-      )
+      if (existing.titleSource === "manual" || (existing.title ?? null) !== expectedTitle)
         return existing;
       applied = true;
-      return { ...existing, title, titleSource: source, updatedAt: new Date().toISOString() };
+      return {
+        ...existing,
+        title,
+        titleSource: source,
+        ...(milestone === undefined ? {} : { titleMilestone: milestone }),
+        updatedAt: new Date().toISOString(),
+      };
     });
     return applied;
   }

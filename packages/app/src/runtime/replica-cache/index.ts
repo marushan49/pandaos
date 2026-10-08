@@ -714,6 +714,7 @@ function serializeWorkspace(workspace: WorkspaceDescriptor): StoredWorkspace {
     workspaceKind: workspace.workspaceKind,
     name: workspace.name,
     title: workspace.title ?? null,
+    ...(workspace.titleLocked ? { titleLocked: true } : {}),
     pinnedAt: workspace.pinnedAt ?? null,
     labels: workspace.labels,
     doneAt: workspace.doneAt ?? null,

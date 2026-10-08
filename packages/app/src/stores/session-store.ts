@@ -118,6 +118,7 @@ export interface WorkspaceDescriptor {
   workspaceKind: WorkspaceDescriptorPayload["workspaceKind"];
   name: string;
   title?: string | null;
+  titleLocked?: boolean;
   pinnedAt?: string | null;
   /** When the person marked the session done; null while it is open. */
   doneAt?: string | null;
@@ -166,6 +167,7 @@ export function normalizeWorkspaceDescriptor(
     workspaceKind: payload.workspaceKind,
     name: payload.name,
     title: payload.title ?? null,
+    titleLocked: payload.titleLocked === true,
     pinnedAt: payload.pinnedAt ?? null,
     // COMPAT(workspaceDone): daemons before v0.9.3 omit it.
     doneAt: payload.doneAt ?? null,

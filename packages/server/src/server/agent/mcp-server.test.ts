@@ -4275,6 +4275,7 @@ describe("update_agent MCP tool", () => {
     expect(spies.agentManager.setAgentFeature).toHaveBeenCalledWith("agent-1", "fast_mode", true);
     expect(spies.agentManager.updateAgentMetadata).toHaveBeenCalledWith("agent-1", {
       title: "Updated agent",
+      titleSource: "generated",
       labels: { role: "worker" },
     });
     expect(response.structuredContent).toEqual({ success: true });
@@ -4299,6 +4300,7 @@ describe("update_agent MCP tool", () => {
     expect(spies.agentManager.setAgentModel).toHaveBeenCalledWith("agent-1", "gpt-5.4");
     expect(spies.agentManager.updateAgentMetadata).toHaveBeenCalledWith("agent-1", {
       title: "Renamed by itself",
+      titleSource: "generated",
       labels: undefined,
     });
   });
