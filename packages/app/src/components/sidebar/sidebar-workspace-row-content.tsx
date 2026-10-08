@@ -272,6 +272,7 @@ export const sidebarWorkspaceRowStyles = StyleSheet.create((theme) => ({
     alignItems: "flex-start",
     gap: theme.spacing[2],
     flexShrink: 0,
+    position: "relative",
   },
   shortcutBadge: {
     minWidth: 18,

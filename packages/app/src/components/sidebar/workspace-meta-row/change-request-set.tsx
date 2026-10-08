@@ -1,4 +1,3 @@
-import { useIsCompactFormFactor } from "@/constants/layout";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View, type GestureResponderEvent } from "react-native";
@@ -58,7 +57,6 @@ export function ChangeRequestSetItem({
   onToggle: () => void;
 }) {
   const { t } = useTranslation();
-  const isCompact = useIsCompactFormFactor();
 
   const handlePressIn = useCallback((event: GestureResponderEvent) => event.stopPropagation(), []);
   const handlePress = useCallback(
@@ -74,7 +72,7 @@ export function ChangeRequestSetItem({
   const allMerged = summary.total > 0 && summary.mergedCount === summary.total;
   const accessibilityState = useMemo(() => ({ expanded }), [expanded]);
 
-  if (isCompact && summary.total === 0 && !expanded && !showWhenEmpty) return null;
+  if (summary.total === 0 && !expanded && !showWhenEmpty) return null;
 
   return (
     <Pressable
