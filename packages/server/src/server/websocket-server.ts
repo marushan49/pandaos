@@ -1985,6 +1985,8 @@ export class VoiceAssistantWebSocketServer {
         // COMPAT(terminalSizeOwnership): added in v0.2.6, remove gate after 2027-02-02.
         "terminal-size-ownership": true,
         workspaceTerminals: true,
+        // COMPAT(autoTitles): added in v0.11.1, remove gate after 2027-10-08.
+        autoTitles: true,
         remoteBrowser: true,
         moveAgentWorkspace: true,
         // COMPAT(rewind): added in v0.1.X, drop the gate when floor >= v0.1.X.

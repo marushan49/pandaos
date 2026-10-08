@@ -36,8 +36,9 @@ class FakeLifecycleAgentManager implements LifecycleAgentManager {
   readonly closedAgentIds: string[] = [];
   readonly metadataUpdates: Array<{
     agentId: string;
-    updates: { title?: string; labels?: Record<string, string> };
+    updates: { title?: string; titleSource?: string; labels?: Record<string, string> };
   }> = [];
+  readonly titleResets: string[] = [];
   readonly labelUpdates: Array<{ agentId: string; labels: Record<string, string> }> = [];
   readonly notifiedAgentIds: string[] = [];
   readonly modeUpdates: Array<{ agentId: string; modeId: string }> = [];
@@ -154,10 +155,15 @@ class FakeLifecycleAgentManager implements LifecycleAgentManager {
     agentId: string,
     updates: {
       title?: string;
+      titleSource?: "manual" | "generated";
       labels?: Record<string, string>;
     },
   ): Promise<void> {
     this.metadataUpdates.push({ agentId, updates });
+  }
+
+  async resetTitle(agentId: string): Promise<void> {
+    this.titleResets.push(agentId);
   }
 }
 
@@ -278,9 +284,31 @@ describe("agent lifecycle commands", () => {
         agentId: "agent-1",
         updates: {
           title: "Renamed agent",
+          titleSource: "manual",
           labels: { team: "infra" },
         },
       },
+    ]);
+  });
+
+  test("an empty name from a person resets the title and an agent rename stays replaceable", async () => {
+    const storage = new FakeLifecycleAgentStorage();
+    const manager = new FakeLifecycleAgentManager(storage);
+
+    await expect(
+      updateAgentCommand(
+        { agentManager: manager },
+        { agentId: "agent-1", name: " ", allowTitleReset: true },
+      ),
+    ).resolves.toEqual({ accepted: true, error: null });
+    await updateAgentCommand(
+      { agentManager: manager },
+      { agentId: "agent-1", name: "Reviewer: PR 12", titleSource: "generated" },
+    );
+
+    expect(manager.titleResets).toEqual(["agent-1"]);
+    expect(manager.metadataUpdates).toEqual([
+      { agentId: "agent-1", updates: { title: "Reviewer: PR 12", titleSource: "generated" } },
     ]);
   });
 

@@ -1231,10 +1231,11 @@ export async function createPaseoDaemon(
     agentManager,
     agentStorage,
     workspaceRegistry,
-    generate: ({ agent, prompt }) =>
+    generate: ({ agent, prompt, currentTitle }) =>
       workspaceAutoName.generateContextualName({
         cwd: agent.cwd,
         prompt,
+        currentTitle,
         currentSelection: {
           provider: agent.provider,
           model: agent.config?.model,

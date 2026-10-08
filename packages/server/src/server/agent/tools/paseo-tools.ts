@@ -2359,7 +2359,10 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         }
       }
 
-      await updateAgentCommand({ agentManager }, { agentId, name, labels });
+      await updateAgentCommand(
+        { agentManager },
+        { agentId, name, labels, titleSource: "generated" },
+      );
 
       return {
         content: [],

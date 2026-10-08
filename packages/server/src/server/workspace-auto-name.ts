@@ -200,11 +200,13 @@ export class WorkspaceAutoName {
   generateContextualName(input: {
     cwd: string;
     prompt: string;
+    currentTitle?: string | null;
     currentSelection: CurrentSelection;
   }): Promise<GeneratedWorkspaceName | null> {
     return this.generateFromContext({
       cwd: input.cwd,
       firstAgentContext: { prompt: input.prompt },
+      currentTitle: input.currentTitle,
       currentSelection: input.currentSelection,
     });
   }
@@ -212,11 +214,12 @@ export class WorkspaceAutoName {
   private generateFromContext(input: {
     cwd: string;
     firstAgentContext: FirstAgentContext;
+    currentTitle?: string | null;
     currentSelection: CurrentSelection;
   }): Promise<GeneratedWorkspaceName | null> {
     if (input.firstAgentContext.prompt && isSetupPrompt(input.firstAgentContext.prompt))
       return Promise.resolve(null);
-    const key = JSON.stringify([input.cwd, input.firstAgentContext]);
+    const key = JSON.stringify([input.cwd, input.firstAgentContext, input.currentTitle ?? null]);
     const existing = this.generations.get(key);
     if (existing) return existing;
     if (this.generations.size >= 50) this.generations.delete(this.generations.keys().next().value!);
@@ -228,6 +231,7 @@ export class WorkspaceAutoName {
       daemonConfig: this.readDaemonConfig(),
       currentSelection: input.currentSelection ?? undefined,
       firstAgentContext: input.firstAgentContext,
+      currentTitle: input.currentTitle,
       logger: this.logger,
     });
     this.generations.set(key, generated);

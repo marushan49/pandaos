@@ -30,9 +30,11 @@ export interface LifecycleAgentManager {
     agentId: string,
     updates: {
       title?: string;
+      titleSource?: "manual" | "generated";
       labels?: Record<string, string>;
     },
   ): Promise<void>;
+  resetTitle(agentId: string): Promise<void>;
 }
 
 export interface LifecycleAgentStorage {
@@ -162,22 +164,28 @@ export async function updateAgentCommand(
     agentId: string;
     name?: string;
     labels?: Record<string, string>;
+    titleSource?: "manual" | "generated";
+    allowTitleReset?: boolean;
   },
 ): Promise<UpdateAgentResult> {
   const title = input.name?.trim();
   const labels = input.labels && Object.keys(input.labels).length > 0 ? input.labels : undefined;
+  const resetTitle = input.allowTitleReset === true && input.name !== undefined && !title;
 
-  if (!title && !labels) {
+  if (!title && !labels && !resetTitle) {
     return {
       accepted: false,
       error: "Nothing to update (provide name and/or labels)",
     };
   }
 
-  await dependencies.agentManager.updateAgentMetadata(input.agentId, {
-    ...(title ? { title } : {}),
-    ...(labels ? { labels } : {}),
-  });
+  if (title || labels) {
+    await dependencies.agentManager.updateAgentMetadata(input.agentId, {
+      ...(title ? { title, titleSource: input.titleSource ?? "manual" } : {}),
+      ...(labels ? { labels } : {}),
+    });
+  }
+  if (resetTitle) await dependencies.agentManager.resetTitle(input.agentId);
 
   return {
     accepted: true,
