@@ -38,17 +38,23 @@ function withoutServerEntries<T>(
   return Object.fromEntries(kept);
 }
 
-export const useBrowserActivityStore = create<BrowserActivityState>((set) => ({
+const FINISHED_BANNER_MS = 8000;
+
+export const useBrowserActivityStore = create<BrowserActivityState>((set, get) => ({
   byBrowser: {},
   handoffs: {},
   activeHandoffByBrowser: {},
-  apply: (serverId, event) =>
+  apply: (serverId, event) => {
     set((state) => ({
       byBrowser: {
         ...state.byBrowser,
         [activityKey(serverId, event.workspaceId, event.browserId)]: event,
       },
-    })),
+    }));
+    if (event.phase === "finished") {
+      setTimeout(() => get().dismiss(serverId, event), FINISHED_BANNER_MS);
+    }
+  },
   applyHandoff: (serverId, handoff) =>
     set((state) => {
       const browserKey = activityKey(serverId, handoff.workspaceId, handoff.browserId);
