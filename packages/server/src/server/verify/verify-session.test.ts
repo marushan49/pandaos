@@ -7,7 +7,7 @@ import type { SessionOutboundMessage } from "@getpaseo/protocol/messages";
 
 import { EvidenceStore } from "./evidence-store.js";
 import { DaemonPlaywrightHost } from "./playwright-host.js";
-import { VerifySession } from "./verify-session.js";
+import { VerifySession, type VerifySessionOptions } from "./verify-session.js";
 import type { PersistedWorkspaceRecord } from "../workspace-registry.js";
 import { resolveBrowserExecutable } from "./browser-capability.js";
 import {
@@ -30,11 +30,14 @@ afterEach(() => {
   }
 });
 
-function stubHost(): Pick<DaemonPlaywrightHost, "executeLocal"> {
+function stubHost(): VerifySessionOptions["host"] {
+  const unavailable = async (): Promise<never> => {
+    throw new Error("browser not available in this test");
+  };
   return {
-    executeLocal: async () => {
-      throw new Error("browser not available in this test");
-    },
+    executeLocal: unavailable,
+    openTab: unavailable,
+    releaseTab: () => false,
   };
 }
 
