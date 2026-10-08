@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { ToolCallTimelineItem } from "../../agent-sdk-types.js";
 import {
+  buildShellFailureMessage,
   extractCodexShellOutput,
   normalizeToolCallStatus,
   truncateDiffText,
@@ -86,6 +87,19 @@ interface CodexMcpToolResultImagesSplit {
   output: unknown;
 }
 
+function resolveFailureMessage(envelope: CodexResolvedToolCall): string {
+  if (envelope.toolKind !== "shell" || !isRecord(envelope.output)) {
+    return "Tool call failed";
+  }
+  const { exitCode, output } = envelope.output;
+  return (
+    buildShellFailureMessage({
+      exitCode: typeof exitCode === "number" ? exitCode : null,
+      output,
+    }) ?? "Command failed"
+  );
+}
+
 function toToolCallTimelineItem(envelope: CodexResolvedToolCall): ToolCallTimelineItem {
   const name = envelope.toolKind === "speak" ? ("speak" as const) : envelope.name;
   const parsedDetail = deriveCodexToolDetail({
@@ -112,7 +126,7 @@ function toToolCallTimelineItem(envelope: CodexResolvedToolCall): ToolCallTimeli
       callId: envelope.callId,
       name,
       status: "failed",
-      error: envelope.error ?? { message: "Tool call failed" },
+      error: envelope.error ?? { message: resolveFailureMessage(envelope) },
       detail,
       ...(envelope.metadata ? { metadata: envelope.metadata } : {}),
     };

@@ -85,17 +85,17 @@ export const OverviewToolCallGroupView = memo(function OverviewToolCallGroupView
   const isCompact = useIsCompactFormFactor();
   const { t } = useTranslation();
   const aggregateSummary = useOverviewLabel(group);
-  const failedCount = group.summary.failedCount;
+  const { failedCount, failedUnrecovered } = group.summary;
   const failedBadge = useMemo(
     () =>
       failedCount > 0 ? (
         <StatusBadge
-          variant="error"
+          variant={failedUnrecovered ? "error" : "muted"}
           size="xs"
           label={t("toolCallGroup.failed", { count: failedCount })}
         />
       ) : null,
-    [failedCount, t],
+    [failedCount, failedUnrecovered, t],
   );
   const originTags = useMemo(
     () =>
