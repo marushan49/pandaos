@@ -41,7 +41,11 @@ import { join } from "node:path";
 import { AgentManager } from "./agent/agent-manager.js";
 import { AgentStorage } from "./agent/agent-storage.js";
 import { MockLoadTestAgentClient } from "./agent/providers/mock-load-test-agent.js";
-import { ContextualTitles, canGenerateContextualTitle } from "./contextual-titles.js";
+import {
+  ContextualTitles,
+  canGenerateContextualTitle,
+  createJevTitleCheck,
+} from "./contextual-titles.js";
 import {
   FileBackedWorkspaceRegistry,
   createPersistedWorkspaceRecord,
@@ -315,5 +319,42 @@ describe("Accepted prompt contextual titles", () => {
       expect((await storage.get(agent.id))?.title).toBe("Repair login token refresh"),
     );
     expect((await workspaces.get("workspace-fixture"))?.title).toBe("Mine");
+  });
+});
+
+describe("Jev title check", () => {
+  const input = {
+    agent: { cwd: "/tmp" } as Parameters<ReturnType<typeof createJevTitleCheck>>[0]["agent"],
+    title: "Repair login",
+    messages: ["fix the login token"],
+  };
+  const answer = (choice: string, confidence: number) => ({
+    answers: {
+      topic: {
+        choice,
+        confidence,
+        probabilities:
+          choice === "same"
+            ? { same: confidence, changed: 1 - confidence }
+            : { same: 1 - confidence, changed: confidence },
+      },
+    },
+    model: "jev",
+    latencyMs: 1,
+  });
+  test("skips generation only for a confident same-topic answer and falls through on errors", async () => {
+    const decide = vi.fn();
+    const check = createJevTitleCheck(
+      () => ({ decide }),
+      () => 0.6,
+    );
+    decide.mockResolvedValueOnce(answer("same", 0.9));
+    await expect(check(input)).resolves.toBe(true);
+    decide.mockResolvedValueOnce(answer("same", 0.55));
+    await expect(check(input)).resolves.toBe(false);
+    decide.mockResolvedValueOnce(answer("changed", 0.9));
+    await expect(check(input)).resolves.toBe(false);
+    decide.mockRejectedValueOnce(new Error("System One is disabled"));
+    await expect(check(input)).resolves.toBe(false);
   });
 });

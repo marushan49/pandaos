@@ -1,6 +1,7 @@
 import type { AgentManager, AgentManagerEvent } from "./agent/agent-manager.js";
 import type { AgentStorage, StoredAgentRecord } from "./agent/agent-storage.js";
 import { isSetupPrompt, resolveLegacyPromptTitle } from "./agent/create-agent-title.js";
+import { parseChoiceAnswer, type TypeSafeDecisionSource } from "./browser-tools/jev-client.js";
 import type { WorkspaceRegistry } from "./workspace-registry.js";
 import type { GeneratedWorkspaceName } from "./worktree-branch-name-generator.js";
 
@@ -50,6 +51,34 @@ export function canGenerateContextualTitle(
     return reached > (record.titleMilestone ?? 0);
   }
   return record.title === resolveLegacyPromptTitle(firstPrompt);
+}
+
+export function createJevTitleCheck(
+  decisionSource: (cwd: string) => TypeSafeDecisionSource,
+  minimumConfidence: () => number,
+): (input: TitleCheckInput) => Promise<boolean> {
+  return async ({ agent, title, messages }) => {
+    try {
+      const decision = await decisionSource(agent.cwd).decide({
+        state: { currentTitle: title, recentUserMessages: messages },
+        questions: {
+          topic: {
+            type: "choice",
+            instructions:
+              "Does the current title still describe what these recent user messages are about?",
+            criteria: {
+              same: "The title still fits the topic of the conversation.",
+              changed: "The topic has changed materially and the title no longer fits.",
+            },
+          },
+        },
+      });
+      const answer = parseChoiceAnswer(decision.answers.topic, ["same", "changed"]);
+      return answer.choice === "same" && answer.confidence >= minimumConfidence();
+    } catch {
+      return false;
+    }
+  };
 }
 
 export class ContextualTitles {

@@ -1,4 +1,4 @@
-import { ContextualTitles } from "./contextual-titles.js";
+import { ContextualTitles, createJevTitleCheck } from "./contextual-titles.js";
 import type { PluginRegistries } from "@getpaseo/protocol/plugin-registry";
 import { describeHookWorkspace } from "./plugins/lifecycle/index.js";
 import { isShadowModeEnabled } from "./system-one/scope.js";
@@ -1242,6 +1242,16 @@ export async function createPaseoDaemon(
           thinkingOptionId: agent.config?.thinkingOptionId,
         },
       }),
+    titleStillFits: createJevTitleCheck(
+      (cwd) =>
+        createConfiguredSystemOneDecisionSource(
+          config.paseoHome,
+          daemonConfigStore,
+          () => cwd,
+          "title",
+        ),
+      () => daemonConfigStore.get().systemOne?.minimumConfidence ?? 0.5,
+    ),
     emitWorkspaceUpdate: (workspaceId) => emitWorkspaceUpdatesExternal([workspaceId]),
     onError: (error) => logger.warn({ err: error }, "Contextual title generation failed"),
   });
