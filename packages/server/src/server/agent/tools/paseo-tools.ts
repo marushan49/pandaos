@@ -92,6 +92,7 @@ import {
 } from "../../worktree/commands.js";
 import { registerBrowserTools } from "../../browser-tools/tools.js";
 import { JevBrowserGoalRunner } from "../../browser-tools/jev-goal-runner.js";
+import { recordBrowserStep } from "../../browser-tools/jev-fallback.js";
 import type { BrowserActivityHub } from "../../browser-tools/browser-activity.js";
 import type { BrowserToolsBroker } from "../../browser-tools/broker.js";
 import { guardBrowserToolsForHandoffs } from "../../browser-tools/handoff.js";
@@ -1309,7 +1310,15 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
           })
         : null;
     registerBrowserTools({
-      registerTool,
+      registerTool: (name, config, handler) =>
+        registerTool(name, config, async (input, context) => {
+          const result = await handler(input, context);
+          const workspaceId = resolveCallerAgent()?.workspaceId;
+          const hint = workspaceId ? recordBrowserStep(workspaceId, name) : undefined;
+          return hint
+            ? { ...result, content: [...result.content, { type: "text", text: hint }] }
+            : result;
+        }),
       broker: browserBroker,
       ...(configuredGoalRunner && options.daemonConfigStore
         ? {

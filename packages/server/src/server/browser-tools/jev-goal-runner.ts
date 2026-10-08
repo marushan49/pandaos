@@ -9,11 +9,13 @@ import {
 import {
   parseChoiceAnswer,
   TypeSafeSystemOneClient,
+  type TypeSafeChoiceAnswer,
   type TypeSafeChoiceQuestion,
   type TypeSafeDecisionRequest,
   type TypeSafeDecisionSource,
   type TypeSafeUsage,
 } from "./jev-client.js";
+import { formatUnsureStop, gateConfidence } from "./jev-fallback.js";
 
 const DEFAULT_MAX_STEPS = 12;
 const DEFAULT_MIN_CONFIDENCE = 0.5;
@@ -257,6 +259,8 @@ export class JevBrowserGoalRunner {
     const excludedActions = new Map<string, Set<string>>();
     const rejectedDoneStates = new Set<string>();
     let lastModel: string | undefined;
+    let unsureSoFar = 0;
+    let lastRejection: UnsureRejection | undefined;
     activity.update({ phase: "observing", step: 1 });
     let page = await this.observe(browserId, context);
     // The only pause point: after an action and before the snapshot the next decision uses.
@@ -295,6 +299,8 @@ export class JevBrowserGoalRunner {
         plan,
         steps,
         redactions,
+        minConfidence,
+        rejection: lastRejection,
       });
       const decision = await this.decisionSource.decide(request);
       addDecisionUsage(usage, decision.usage);
@@ -326,25 +332,50 @@ export class JevBrowserGoalRunner {
         continue;
       }
 
-      const operationProbability = operation.probabilities[operation.choice] ?? 0;
-      if (Math.min(operation.confidence, operationProbability) < minConfidence) {
-        return resultFor(
-          "uncertain",
-          page,
-          steps,
-          `Jev was not confident enough to execute ${operation.choice}.`,
-          lastModel,
-        );
-      }
-
-      if (operation.choice === "BLOCKED") {
+      const judgement = judgeDecision({
+        operation,
+        plan,
+        decision,
+        minConfidence,
+        unsureSoFar,
+        redactions,
+      });
+      if (judgement.kind === "blocked") {
         return resultFor("blocked", page, steps, "Jev found no supported next action.", lastModel);
       }
-
-      const selected = selectAction({ operation: operation.choice, plan, decision, minConfidence });
-      if (selected.status === "uncertain") {
-        return resultFor("uncertain", page, steps, selected.message, lastModel);
+      if (judgement.kind === "unsure") {
+        if (judgement.stop) {
+          return resultFor(
+            "uncertain",
+            page,
+            steps,
+            formatUnsureStop({
+              ...judgement.rejection,
+              minConfidence,
+              looks: unsureSoFar,
+              goal: redactValues(input.goal, redactions),
+              done: steps
+                .filter((entry) => entry.outcome === "executed")
+                .map((entry) =>
+                  entry.target ? `${entry.operation} ${entry.target}` : entry.operation,
+                ),
+              title: redactValues(page.title, redactions),
+              url: redactValues(page.url, redactions),
+              browserId,
+              controls: visibleControls(page, redactions),
+            }),
+            lastModel,
+          );
+        }
+        unsureSoFar += 1;
+        lastRejection = judgement.rejection;
+        await this.delay(WAIT_MS);
+        page = await observeNext(step + 1);
+        continue;
       }
+      const selected = judgement.selected;
+      unsureSoFar = judgement.unsure ? unsureSoFar + 1 : 0;
+      lastRejection = undefined;
 
       const actionKey = `${operation.choice}:${selected.target ?? ""}:${selected.valueName ?? ""}`;
       if (excluded.has(actionKey)) {
@@ -635,6 +666,8 @@ function buildDecisionRequest(params: {
   plan: OperationPlan;
   steps: JevBrowserGoalTraceEntry[];
   redactions: string[];
+  minConfidence: number;
+  rejection: UnsureRejection | undefined;
 }): TypeSafeDecisionRequest {
   const redact = (value: string) => redactValues(value, params.redactions);
   return {
@@ -655,6 +688,16 @@ function buildDecisionRequest(params: {
         description: value.description ?? name,
       })),
       recent_actions: params.steps.slice(-8),
+      ...(params.rejection
+        ? {
+            previous_attempt: {
+              rejected: params.rejection.reason,
+              confidence: Number(params.rejection.confidence.toFixed(2)),
+              needed: params.minConfidence,
+              note: "The previous answer was too unsure to act on and the page was observed again. Choose the operation you are most sure of from the current elements; if the needed control is not visible yet, SCROLL_DOWN or WAIT is safe.",
+            },
+          }
+        : {}),
     },
     questions: Object.fromEntries(
       Object.entries(params.plan.questions).map(([name, question]) => [
@@ -675,45 +718,153 @@ function buildDecisionRequest(params: {
   };
 }
 
+interface SelectedAction {
+  status: "selected";
+  target?: string;
+  value?: string;
+  valueName?: string;
+  targetConfidence?: number;
+}
+
+interface UnsureRejection {
+  reason: string;
+  operation: string;
+  confidence: number;
+  guess?: string;
+}
+
+type DecisionJudgement =
+  | { kind: "blocked" }
+  | { kind: "unsure"; stop: boolean; rejection: UnsureRejection }
+  | { kind: "act"; selected: SelectedAction; unsure: boolean };
+
+type TypeSafeDecision = Awaited<ReturnType<TypeSafeDecisionSource["decide"]>>;
+
+function judgeDecision(params: {
+  operation: TypeSafeChoiceAnswer;
+  plan: OperationPlan;
+  decision: TypeSafeDecision;
+  minConfidence: number;
+  unsureSoFar: number;
+  redactions: string[];
+}): DecisionJudgement {
+  const { operation, minConfidence, unsureSoFar } = params;
+  const confidence = Math.min(operation.confidence, operation.probabilities[operation.choice] ?? 0);
+  const gate = gateConfidence({
+    operation: operation.choice,
+    confidence,
+    minConfidence,
+    unsureSoFar,
+  });
+  if (gate === "retry" || gate === "stop") {
+    const guess = guessTarget(operation.choice, params.plan, params.decision);
+    return {
+      kind: "unsure",
+      stop: gate === "stop",
+      rejection: {
+        reason: `Jev was not confident enough to execute ${operation.choice}.`,
+        operation: operation.choice,
+        confidence,
+        ...(guess ? { guess: describeGuess(guess, params.redactions) } : {}),
+      },
+    };
+  }
+  if (operation.choice === "BLOCKED") return { kind: "blocked" };
+  const selection = selectAction({
+    operation: operation.choice,
+    plan: params.plan,
+    decision: params.decision,
+    minConfidence,
+  });
+  if (selection.status === "selected") {
+    return { kind: "act", selected: selection, unsure: gate === "execute_unsure" };
+  }
+  const targetGate = gateConfidence({
+    operation: operation.choice,
+    confidence: selection.confidence,
+    minConfidence,
+    unsureSoFar,
+  });
+  return {
+    kind: "unsure",
+    stop: targetGate === "stop",
+    rejection: {
+      reason: selection.message,
+      operation: operation.choice,
+      confidence: selection.confidence,
+      ...(selection.guess ? { guess: describeGuess(selection.guess, params.redactions) } : {}),
+    },
+  };
+}
+
+interface TargetGuess {
+  element: ObservedElement;
+  confidence: number;
+}
+
+function describeGuess(guess: TargetGuess, redactions: readonly string[]): string {
+  return `${describeControl(guess.element, redactions)} (${guess.confidence.toFixed(2)})`;
+}
+
+function targetQuestionFor(
+  operation: string,
+  plan: OperationPlan,
+): { candidates: Candidate<ObservedElement>[]; answerName: string } | null {
+  if (operation === "CLICK") return { candidates: plan.clickTargets, answerName: "click_target" };
+  if (operation === "FILL") return { candidates: plan.fillTargets, answerName: "fill_target" };
+  if (operation === "PRESS_ENTER") {
+    return { candidates: plan.enterTargets, answerName: "enter_target" };
+  }
+  return null;
+}
+
+function guessTarget(
+  operation: string,
+  plan: OperationPlan,
+  decision: TypeSafeDecision,
+): TargetGuess | undefined {
+  const question = targetQuestionFor(operation, plan);
+  if (!question || decision.answers[question.answerName] === undefined) return undefined;
+  try {
+    const answer = parseChoiceAnswer(
+      decision.answers[question.answerName],
+      question.candidates.map((candidate) => candidate.id),
+    );
+    const element = question.candidates.find((candidate) => candidate.id === answer.choice)?.value;
+    return element ? { element, confidence: answer.confidence } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function selectAction(params: {
   operation: string;
   plan: OperationPlan;
-  decision: Awaited<ReturnType<TypeSafeDecisionSource["decide"]>>;
+  decision: TypeSafeDecision;
   minConfidence: number;
 }):
-  | {
-      status: "selected";
-      target?: string;
-      value?: string;
-      valueName?: string;
-      targetConfidence?: number;
-    }
-  | { status: "uncertain"; message: string } {
-  let candidates: Candidate<ObservedElement>[] | undefined;
-  let answerName: string | undefined;
-  if (params.operation === "CLICK") {
-    candidates = params.plan.clickTargets;
-    answerName = "click_target";
-  } else if (params.operation === "FILL") {
-    candidates = params.plan.fillTargets;
-    answerName = "fill_target";
-  } else if (params.operation === "PRESS_ENTER") {
-    candidates = params.plan.enterTargets;
-    answerName = "enter_target";
-  }
-
-  if (!candidates || !answerName) {
+  | SelectedAction
+  | { status: "uncertain"; message: string; confidence: number; guess?: TargetGuess } {
+  const question = targetQuestionFor(params.operation, params.plan);
+  if (!question) {
     return { status: "selected" };
   }
+  const { candidates, answerName } = question;
   const targetAnswer = parseChoiceAnswer(
     params.decision.answers[answerName],
     candidates.map((candidate) => candidate.id),
   );
   const targetProbability = targetAnswer.probabilities[targetAnswer.choice] ?? 0;
-  if (Math.min(targetAnswer.confidence, targetProbability) < params.minConfidence) {
-    return { status: "uncertain", message: `Jev was not confident enough to choose a target.` };
-  }
   const target = candidates.find((candidate) => candidate.id === targetAnswer.choice)?.value;
+  const targetConfidence = Math.min(targetAnswer.confidence, targetProbability);
+  if (targetConfidence < params.minConfidence) {
+    return {
+      status: "uncertain",
+      message: "Jev was not confident enough to choose a target.",
+      confidence: targetConfidence,
+      ...(target ? { guess: { element: target, confidence: targetAnswer.confidence } } : {}),
+    };
+  }
   if (!target) {
     throw new Error("TypeSafe selected an unknown browser target; no action executed.");
   }
@@ -730,9 +881,17 @@ function selectAction(params: {
     params.decision.answers.fill_value,
     params.plan.fillValues.map((candidate) => candidate.id),
   );
-  const valueProbability = valueAnswer.probabilities[valueAnswer.choice] ?? 0;
-  if (Math.min(valueAnswer.confidence, valueProbability) < params.minConfidence) {
-    return { status: "uncertain", message: "Jev was not confident enough to choose a value slot." };
+  const valueConfidence = Math.min(
+    valueAnswer.confidence,
+    valueAnswer.probabilities[valueAnswer.choice] ?? 0,
+  );
+  if (valueConfidence < params.minConfidence) {
+    return {
+      status: "uncertain",
+      message: "Jev was not confident enough to choose a value slot.",
+      confidence: valueConfidence,
+      guess: { element: target, confidence: targetAnswer.confidence },
+    };
   }
   const value = params.plan.fillValues.find(
     (candidate) => candidate.id === valueAnswer.choice,
@@ -886,20 +1045,26 @@ function resultFor(
     browserId: page.browserId,
     url: page.url,
     title: page.title,
-    // A stopped run hands the agent the page's controls, so it can act on its own
-    // without spending another snapshot.
-    message: status === "blocked" || status === "uncertain" ? withControls(message, page) : message,
+    message: status === "blocked" ? withControls(message, page) : message,
     steps,
     ...(model ? { model } : {}),
   };
 }
 
 function withControls(message: string, page: BrowserPage): string {
-  const controls = page.elements
+  const controls = visibleControls(page, []);
+  return controls.length > 0 ? `${message}\nVisible controls: ${controls.join(", ")}` : message;
+}
+
+function visibleControls(page: BrowserPage, redactions: readonly string[]): string[] {
+  return page.elements
     .filter((element) => !NON_CLICKABLE_ROLES.has(element.role) && element.name.trim())
     .slice(0, MAX_LISTED_CONTROLS)
-    .map((element) => `${element.role} "${element.name}" ${element.ref}`);
-  return controls.length > 0 ? `${message}\nVisible controls: ${controls.join(", ")}` : message;
+    .map((element) => describeControl(element, redactions));
+}
+
+function describeControl(element: ObservedElement, redactions: readonly string[]): string {
+  return `${element.role} "${redactValues(element.name, redactions)}" ${element.ref}`;
 }
 
 // Cheap pre-check on the observation already in hand, so a page that cannot pass
