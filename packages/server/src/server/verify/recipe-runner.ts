@@ -20,6 +20,7 @@ import { EvidenceStore, formatEvidenceRef } from "./evidence-store.js";
 import { findSnapshotRef } from "./page-snapshot.js";
 import type { DaemonPlaywrightHost } from "./playwright-host.js";
 import type { BrowserToolsResponsePayload } from "../browser-tools/errors.js";
+import { describeDeferredTabClose } from "../browser-tools/tab-close-gate.js";
 import { interpolateRecipeParams } from "./recipe-params.js";
 import { formatJevUsage, JevBrowserGoalRunner } from "../browser-tools/jev-goal-runner.js";
 import type { TypeSafeDecisionSource } from "../browser-tools/jev-client.js";
@@ -59,6 +60,7 @@ export interface VerifyRunResult {
   agentBytes: number;
   error?: string;
   hint?: string;
+  tabNote?: string;
 }
 
 type RecipeHost = Pick<DaemonPlaywrightHost, "executeLocal" | "openTab" | "releaseTab">;
@@ -98,6 +100,7 @@ interface RunContext {
   rawArtifactBytes: number;
   allowGoal: boolean;
   activity: BrowserActivityRun | null;
+  tabNote?: string;
   lastScreenshotRef: string | null;
 }
 
@@ -263,6 +266,7 @@ export class RecipeRunner {
       ...(screenshotRef ? { screenshotRef } : {}),
       rawBytes: context.rawArtifactBytes,
       agentBytes: 0,
+      ...(context.tabNote ? { tabNote: context.tabNote } : {}),
       ...(failedCheck && failedCheck.name === "setup"
         ? { error: context.redactor.redact(failedCheck.detail ?? "Setup failed") }
         : {}),
@@ -291,9 +295,15 @@ export class RecipeRunner {
   private async releaseTab(context: RunContext): Promise<void> {
     const { browserId } = context;
     if (!browserId || !this.host.releaseTab(browserId)) return;
-    await this.execute(context, { command: "close_tab", args: { browserId } }).catch(
-      () => undefined,
-    );
+    const payload = await this.execute(context, {
+      command: "close_tab",
+      args: { browserId },
+    }).catch(() => null);
+    const note =
+      payload?.ok && payload.result.command === "close_tab"
+        ? describeDeferredTabClose(payload.result)
+        : null;
+    if (note) context.tabNote = note;
   }
 
   /**

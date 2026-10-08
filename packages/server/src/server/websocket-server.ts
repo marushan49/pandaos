@@ -1972,6 +1972,7 @@ export class VoiceAssistantWebSocketServer {
           ? {
               browserActivity: true,
               browserHandoff: true,
+              browserTabClose: true,
               browserTunnel: true,
               browserMirror: true,
             }

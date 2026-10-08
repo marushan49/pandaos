@@ -678,6 +678,11 @@ export const ja: TranslationResources = {
           failed: "失敗",
         },
       },
+      tabClose: {
+        message: "エージェントがこのタブを閉じようとしています。{{time}}後に閉じます。",
+        keepOpen: "開いたままにする",
+        closeNow: "今すぐ閉じる",
+      },
       handoff: {
         title: "ブラウザーの引き継ぎ",
         openBrowser: "ブラウザーを開く",

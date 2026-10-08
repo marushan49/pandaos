@@ -67,12 +67,32 @@ export const BrowserHandoffMessageSchema = z.object({
   payload: BrowserHandoffSchema,
 });
 
+export const BrowserTabCloseSchema = z.object({
+  workspaceId: z.string(),
+  browserId: z.string(),
+  status: z.enum(["pending", "kept_open", "closed"]),
+  closesAt: z.number().optional(),
+  updatedAt: z.number(),
+});
+
+export const BrowserTabCloseMessageSchema = z.object({
+  type: z.literal("browser.tab_close"),
+  payload: BrowserTabCloseSchema,
+});
+
 export const BrowserActivityControlRequestSchema = z.object({
   type: z.literal("browser.activity.control.request"),
   requestId: z.string(),
   workspaceId: z.string().min(1),
   browserId: z.string().min(1),
-  action: z.enum(["pause", "resume", "finish_handoff", "cancel_handoff"]),
+  action: z.enum([
+    "pause",
+    "resume",
+    "finish_handoff",
+    "cancel_handoff",
+    "keep_tab_open",
+    "close_tab_now",
+  ]),
 });
 
 export const BrowserActivityControlResponseSchema = z.object({
@@ -91,6 +111,7 @@ export type BrowserActivityPhase = z.infer<typeof BrowserActivityPhaseSchema>;
 export type BrowserActivityEvent = z.infer<typeof BrowserActivityEventSchema>;
 export type BrowserActivityControlRequest = z.infer<typeof BrowserActivityControlRequestSchema>;
 export type BrowserHandoff = z.infer<typeof BrowserHandoffSchema>;
+export type BrowserTabClose = z.infer<typeof BrowserTabCloseSchema>;
 
 // A daemon tab's actions, replayed by a desktop app in its own local tab instead of
 // streaming pixels. Targets are CSS selectors from the daemon's snapshot, with role and

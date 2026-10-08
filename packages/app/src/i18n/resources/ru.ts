@@ -678,6 +678,11 @@ export const ru: TranslationResources = {
           failed: "Ошибка",
         },
       },
+      tabClose: {
+        message: "Агент хочет закрыть эту вкладку. Закроется через {{time}}.",
+        keepOpen: "Оставить открытой",
+        closeNow: "Закрыть сейчас",
+      },
       handoff: {
         title: "Передача браузера",
         openBrowser: "Открыть браузер",

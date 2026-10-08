@@ -52,6 +52,7 @@ import { showProviderNoticeToast } from "@/utils/provider-notice-toast";
 import { applyCheckoutStatusUpdateFromEvent } from "@/git/checkout-status-cache";
 import { useProviderSubagentStore } from "@/subagents/provider-store";
 import { useBrowserActivityStore } from "@/desktop/browser/activity";
+import { applyBrowserTabClose, useBrowserTabCloseStore } from "@/desktop/browser/tab-close";
 import { publishBrowserMirror } from "@/desktop/browser/mirror";
 import { useHostFeature } from "@/runtime/host-features";
 
@@ -740,15 +741,20 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
   const supportsBrowserActivity = useHostFeature(serverId, "browserActivity");
   const supportsBrowserHandoff = useHostFeature(serverId, "browserHandoff");
   const wantsBrowserMirror = useHostFeature(serverId, "browserMirror");
+  const supportsBrowserTabClose = useHostFeature(serverId, "browserTabClose");
   useEffect(() => {
     if (!supportsBrowserActivity) return;
     const feed = client.observeEvents([
       "browser.activity",
       ...(supportsBrowserHandoff ? (["browser.handoff"] as const) : []),
       ...(wantsBrowserMirror ? (["browser.mirror"] as const) : []),
+      ...(supportsBrowserTabClose ? (["browser.tab_close"] as const) : []),
     ]);
     const unsubscribe = feed.subscribe({
-      snapshot: () => useBrowserActivityStore.getState().resetServer(serverId),
+      snapshot: () => {
+        useBrowserActivityStore.getState().resetServer(serverId);
+        useBrowserTabCloseStore.getState().resetServer(serverId);
+      },
       update: (message) => {
         if (message.type === "browser.activity") {
           useBrowserActivityStore.getState().apply(serverId, message.payload);
@@ -756,6 +762,8 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
           useBrowserActivityStore.getState().applyHandoff(serverId, message.payload);
         } else if (message.type === "browser.mirror") {
           publishBrowserMirror(serverId, message.payload);
+        } else if (message.type === "browser.tab_close") {
+          applyBrowserTabClose(serverId, message.payload);
         }
       },
     });
@@ -765,7 +773,14 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
         .release()
         .catch((error) => console.warn("[Session] Failed to release browser activity", error));
     };
-  }, [client, serverId, supportsBrowserActivity, supportsBrowserHandoff, wantsBrowserMirror]);
+  }, [
+    client,
+    serverId,
+    supportsBrowserActivity,
+    supportsBrowserHandoff,
+    supportsBrowserTabClose,
+    wantsBrowserMirror,
+  ]);
 
   const _cancelAgentRun = useCallback(
     (agentId: string) => {

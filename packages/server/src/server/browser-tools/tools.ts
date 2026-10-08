@@ -10,6 +10,7 @@ import type { BrowserToolsBroker } from "./broker.js";
 import { ensureValidJson } from "../json-utils.js";
 import type { VerifySession } from "../verify/verify-session.js";
 import { browserToolsFailure, type BrowserToolsResponsePayload } from "./errors.js";
+import { describeDeferredTabClose } from "./tab-close-gate.js";
 import {
   JevBrowserGoalRunner,
   type JevBrowserGoalInput,
@@ -936,6 +937,9 @@ export function registerBrowserTools(options: RegisterBrowserToolsOptions): void
           },
         },
       });
+      if (!payload.ok && payload.error.code === "browser_tab_not_found") {
+        return { content: [{ type: "text", text: `Browser tab ${browserId} is already closed.` }] };
+      }
       return browserToolResult({ payload, context: { ...context, browserId } });
     },
   );
@@ -1311,7 +1315,7 @@ function summarizeBrowserControlSuccess(
   }
 
   if (result.command === "close_tab") {
-    return `Closed browser tab ${result.browserId}.`;
+    return describeDeferredTabClose(result) ?? `Closed browser tab ${result.browserId}.`;
   }
 
   return null;

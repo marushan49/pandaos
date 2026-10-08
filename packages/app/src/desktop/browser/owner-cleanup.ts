@@ -16,7 +16,7 @@ export function browsersOfArchivedAgents(
     .map((browser) => browser.browserId);
 }
 
-function closeBrowser(browserId: string): void {
+export function closeBrowser(browserId: string): void {
   const layouts = useWorkspaceLayoutStore.getState().layoutByWorkspace;
   for (const [workspaceKey, layout] of Object.entries(layouts)) {
     for (const tab of collectAllTabs(layout.root)) {
