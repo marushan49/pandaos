@@ -1,4 +1,4 @@
-import { originKey } from "./origin-key.js";
+import { findTabForOrigin } from "./origin-key.js";
 import { DAEMON_BROWSER_HOST_ID } from "./host-preference.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -295,8 +295,6 @@ export class BrowserToolsBroker {
     const command = params.request.command;
     const target = command.command === "new_tab" ? command.args.url : undefined;
     if (!target) return null;
-    const origin = originKey(target);
-    if (!origin) return null;
     const listRequest: BrowserAutomationExecuteRequest = {
       ...params.request,
       requestId: `${params.request.requestId}:reuse`,
@@ -311,11 +309,9 @@ export class BrowserToolsBroker {
         })
       : await this.executeListTabs({ request: listRequest, timeoutMs: params.timeoutMs });
     if (!listed.ok || listed.result.command !== "list_tabs") return null;
-    const tab = listed.result.tabs.find((candidate) => {
-      if (params.request.workspaceId && candidate.workspaceId !== params.request.workspaceId) {
-        return false;
-      }
-      return originKey(candidate.url) === origin;
+    const tab = findTabForOrigin(listed.result.tabs, {
+      url: target,
+      ...(params.request.workspaceId ? { workspaceId: params.request.workspaceId } : {}),
     });
     const workspaceId = tab?.workspaceId ?? params.request.workspaceId;
     if (!tab || !workspaceId) return null;

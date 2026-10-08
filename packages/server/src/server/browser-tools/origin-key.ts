@@ -25,3 +25,18 @@ export function keepNewestPerApplication<
   }
   return [...newest.values(), ...unparsable];
 }
+
+export function findTabForOrigin<T extends { url: string; workspaceId?: string }>(
+  tabs: readonly T[],
+  target: { url: string; workspaceId?: string },
+): T | null {
+  const origin = originKey(target.url);
+  if (!origin) return null;
+  return (
+    tabs.find(
+      (tab) =>
+        (!target.workspaceId || tab.workspaceId === target.workspaceId) &&
+        originKey(tab.url) === origin,
+    ) ?? null
+  );
+}

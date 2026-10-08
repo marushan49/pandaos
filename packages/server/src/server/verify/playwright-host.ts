@@ -1,4 +1,4 @@
-import { keepNewestPerApplication } from "../browser-tools/origin-key.js";
+import { findTabForOrigin, keepNewestPerApplication } from "../browser-tools/origin-key.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -205,6 +205,8 @@ export class DaemonPlaywrightHost {
   private readonly savedTabs = new Map<string, SavedTab>();
   private readonly savedTabsLoaded: Promise<void>;
   private readonly restoredWorkspaces = new Map<string, Promise<void>>();
+  private readonly openTabQueues = new Map<string, Promise<unknown>>();
+  private readonly tabLeases = new Map<string, { users: number; owned: boolean }>();
   private saveTabsTimer: ReturnType<typeof setTimeout> | null = null;
   private closing = false;
 
@@ -349,6 +351,85 @@ export class DaemonPlaywrightHost {
         );
       },
     };
+  }
+
+  public openTab(input: {
+    workspaceId: string;
+    profile?: string;
+    url: string;
+  }): Promise<BrowserToolsResponsePayload> {
+    const profile = input.profile ?? DEFAULT_VERIFY_PROFILE;
+    const key = `${input.workspaceId}|${profile}`;
+    const previous = this.openTabQueues.get(key) ?? Promise.resolve();
+    const run = previous.then(() => this.openTabUnqueued({ ...input, profile }));
+    const settled = (): undefined => {
+      if (this.openTabQueues.get(key) === tail) this.openTabQueues.delete(key);
+      return undefined;
+    };
+    const tail: Promise<undefined> = run.then(settled, settled);
+    this.openTabQueues.set(key, tail);
+    return run;
+  }
+
+  public releaseTab(browserId: string): boolean {
+    const lease = this.tabLeases.get(browserId);
+    if (!lease) return false;
+    lease.users -= 1;
+    if (lease.users > 0) return false;
+    this.tabLeases.delete(browserId);
+    return lease.owned;
+  }
+
+  private leaseTab(browserId: string, owned: boolean): void {
+    const lease = this.tabLeases.get(browserId);
+    if (lease) lease.users += 1;
+    else this.tabLeases.set(browserId, { users: 1, owned });
+  }
+
+  private async openTabUnqueued(input: {
+    workspaceId: string;
+    profile: string;
+    url: string;
+  }): Promise<BrowserToolsResponsePayload> {
+    const { workspaceId, profile, url } = input;
+    await this.restoreWorkspaceTabs(workspaceId);
+    const candidates = [...this.tabs.values()]
+      .filter((tab) => tab.profile === profile && !tab.page.isClosed())
+      .map((tab) => ({
+        browserId: tab.browserId,
+        workspaceId: tab.workspaceId,
+        url: tab.page.url(),
+      }));
+    const reusable = findTabForOrigin(candidates, { url, workspaceId });
+    if (reusable) {
+      const navigated =
+        reusable.url === url ||
+        (
+          await this.executeLocal({
+            workspaceId,
+            profile,
+            command: { command: "navigate", args: { browserId: reusable.browserId, url } },
+          })
+        ).ok;
+      if (navigated) {
+        this.leaseTab(reusable.browserId, false);
+        return ok(`verify_${(this.requestSequence += 1)}`, {
+          command: "new_tab",
+          browserId: reusable.browserId,
+          workspaceId,
+          url,
+        });
+      }
+    }
+    const created = await this.executeLocal({
+      workspaceId,
+      profile,
+      command: { command: "new_tab", args: { url } },
+    });
+    if (created.ok && created.result.command === "new_tab") {
+      this.leaseTab(created.result.browserId, true);
+    }
+    return created;
   }
 
   public async executeLocal(input: ExecuteLocalInput): Promise<BrowserToolsResponsePayload> {
@@ -1174,6 +1255,7 @@ export class DaemonPlaywrightHost {
     });
     input.page.once("close", () => {
       if (this.tabs.get(tab.browserId) === tab) this.tabs.delete(tab.browserId);
+      this.tabLeases.delete(tab.browserId);
       setTimeout(() => {
         if (!this.closing && [...this.contexts.values()].includes(tab.context)) {
           this.forgetTab(tab.browserId);

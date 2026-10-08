@@ -57,10 +57,13 @@ export interface VerifyRunResult {
   rawBytes: number;
   agentBytes: number;
   error?: string;
+  hint?: string;
 }
 
+type RecipeHost = Pick<DaemonPlaywrightHost, "executeLocal" | "openTab" | "releaseTab">;
+
 export interface RecipeRunnerOptions {
-  host: Pick<DaemonPlaywrightHost, "executeLocal">;
+  host: RecipeHost;
   evidence: EvidenceStore;
   resolveServiceUrl: (input: { workspaceId: string; service: string }) => Promise<string | null>;
   env?: NodeJS.ProcessEnv;
@@ -142,7 +145,7 @@ function redactNetworkEntry(
 }
 
 export class RecipeRunner {
-  private readonly host: Pick<DaemonPlaywrightHost, "executeLocal">;
+  private readonly host: RecipeHost;
   private readonly evidence: EvidenceStore;
   private readonly resolveServiceUrl: RecipeRunnerOptions["resolveServiceUrl"];
   private readonly env: NodeJS.ProcessEnv;
@@ -153,7 +156,11 @@ export class RecipeRunner {
     this.goal = options.goal;
     this.activity = options.activity;
     this.host = options.activity
-      ? { executeLocal: options.activity.guard((input) => options.host.executeLocal(input)) }
+      ? {
+          executeLocal: options.activity.guard((input) => options.host.executeLocal(input)),
+          openTab: (input) => options.host.openTab(input),
+          releaseTab: (browserId) => options.host.releaseTab(browserId),
+        }
       : options.host;
     this.evidence = options.evidence;
     this.resolveServiceUrl = options.resolveServiceUrl;
@@ -224,6 +231,7 @@ export class RecipeRunner {
         status: "failed",
         message: context.redactor.redact(error instanceof Error ? error.message : String(error)),
       });
+      await this.releaseTab(context);
       throw error;
     }
     const status = failedCheck ? "fail" : "pass";
@@ -231,6 +239,7 @@ export class RecipeRunner {
     await this.writeRunEvidence({ context, recipeName: input.recipeName, status, startedAt });
     await this.evidence.finishRun({ runId: manifest.runId, status });
     const counts = await this.finalLogCounts(context);
+    await this.releaseTab(context);
     const redactedChecks = context.checks.map((check) => ({
       ...check,
       ...(check.detail ? { detail: context.redactor.redact(check.detail) } : {}),
@@ -253,8 +262,15 @@ export class RecipeRunner {
         ? { error: context.redactor.redact(failedCheck.detail ?? "Setup failed") }
         : {}),
     };
-    result.agentBytes = Buffer.byteLength(JSON.stringify({ ...result, agentBytes: 0 }), "utf8");
-    return result;
+    return sealResult(result, `${input.workspaceId}|${input.recipeName}`);
+  }
+
+  private async releaseTab(context: RunContext): Promise<void> {
+    const { browserId } = context;
+    if (!browserId || !this.host.releaseTab(browserId)) return;
+    await this.execute(context, { command: "close_tab", args: { browserId } }).catch(
+      () => undefined,
+    );
   }
 
   /**
@@ -986,10 +1002,10 @@ export class RecipeRunner {
 
   private async withTab(context: RunContext, url: string): Promise<string> {
     if (!context.browserId) {
-      const created = await this.host.executeLocal({
+      const created = await this.host.openTab({
         workspaceId: context.workspaceId,
         profile: context.profile,
-        command: { command: "new_tab", args: { url } },
+        url,
       });
       if (!created.ok || created.result.command !== "new_tab") {
         throw new Error(created.ok ? "Failed to open browser tab" : created.error.message);
@@ -1093,6 +1109,24 @@ export class RecipeRunner {
       command,
     });
   }
+}
+
+const lastFailureByRun = new Map<string, string>();
+
+const REPEAT_FAILURE_HINT =
+  "Same failure as the previous run, check login and app state before rerunning.";
+
+function sealResult(result: VerifyRunResult, key: string): VerifyRunResult {
+  const failure = result.checks.find((check) => !check.ok);
+  if (!failure || failure.name === "setup") {
+    lastFailureByRun.delete(key);
+  } else {
+    const signature = `${failure.name}\n${failure.detail ?? ""}`;
+    if (lastFailureByRun.get(key) === signature) result.hint = REPEAT_FAILURE_HINT;
+    lastFailureByRun.set(key, signature);
+  }
+  result.agentBytes = Buffer.byteLength(JSON.stringify({ ...result, agentBytes: 0 }), "utf8");
+  return result;
 }
 
 function finishActivity(

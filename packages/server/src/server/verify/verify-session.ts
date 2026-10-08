@@ -29,14 +29,13 @@ import {
 } from "../../utils/paseo-config-file.js";
 import type { EvidenceRunManifest, EvidenceStore } from "./evidence-store.js";
 import type { EvidenceArtifactEntry } from "./evidence-store.js";
-import type { DaemonPlaywrightHost } from "./playwright-host.js";
 import { RecipeRunner, type RecipeRunnerOptions, type VerifyRunResult } from "./recipe-runner.js";
 import type { BrowserActivityHub } from "../browser-tools/browser-activity.js";
 
 export interface VerifySessionOptions {
   workspaceRegistry: Pick<WorkspaceRegistry, "get">;
   workspaceScripts: Pick<WorkspaceScriptsService, "list">;
-  host: Pick<DaemonPlaywrightHost, "executeLocal">;
+  host: RecipeRunnerOptions["host"];
   evidence: EvidenceStore;
   isBrowserToolsEnabled: () => boolean;
   emit: (message: SessionOutboundMessage) => void;
