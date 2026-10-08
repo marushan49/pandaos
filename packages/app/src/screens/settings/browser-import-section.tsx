@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { AdaptiveTextInput } from "@/components/adaptive-text-input";
 import { getIsElectron } from "@/constants/platform";
 import { useFetchQuery } from "@/data/query";
-import { getDesktopHost } from "@/desktop/host";
+import { getDesktopHost, isElectronRuntimeMac } from "@/desktop/host";
 import { useHostFeature } from "@/runtime/host-features";
 import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
+import { useSessionStore } from "@/stores/session-store";
 import { settingsStyles } from "@/styles/settings";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 
@@ -40,6 +41,9 @@ export function BrowserImportSection({
   const useHostProfile = useHostFeature(serverId, "browserScreencast");
   const fullHostImport = useHostFeature(serverId, "browserProfileImport");
   const bridge = getDesktopHost()?.browser;
+  const hostName = useSessionStore(
+    (state) => state.sessions[serverId]?.serverInfo?.hostname ?? null,
+  );
 
   const listDeviceSources = getIsElectron() ? bridge?.listImportSources : undefined;
 
@@ -86,6 +90,7 @@ export function BrowserImportSection({
           loadError={loadError}
           client={client}
           isLocalDaemon={isLocalDaemon}
+          hostName={hostName}
           canCopyToHost={isSupported}
           useHostProfile={useHostProfile}
           fullHostImport={fullHostImport}
@@ -102,6 +107,7 @@ function BrowserImportCardBody({
   loadError,
   client,
   isLocalDaemon,
+  hostName,
   canCopyToHost,
   useHostProfile,
   fullHostImport,
@@ -112,6 +118,7 @@ function BrowserImportCardBody({
   loadError: Error | null;
   client: DaemonClient | null;
   isLocalDaemon: boolean;
+  hostName: string | null;
   canCopyToHost: boolean;
   useHostProfile: boolean;
   fullHostImport: boolean;
@@ -135,17 +142,45 @@ function BrowserImportCardBody({
   if (entries.length === 0) {
     return <SettingsRow label={t("settings.browser.import.empty")} error={loadError?.message} />;
   }
-  return entries.map((entry) => (
-    <BrowserImportRow
-      key={`${entry.location}:${entry.source.id}`}
-      entry={entry}
-      client={client}
-      isHostThisDevice={isLocalDaemon}
-      canCopyToHost={canCopyToHost}
-      useHostProfile={useHostProfile}
-      fullHostImport={fullHostImport}
-    />
-  ));
+  return (
+    <>
+      {entries.some((entry) => entry.location === "device") ? (
+        <View style={settingsStyles.row}>
+          <Text style={settingsStyles.rowHint}>{t("settings.browser.import.preferDevice")}</Text>
+        </View>
+      ) : null}
+      {entries.map((entry) => (
+        <BrowserImportRow
+          key={`${entry.location}:${entry.source.id}`}
+          entry={entry}
+          client={client}
+          isHostThisDevice={isLocalDaemon}
+          hostName={hostName}
+          canCopyToHost={canCopyToHost}
+          useHostProfile={useHostProfile}
+          fullHostImport={fullHostImport}
+        />
+      ))}
+    </>
+  );
+}
+
+function shortDate(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function sourceLocation(t: TFunction, isThisDevice: boolean, hostName: string | null): string {
+  if (isThisDevice) {
+    return isElectronRuntimeMac()
+      ? t("settings.browser.import.onThisMac")
+      : t("settings.browser.import.onThisDevice");
+  }
+  return hostName
+    ? t("settings.browser.import.onHostNamed", { host: hostName })
+    : t("settings.browser.import.onHost");
 }
 
 function googleSignInHint(
@@ -154,10 +189,7 @@ function googleSignInHint(
 ): string {
   const signInAt = result?.newestGoogleSignInAt;
   if (signInAt === undefined) return "";
-  const date = new Date(signInAt * 1000).toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "2-digit",
-  });
+  const date = shortDate(signInAt);
   const stale = Date.now() / 1000 - signInAt > GOOGLE_SESSION_STALE_SECONDS;
   return `. ${t("settings.browser.import.googleSignIn", { date })}${
     stale ? `. ${t("settings.browser.import.googleSignInStale")}` : ""
@@ -168,6 +200,7 @@ function BrowserImportRow({
   entry,
   client,
   isHostThisDevice,
+  hostName,
   canCopyToHost,
   useHostProfile,
   fullHostImport,
@@ -175,6 +208,7 @@ function BrowserImportRow({
   entry: ImportSourceEntry;
   client: DaemonClient | null;
   isHostThisDevice: boolean;
+  hostName: string | null;
   canCopyToHost: boolean;
   useHostProfile: boolean;
   fullHostImport: boolean;
@@ -250,10 +284,12 @@ function BrowserImportRow({
   const handleCopy = useCallback(() => copyToHost.mutate(), [copyToHost]);
 
   const handlePress = useCallback(() => mutation.mutate(), [mutation]);
+  const modifiedAt = entry.source.cookiesModifiedAt;
   const location =
-    entry.location === "device" || isHostThisDevice
-      ? t("settings.browser.import.onThisDevice")
-      : t("settings.browser.import.onHost");
+    sourceLocation(t, entry.location === "device" || isHostThisDevice, hostName) +
+    (modifiedAt === undefined
+      ? ""
+      : `, ${t("settings.browser.import.lastUsed", { date: shortDate(modifiedAt) })}`);
   const targetLabel =
     entry.location === "device" && !useHostProfile ? "Desktop browser" : "Host browser / handoff";
   const googleHint = googleSignInHint(t, mutation.data);
@@ -273,9 +309,9 @@ function BrowserImportRow({
       error={mutation.error?.message ?? copyToHost.error?.message}
       testID={`browser-import-row-${entry.location}-${entry.source.id}`}
     >
-      {entry.source.browserName === "Firefox" && (entry.location === "device" || fullHostImport) ? (
+      {entry.source.family === "firefox" && (entry.location === "device" || fullHostImport) ? (
         <AdaptiveTextInput
-          accessibilityLabel="Firefox Primary Password (optional)"
+          accessibilityLabel={`${entry.source.browserName} Primary Password (optional)`}
           placeholder="Primary Password (optional)"
           secureTextEntry
           ref={primaryPasswordInput}

@@ -2441,6 +2441,10 @@ export const zhCN: TranslationResources = {
         googleSignIn: "最近一次 Google 登录：{{date}}",
         googleSignInStale:
           "复制的 Google 会话经常过期。请在 PandaOS 浏览器中直接登录一次 Google（交接）",
+        onThisMac: "在此 Mac 上",
+        onHostNamed: "在主机 {{host}} 上",
+        lastUsed: "最后使用于 {{date}}",
+        preferDevice: "从此设备导入，以确保登录状态是最新的。",
       },
       history: {
         title: "地址历史",

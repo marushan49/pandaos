@@ -2523,6 +2523,10 @@ export const es: TranslationResources = {
         googleSignIn: "Inicio de sesión de Google más reciente: {{date}}",
         googleSignInStale:
           "Las sesiones de Google copiadas suelen caducar. Para Google, inicia sesión una vez en el propio navegador de PandaOS (traspaso)",
+        onThisMac: "En este Mac",
+        onHostNamed: "En el host {{host}}",
+        lastUsed: "usado por última vez el {{date}}",
+        preferDevice: "Importa desde este dispositivo para que tus inicios de sesión estén al día.",
       },
       history: {
         title: "Historial de direcciones",

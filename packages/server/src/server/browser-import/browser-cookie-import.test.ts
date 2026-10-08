@@ -121,7 +121,12 @@ describe("Chromium cookie decryption", () => {
     db.close();
     const mac = env({ homeDir, platform: "darwin", password: "fixture-keychain" });
     expect(await listBrowserImportSources(mac)).toEqual([
-      { id: "chromium:Default", browserName: "Chromium", profileName: "Default" },
+      {
+        id: "chromium:Default",
+        browserName: "Chromium",
+        profileName: "Default",
+        family: "chromium",
+      },
     ]);
     expect(await readBrowserImportCookies("chromium:Default", mac)).toEqual([]);
     expect(await readBrowserImportPasswords("chromium:Default", mac)).toEqual([
@@ -191,7 +196,11 @@ describe("Chromium cookie decryption", () => {
     const linux = env({ homeDir, platform: "linux" });
 
     expect(await listBrowserImportSources(linux)).toEqual([
-      { id: "chrome:Default", browserName: "Google Chrome", profileName: "Work" },
+      expect.objectContaining({
+        id: "chrome:Default",
+        browserName: "Google Chrome",
+        profileName: "Work",
+      }),
     ]);
     expect(await readBrowserImportCookies("chrome:Default", linux)).toEqual([
       {
@@ -403,11 +412,12 @@ assert nss.NSS_Shutdown() == 0
     const linux = env({ homeDir, platform: "linux" });
 
     expect(await listBrowserImportSources(linux)).toEqual([
-      {
+      expect.objectContaining({
         id: `firefox:${join(root, "abcd.default-release")}`,
         browserName: "Firefox",
         profileName: "default-release",
-      },
+        family: "firefox",
+      }),
     ]);
     const [source] = await listBrowserImportSources(linux);
     expect(await readBrowserImportCookies(source!.id, linux)).toEqual([

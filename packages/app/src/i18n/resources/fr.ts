@@ -2520,6 +2520,10 @@ export const fr: TranslationResources = {
         googleSignIn: "Connexion Google la plus récente : {{date}}",
         googleSignInStale:
           "Les sessions Google copiées expirent souvent. Pour Google, connectez-vous une fois dans le navigateur PandaOS lui-même (transfert)",
+        onThisMac: "Sur ce Mac",
+        onHostNamed: "Sur l’hôte {{host}}",
+        lastUsed: "dernière utilisation le {{date}}",
+        preferDevice: "Importez depuis cet appareil pour que vos connexions soient à jour.",
       },
       history: {
         title: "Historique des adresses",

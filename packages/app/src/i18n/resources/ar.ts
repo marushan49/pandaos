@@ -2467,6 +2467,10 @@ export const ar: TranslationResources = {
         googleSignIn: "أحدث تسجيل دخول إلى Google بتاريخ {{date}}",
         googleSignInStale:
           "غالبًا ما تنتهي صلاحية جلسات Google المنسوخة. سجّل الدخول إلى Google مرة واحدة في متصفح PandaOS نفسه (التسليم)",
+        onThisMac: "على جهاز Mac هذا",
+        onHostNamed: "على المضيف {{host}}",
+        lastUsed: "آخر استخدام في {{date}}",
+        preferDevice: "استورد من هذا الجهاز لتبقى عمليات تسجيل الدخول حديثة.",
       },
       history: {
         title: "سجل العناوين",

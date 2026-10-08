@@ -2492,6 +2492,10 @@ export const ja: TranslationResources = {
         googleSignIn: "最新の Google ログイン: {{date}}",
         googleSignInStale:
           "コピーした Google セッションはすぐに失効することがあります。Google には PandaOS ブラウザで一度直接ログインしてください (引き継ぎ)",
+        onThisMac: "このMac上",
+        onHostNamed: "ホスト {{host}} 上",
+        lastUsed: "最終使用 {{date}}",
+        preferDevice: "ログイン状態を最新に保つには、このデバイスからインポートしてください。",
       },
       history: {
         title: "アドレス履歴",

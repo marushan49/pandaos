@@ -20,6 +20,8 @@ export const BrowserImportSourceSchema = z.object({
   id: z.string().min(1),
   browserName: z.string(),
   profileName: z.string(),
+  family: z.string().optional(),
+  cookiesModifiedAt: z.number().optional(),
 });
 
 export const BrowserImportCookieSchema = z.object({

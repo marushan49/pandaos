@@ -2480,6 +2480,10 @@ export const ko: TranslationResources = {
         googleSignIn: "최근 Google 로그인: {{date}}",
         googleSignInStale:
           "복사한 Google 세션은 자주 만료됩니다. Google은 PandaOS 브라우저에서 직접 한 번 로그인하세요 (핸드오프)",
+        onThisMac: "이 Mac",
+        onHostNamed: "호스트 {{host}}",
+        lastUsed: "마지막 사용 {{date}}",
+        preferDevice: "로그인 상태를 최신으로 유지하려면 이 기기에서 가져오세요.",
       },
       history: {
         title: "주소 기록",
