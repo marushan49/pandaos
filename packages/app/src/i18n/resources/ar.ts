@@ -2287,6 +2287,8 @@ export const ar: TranslationResources = {
   renameModal: {
     rename: "إعادة تسمية",
     saving: "جارٍ الحفظ...",
+    autoTitleHint: "اتركه فارغًا ليُسمّى تلقائيًا من المحادثة.",
+    titleSetByYou: "عنوان حدّدته أنت",
   },
   sidebarCallout: {
     dismiss: "رفض",

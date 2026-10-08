@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
+import { useHostFeature } from "@/runtime/host-features";
 
 // The subset of a workspace the rename dialog needs. Narrower than SidebarWorkspaceEntry so the
 // command center can build one from the active route selection without a sidebar row.
@@ -36,6 +37,7 @@ export function WorkspaceRenameModal({
   testID,
 }: WorkspaceRenameModalProps) {
   const { t } = useTranslation();
+  const autoTitles = useHostFeature(workspace.serverId, "autoTitles");
 
   const renameMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -62,6 +64,8 @@ export function WorkspaceRenameModal({
       initialValue={workspace.title ?? workspace.name}
       placeholder={workspace.name}
       submitLabel={t("sidebar.workspace.rename.submit")}
+      allowEmpty={autoTitles}
+      description={autoTitles ? t("renameModal.autoTitleHint") : undefined}
       onClose={onClose}
       onSubmit={handleSubmit}
       testID={testID}

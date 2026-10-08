@@ -2340,6 +2340,8 @@ export const fr: TranslationResources = {
   renameModal: {
     rename: "Renommer",
     saving: "Enregistrement…",
+    autoTitleHint: "Laissez vide pour le nommer automatiquement à partir de la conversation.",
+    titleSetByYou: "Titre défini par vous",
   },
   sidebarCallout: {
     dismiss: "Ignorer",

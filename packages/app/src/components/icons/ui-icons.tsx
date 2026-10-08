@@ -106,6 +106,7 @@ import { LightningIcon as PhLightning } from "phosphor-react-native/src/icons/Li
 import { LinkIcon as PhLink } from "phosphor-react-native/src/icons/Link";
 import { LinkBreakIcon as PhLinkBreak } from "phosphor-react-native/src/icons/LinkBreak";
 import { LinkSimpleIcon as PhLinkSimple } from "phosphor-react-native/src/icons/LinkSimple";
+import { LockIcon as PhLock } from "phosphor-react-native/src/icons/Lock";
 import { ListChecksIcon as PhListChecks } from "phosphor-react-native/src/icons/ListChecks";
 import { MagnifyingGlassIcon as PhMagnifyingGlass } from "phosphor-react-native/src/icons/MagnifyingGlass";
 import { MagnifyingGlassMinusIcon as PhMagnifyingGlassMinus } from "phosphor-react-native/src/icons/MagnifyingGlassMinus";
@@ -324,6 +325,7 @@ export const KeyboardOff = uiIcon(PhKeyboard, "KeyboardOff");
 export const Layers = uiIcon(PhStack, "Layers");
 export const Link = uiIcon(PhLink, "Link");
 export const Link2 = uiIcon(PhLinkSimple, "Link2");
+export const Lock = uiIcon(PhLock, "Lock");
 export const ListChecks = uiIcon(PhListChecks, "ListChecks");
 export const ListChevronsDownUp = uiIcon(PhArrowsInLineVertical, "ListChevronsDownUp");
 export const ListChevronsUpDown = uiIcon(PhArrowsOutLineVertical, "ListChevronsUpDown");
