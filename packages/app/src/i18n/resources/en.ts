@@ -2656,19 +2656,19 @@ export const en = {
         unset: "Not set (Google)",
         save: "Save",
       },
+      history: {
+        title: "Address history",
+        info: "PandaOS remembers visited addresses and titles per host to suggest them in the address bar. Search parameters, credentials and tokens are never stored.",
+        label: "Visited addresses",
+        hint: "Used for address bar suggestions on this host.",
+        empty: "No addresses saved yet",
+        clear: "Clear history",
+        confirmTitle: "Clear address history?",
+        confirmMessage:
+          "Address bar suggestions from pages visited on this host will be removed. Open tabs stay as they are.",
+        success: "Address history cleared.",
+      },
       passwords: {
-        history: {
-          title: "Address history",
-          info: "PandaOS remembers visited addresses and titles per host to suggest them in the address bar. Search parameters, credentials and tokens are never stored.",
-          label: "Visited addresses",
-          hint: "Used for address bar suggestions on this host.",
-          empty: "No addresses saved yet",
-          clear: "Clear history",
-          confirmTitle: "Clear address history?",
-          confirmMessage:
-            "Address bar suggestions from pages visited on this host will be removed. Open tabs stay as they are.",
-          success: "Address history cleared.",
-        },
         title: "Saved passwords",
         info: "Logins the PandaOS browser saved on this device. Passwords are encrypted with the system keychain.",
         loading: "Loading...",
