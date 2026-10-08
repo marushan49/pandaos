@@ -1418,7 +1418,6 @@ export const ko: TranslationResources = {
       restored: "목록으로 복귀: {{name}}",
       needsYou_one: "{{count}}개가 확인 필요",
       needsYou_other: "{{count}}개가 확인 필요",
-      settled: "정리됨 ({{count}})",
       needsYouEmpty: {
         title: "지금 확인할 항목이 없습니다",
         description: "실패한 에이전트나 열린 질문이 있는 워크스페이스가 여기에 표시됩니다.",

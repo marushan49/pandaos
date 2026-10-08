@@ -1438,7 +1438,6 @@ export const ptBR: TranslationResources = {
       restored: "De volta à lista: {{name}}",
       needsYou_one: "{{count}} precisa de você",
       needsYou_other: "{{count}} precisam de você",
-      settled: "Resolvidos ({{count}})",
       needsYouEmpty: {
         title: "Nada precisa de você agora",
         description: "Workspaces com um agente com falha ou uma pergunta aberta aparecem aqui.",

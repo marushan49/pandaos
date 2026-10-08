@@ -1426,7 +1426,6 @@ export const ja: TranslationResources = {
       restored: "リストに戻しました: {{name}}",
       needsYou_one: "{{count}} 件が対応待ち",
       needsYou_other: "{{count}} 件が対応待ち",
-      settled: "片付け済み ({{count}})",
       needsYouEmpty: {
         title: "今対応が必要なものはありません",
         description: "失敗したエージェントや未回答の質問があるワークスペースがここに表示されます。",

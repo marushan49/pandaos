@@ -1119,14 +1119,13 @@ function WorkspaceHeaderTitleBar({
             onOpenSetupTab={onOpenSetupTab}
           />
         )}
-        {isMobile ? (
-          <MarkDoneButton
-            serverId={normalizedServerId}
-            workspaceId={normalizedWorkspaceId}
-            size="xs"
-            testID="workspace-header"
-          />
-        ) : null}
+        <MarkDoneButton
+          serverId={normalizedServerId}
+          workspaceId={normalizedWorkspaceId}
+          size="xs"
+          testID="workspace-header"
+          showMarkAction={isMobile}
+        />
         {isMobile && workspaceScripts.length > 0 ? (
           <WorkspaceScriptsButton
             serverId={normalizedServerId}

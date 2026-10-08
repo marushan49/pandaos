@@ -1407,7 +1407,6 @@ export const ar: TranslationResources = {
       restored: "عاد إلى القائمة: {{name}}",
       needsYou_one: "{{count}} بحاجة إليك",
       needsYou_other: "{{count}} بحاجة إليك",
-      settled: "مستقرة ({{count}})",
       needsYouEmpty: {
         title: "لا شيء بحاجة إليك الآن",
         description: "تظهر هنا مساحات العمل التي فشل فيها وكيل أو بها سؤال مفتوح.",

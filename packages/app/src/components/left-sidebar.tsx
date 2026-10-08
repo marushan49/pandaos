@@ -69,10 +69,7 @@ import {
 import { SidebarAgentListSkeleton } from "./sidebar-agent-list-skeleton";
 import { SidebarCalloutSlot } from "./sidebar-callout-slot";
 import { SidebarWorkspaceList } from "./sidebar-workspace-list";
-import {
-  SidebarNeedsYouPill,
-  SidebarSettledSection,
-} from "@/components/sidebar/sidebar-set-aside-ui";
+import { SidebarNeedsYouPill } from "@/components/sidebar/sidebar-set-aside-ui";
 
 type SidebarTheme = ReturnType<typeof useUnistyles>["theme"];
 
@@ -615,8 +612,6 @@ function MobileSidebar({
           />
         )}
 
-        <SidebarSettledSection />
-
         <SidebarFooter
           theme={theme}
           handleOpenProject={handleOpenProject}
@@ -787,8 +782,6 @@ function DesktopSidebar({
             listHeaderComponent={workspacesSectionHeaderElement}
           />
         )}
-
-        <SidebarSettledSection />
 
         <SidebarCalloutSlot />
 

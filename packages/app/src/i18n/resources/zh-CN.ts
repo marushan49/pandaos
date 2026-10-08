@@ -1399,7 +1399,6 @@ export const zhCN: TranslationResources = {
       restored: "已回到列表：{{name}}",
       needsYou_one: "{{count}} 个需要你处理",
       needsYou_other: "{{count}} 个需要你处理",
-      settled: "已处理 ({{count}})",
       needsYouEmpty: {
         title: "目前没有需要你处理的内容",
         description: "有失败代理或待回答问题的工作区会显示在这里。",
