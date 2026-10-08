@@ -127,7 +127,6 @@ function MeasuredPromptText({
   }));
   const animatedClipStyle = useMemo(() => [styles.clip, clipStyle], [clipStyle]);
   const measurerStyle = useMemo(() => [textStyle, styles.measurer], [textStyle]);
-  const accessibilityState = useMemo(() => ({ expanded }), [expanded]);
   const chevron = useMemo(() => <PromptToggleChevron progress={progress} />, [progress]);
 
   return (
@@ -152,7 +151,7 @@ function MeasuredPromptText({
           size="sm"
           style={styles.toggle}
           onPress={handleToggle}
-          accessibilityState={accessibilityState}
+          aria-expanded={expanded}
           trailing={chevron}
           testID="user-message-prompt-toggle"
         >
