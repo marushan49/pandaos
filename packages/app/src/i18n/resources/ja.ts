@@ -238,6 +238,30 @@ export const ja: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "サインインの期限切れ",
+        body: "プロバイダーのサインインが期限切れになり、更新できませんでした。ホストで再度サインインしてから再試行してください。",
+      },
+      limit: {
+        title: "利用上限に達しました",
+        body: "プロバイダーの割り当てを現在使い切っています。後で再試行するか、別のモデルに切り替えてください。",
+      },
+      network: {
+        title: "プロバイダーに接続できません",
+        body: "プロバイダーとの接続が切れました。",
+      },
+      other: {
+        title: "ターンが失敗しました",
+        body: "エージェントがエラーで停止しました。",
+      },
+      promptSaved: "プロンプトは保存されています。",
+      nothingChanged: "何も変更されていません。",
+      availableIn: "約{{minutes}}分後に再び利用できます。",
+      providerSettings: "プロバイダー設定",
+      technicalDetails: "技術的な詳細",
+      retryFailed: "プロンプトを再送信できませんでした",
+    },
     turnFinished: "ターン終了",
     empty: "このエージェントとチャットを始めましょう...",
     scrollToBottom: "下にスクロール",
@@ -258,6 +282,7 @@ export const ja: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "再接続",
     states: {
       notFound: "エージェントが見つかりません",
       failedToLoad: "エージェントの読み込みに失敗しました",

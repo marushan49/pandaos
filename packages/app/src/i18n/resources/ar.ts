@@ -236,6 +236,30 @@ export const ar: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "انتهت صلاحية تسجيل الدخول",
+        body: "انتهت صلاحية تسجيل الدخول لدى مقدم الخدمة وتعذّر تجديدها. سجّل الدخول مجددًا على Host ثم أعد المحاولة.",
+      },
+      limit: {
+        title: "تم بلوغ حد الاستخدام",
+        body: "نفدت حصة مقدم الخدمة حاليًا. أعد المحاولة لاحقًا أو انتقل إلى نموذج آخر.",
+      },
+      network: {
+        title: "تعذّر الوصول إلى مقدم الخدمة",
+        body: "انقطع الاتصال بمقدم الخدمة.",
+      },
+      other: {
+        title: "فشلت الجولة",
+        body: "توقف الوكيل بسبب خطأ.",
+      },
+      promptSaved: "طلبك محفوظ.",
+      nothingChanged: "لم يتم تغيير أي شيء.",
+      availableIn: "سيتوفر مجددًا بعد نحو {{minutes}} دقيقة.",
+      providerSettings: "إعدادات مقدمي الخدمات",
+      technicalDetails: "التفاصيل التقنية",
+      retryFailed: "تعذّرت إعادة إرسال الطلب",
+    },
     turnFinished: "انتهت الجولة",
     empty: "ابدأ الدردشة مع هذا الوكيل...",
     scrollToBottom: "قم بالتمرير إلى الأسفل",
@@ -256,6 +280,7 @@ export const ar: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "إعادة الاتصال",
     states: {
       notFound: "لم يتم العثور على Agent",
       failedToLoad: "فشل تحميل الوكيل",

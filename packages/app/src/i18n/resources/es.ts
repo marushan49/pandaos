@@ -238,6 +238,30 @@ export const es: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "Sesión caducada",
+        body: "La sesión con el proveedor caducó y no se pudo renovar. Vuelve a iniciar sesión en el host y reintenta.",
+      },
+      limit: {
+        title: "Límite de uso alcanzado",
+        body: "La cuota del proveedor está agotada por ahora. Reintenta más tarde o cambia a otro modelo.",
+      },
+      network: {
+        title: "Proveedor inaccesible",
+        body: "Se cortó la conexión con el proveedor.",
+      },
+      other: {
+        title: "El turno falló",
+        body: "El agente se detuvo con un error.",
+      },
+      promptSaved: "Tu mensaje está guardado.",
+      nothingChanged: "No se cambió nada.",
+      availableIn: "Disponible de nuevo en unos {{minutes}} min.",
+      providerSettings: "Ajustes de proveedores",
+      technicalDetails: "Detalles técnicos",
+      retryFailed: "No se pudo reenviar el mensaje",
+    },
     turnFinished: "Turno finalizado",
     empty: "Comience a chatear con este agente...",
     scrollToBottom: "Desplazarse hacia abajo",
@@ -258,6 +282,7 @@ export const es: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "Reconectar",
     states: {
       notFound: "Agentno encontrado",
       failedToLoad: "No se pudo cargar el agente",

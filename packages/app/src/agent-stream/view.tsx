@@ -117,6 +117,11 @@ import {
 import { buildWorkingLabel, resolveWorkingTool } from "./working-status";
 import { useStreamHistoryWindow } from "./use-stream-history-window";
 import { PluginTimelineItemView, useInstalledTimelineTransform } from "@/plugins/timeline";
+import { projectFailedTurn } from "./turn-failure";
+import { TurnFailureCard } from "./turn-failure-card";
+import { resolveAssistantTurnForkBoundary } from "./turn-boundary";
+import { AssistantForkMenu, type AssistantForkTarget } from "@/components/assistant-fork-menu";
+import { openHostProviders } from "@/navigation/settings-navigation";
 
 function renderLiveAuxiliaryNode(input: {
   pendingPermissions: ReactNode;
@@ -548,19 +553,29 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const effectiveTurnPresentation = useRetainedValue(turnPresentation, isActive);
     const isTurnActive = effectiveTurnPresentation.isActive;
     const presentStream = useMemo(() => createStreamPresentation(), []);
+    const failedTurn = useMemo(
+      () =>
+        projectFailedTurn({
+          lastError: context.lastError,
+          isTurnActive,
+          tail: effectiveStreamItems,
+          head: effectiveStreamHead ?? EMPTY_STREAM_HEAD,
+        }),
+      [context.lastError, isTurnActive, effectiveStreamItems, effectiveStreamHead],
+    );
     const presentation = useMemo(
       () =>
         presentStream({
-          tail: effectiveStreamItems,
-          head: effectiveStreamHead ?? EMPTY_STREAM_HEAD,
+          tail: failedTurn.tail,
+          head: failedTurn.head,
           transform: transformTimelineItem,
           level: toolCallDetailLevel,
           isTurnActive,
         }),
       [
         presentStream,
-        effectiveStreamItems,
-        effectiveStreamHead,
+        failedTurn.tail,
+        failedTurn.head,
         transformTimelineItem,
         toolCallDetailLevel,
         isTurnActive,
@@ -1025,8 +1040,64 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         workingSubagentCount,
       ],
     );
+    const turnFailure = failedTurn.failure;
+    const handleRetryFailedTurn = useStableEvent(async () => {
+      const prompt = turnFailure?.prompt;
+      if (!prompt || !resolvedServerId) return;
+      try {
+        await getHostRuntimeStore().resendAgentMessage(resolvedServerId, agentId, prompt);
+      } catch {
+        toast?.error(t("agentStream.turnFailure.retryFailed"));
+      }
+    });
+    const handleOpenProviders = useStableEvent(() => {
+      if (!resolvedServerId) return;
+      openHostProviders(resolvedServerId);
+    });
+    const failedTurnForkBoundary = useMemo(
+      () =>
+        turnFailure?.errorRow
+          ? resolveAssistantTurnForkBoundary({
+              items: [turnFailure.errorRow],
+              startIndex: 0,
+              supportsTimelineCursor: supportsAgentForkContextCursor,
+            })
+          : undefined,
+      [turnFailure, supportsAgentForkContextCursor],
+    );
+    const handleForkFailedTurn = useStableEvent((target: AssistantForkTarget) => {
+      if (!failedTurnForkBoundary) return;
+      return handleForkAssistantTurn({ target, boundary: failedTurnForkBoundary });
+    });
+    const failedTurnForkControl = useMemo(
+      () =>
+        !readOnly && failedTurnForkBoundary ? (
+          <AssistantForkMenu onFork={handleForkFailedTurn} />
+        ) : null,
+      [readOnly, failedTurnForkBoundary, handleForkFailedTurn],
+    );
+    const failureCard = useMemo(
+      () =>
+        turnFailure ? (
+          <TurnFailureCard
+            failure={turnFailure}
+            onRetry={readOnly ? undefined : handleRetryFailedTurn}
+            onOpenProviders={resolvedServerId ? handleOpenProviders : undefined}
+            forkControl={failedTurnForkControl}
+          />
+        ) : null,
+      [
+        turnFailure,
+        readOnly,
+        handleRetryFailedTurn,
+        handleOpenProviders,
+        resolvedServerId,
+        failedTurnForkControl,
+      ],
+    );
     const turnFooterNode = useMemo(
       () =>
+        failureCard ||
         isTurnActive ||
         workingSubagentCount > 0 ||
         pendingPermissionItems.length > 0 ||
@@ -1049,9 +1120,11 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             supportsTimelineCursor={supportsAgentForkContextCursor}
             onForkAssistantTurn={readOnly ? undefined : handleForkAssistantTurn}
             onForkInFlightTurn={readOnly || !isTurnActive ? undefined : handleForkInFlightTurn}
+            failureCard={failureCard}
           />
         ) : null,
       [
+        failureCard,
         handleForkAssistantTurn,
         handleForkInFlightTurn,
         readOnly,

@@ -82,7 +82,10 @@ Focus alone does not mutate timeline state; the response is compared with the lo
 authoritative range first.
 
 Cached history remains readable during recovery. The chat shows Reconnecting to host while the host is
-offline, then Updating messages until authoritative catch-up completes. Socket connectivity alone cannot
+offline, with a Reconnect button, then Updating messages until authoritative catch-up completes.
+Reconnect goes through `reconnectHost`, which clears the per-connection probe throttle before it
+probes and wakes the client. `runProbeCycleNow` alone skips connections probed within their
+interval, so a button wired to it does nothing right after an automatic probe. Socket connectivity alone cannot
 certify that the displayed conversation is current. The timeline owner publishes freshness; the
 view renders it without a toast timer or a separate resume workflow.
 

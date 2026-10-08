@@ -269,8 +269,12 @@ function shouldEmitPlanApprovalPrompt(prompt: AgentPromptInput): boolean {
   return /emit\s+(?:a\s+)?synthetic\s+plan\s+approval/i.test(promptToText(prompt));
 }
 
-function shouldEmitTurnFailure(prompt: AgentPromptInput): boolean {
-  return /emit\s+(?:a\s+)?synthetic\s+turn\s+failure/i.test(promptToText(prompt));
+function readSyntheticTurnFailure(prompt: AgentPromptInput): string | null {
+  const match = /emit\s+(?:a\s+)?synthetic\s+turn\s+failure(?::\s*(.+))?/is.exec(
+    promptToText(prompt),
+  );
+  if (!match) return null;
+  return match[1]?.trim() || "Requested mock provider failure";
 }
 
 function shouldEmitToolOriginCalls(prompt: AgentPromptInput): boolean {
@@ -915,8 +919,9 @@ export class MockLoadTestAgentSession implements AgentSession {
     const settledAssistantImageMarkdown = parseSettledAssistantImageMarkdown(prompt);
     const steeringReplayShape = parseSteeringReplayShape(prompt);
     const scheduleTurn = () => {
-      if (shouldEmitTurnFailure(prompt)) {
-        this.scheduleFailedTurn(turn);
+      const syntheticFailure = readSyntheticTurnFailure(prompt);
+      if (syntheticFailure) {
+        this.scheduleFailedTurn(turn, syntheticFailure);
       } else if (steeringReplayShape) {
         this.scheduleSteeringReplayTurn(turn, steeringReplayShape);
       } else if (this.streamingAssistantResponse !== null) {
@@ -1206,7 +1211,7 @@ export class MockLoadTestAgentSession implements AgentSession {
     turn.timer.unref?.();
   }
 
-  private scheduleFailedTurn(turn: ActiveTurn): void {
+  private scheduleFailedTurn(turn: ActiveTurn, error: string): void {
     turn.timer = setTimeout(() => {
       if (this.activeTurn !== turn) {
         return;
@@ -1218,7 +1223,7 @@ export class MockLoadTestAgentSession implements AgentSession {
         type: "turn_failed",
         provider: this.provider,
         turnId: turn.turnId,
-        error: "Requested mock provider failure",
+        error,
       });
       turn.resolve({
         sessionId: this.id,

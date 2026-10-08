@@ -1,6 +1,7 @@
 import type { AssistantMessageItem, StreamItem, UserMessageItem } from "@/types/stream";
 import type { TimelineItemTransform } from "@/plugins/timeline/model";
 import { projectPluginTimelineItems } from "@/plugins/timeline/projection";
+import { presentSystemErrorRow } from "./turn-failure";
 import { splitMarkdownBlocks } from "@/utils/split-markdown-blocks";
 import {
   prepareToolCallHistory,
@@ -68,6 +69,7 @@ export function createStreamPresentation() {
   }
 
   const blocksBySource = new WeakMap<AssistantMessageItem, AssistantMessageItem[]>();
+  const systemErrorRows = new WeakMap<AssistantMessageItem, StreamItem>();
   let liveSources = new Map<string, AssistantMessageItem>();
   let historySource: StreamItem[] | undefined;
   let historyTransform: TimelineItemTransform | undefined;
@@ -89,6 +91,11 @@ export function createStreamPresentation() {
   function nativeBlocks(item: StreamItem): StreamItem[] {
     if (item.kind === "user_message") return [presentUserMessage(item)];
     if (item.kind !== "assistant_message") return [item];
+    const errorRow = systemErrorRows.get(item) ?? presentSystemErrorRow(item);
+    if (errorRow) {
+      systemErrorRows.set(item, errorRow);
+      return [errorRow];
+    }
     const cached = blocksBySource.get(item);
     if (cached) return cached;
     const previousSource = liveSources.get(item.id);

@@ -236,6 +236,30 @@ export const zhCN: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "登录已过期",
+        body: "Provider 登录已过期且无法续期。请在 Host 上重新登录，然后重试。",
+      },
+      limit: {
+        title: "已达到使用上限",
+        body: "Provider 的额度暂时用完了。请稍后重试或切换到其他模型。",
+      },
+      network: {
+        title: "无法连接 Provider",
+        body: "与 Provider 的连接已中断。",
+      },
+      other: {
+        title: "本轮失败",
+        body: "Agent 因错误而停止。",
+      },
+      promptSaved: "你的提示已保存。",
+      nothingChanged: "没有任何更改。",
+      availableIn: "大约 {{minutes}} 分钟后可再次使用。",
+      providerSettings: "Provider 设置",
+      technicalDetails: "技术详情",
+      retryFailed: "无法重新发送提示",
+    },
     turnFinished: "本轮已结束",
     empty: "开始和这个 Agent 对话...",
     scrollToBottom: "滚动到底部",
@@ -256,6 +280,7 @@ export const zhCN: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "重新连接",
     states: {
       notFound: "未找到 Agent",
       failedToLoad: "加载 Agent 失败",

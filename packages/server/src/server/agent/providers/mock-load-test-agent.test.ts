@@ -414,6 +414,29 @@ describe("MockLoadTestAgentClient", () => {
     });
   });
 
+  test("fails a turn with the error text the prompt names", async () => {
+    vi.useFakeTimers();
+    const client = new MockLoadTestAgentClient();
+    const session = await client.createSession({
+      provider: "mock",
+      cwd: process.cwd(),
+      model: "ten-second-stream",
+    });
+    const events: AgentStreamEvent[] = [];
+    const unsubscribe = session.subscribe((event) => events.push(event));
+
+    await session.startTurn(
+      "Emit a synthetic turn failure: rate_limit_exceeded: retry after 1840s",
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    unsubscribe();
+
+    expect(events.at(-1)).toMatchObject({
+      type: "turn_failed",
+      error: "rate_limit_exceeded: retry after 1840s",
+    });
+  });
+
   test("emits turn_started before the submitted user message", async () => {
     vi.useFakeTimers();
     const client = new MockLoadTestAgentClient();

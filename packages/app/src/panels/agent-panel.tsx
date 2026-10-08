@@ -544,6 +544,9 @@ function AgentPanelContent({
       ? "offline"
       : runtimeConnectionStatus;
   const lastConnectionError = runtimeLastError;
+  const handleReconnectHost = useCallback(() => {
+    if (resolvedServerId) void getHostRuntimeStore().reconnectHost(resolvedServerId);
+  }, [resolvedServerId]);
 
   if (!resolvedServerId || (!runtimeClient && !hasCachedAgent)) {
     return (
@@ -552,6 +555,7 @@ function AgentPanelContent({
         connectionStatus={connectionStatus}
         lastError={lastConnectionError}
         isUnknownDaemon={isUnknownDaemon}
+        onReconnect={resolvedServerId ? handleReconnectHost : undefined}
         t={t}
       />
     );
@@ -1165,6 +1169,9 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
     rows: subagentRows,
   });
   const hasPluginComposerPills = useHasPluginComposerPills(serverId, workspaceId, agentId);
+  const handleReconnectHost = useCallback(() => {
+    void getHostRuntimeStore().reconnectHost(serverId);
+  }, [serverId]);
   const hasActiveComposer = !agentState.archivedAt && !isArchivingCurrentAgent;
   const hasVisibleAgentTracks = hasAgentTracks({
     subagentRows,
@@ -1287,7 +1294,12 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
         </View>
       ) : null}
 
-      <TimelineSyncStatus sync={timelineSync} toast={toast} onDismiss={dismiss} />
+      <TimelineSyncStatus
+        sync={timelineSync}
+        toast={toast}
+        onDismiss={dismiss}
+        onReconnect={handleReconnectHost}
+      />
     </>
   );
 
@@ -1650,12 +1662,14 @@ function AgentSessionUnavailableState({
   connectionStatus,
   lastError,
   isUnknownDaemon = false,
+  onReconnect,
   t,
 }: {
   serverLabel: string;
   connectionStatus: HostRuntimeConnectionStatus;
   lastError: string | null;
   isUnknownDaemon?: boolean;
+  onReconnect?: () => void;
   t: TFunction;
 }) {
   if (isUnknownDaemon) {
@@ -1700,6 +1714,16 @@ function AgentSessionUnavailableState({
               {t("agentPanel.unavailable.showAgainWhenReachable")}
             </Text>
             {lastError ? <Text style={styles.offlineDetails}>{lastError}</Text> : null}
+            {onReconnect ? (
+              <Button
+                variant="default"
+                size="md"
+                onPress={onReconnect}
+                testID="agent-unavailable-reconnect"
+              >
+                {t("agentPanel.reconnect")}
+              </Button>
+            ) : null}
           </>
         )}
       </View>

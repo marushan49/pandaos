@@ -238,6 +238,30 @@ export const fr: TranslationResources = {
     },
   },
   agentStream: {
+    turnFailure: {
+      auth: {
+        title: "Connexion expirée",
+        body: "La connexion au fournisseur a expiré et n’a pas pu être renouvelée. Reconnectez-vous sur l’hôte, puis réessayez.",
+      },
+      limit: {
+        title: "Limite d’utilisation atteinte",
+        body: "Le quota du fournisseur est épuisé pour le moment. Réessayez plus tard ou passez à un autre modèle.",
+      },
+      network: {
+        title: "Fournisseur injoignable",
+        body: "La connexion au fournisseur a été interrompue.",
+      },
+      other: {
+        title: "Le tour a échoué",
+        body: "L’agent s’est arrêté sur une erreur.",
+      },
+      promptSaved: "Votre message est enregistré.",
+      nothingChanged: "Rien n’a été modifié.",
+      availableIn: "De nouveau disponible dans environ {{minutes}} min.",
+      providerSettings: "Paramètres des fournisseurs",
+      technicalDetails: "Détails techniques",
+      retryFailed: "Impossible de renvoyer le message",
+    },
     turnFinished: "Tour terminé",
     empty: "Commencez à discuter avec cet agent…",
     scrollToBottom: "Faire défiler vers le bas",
@@ -257,6 +281,7 @@ export const fr: TranslationResources = {
     },
   },
   agentPanel: {
+    reconnect: "Reconnecter",
     states: {
       notFound: "Agent introuvable",
       failedToLoad: "Impossible de charger l’agent",
