@@ -2500,7 +2500,15 @@ export const fr: TranslationResources = {
       emptyHint: "Les chiffres apparaissent quand un agent termine un tour.",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      import: {
+        ...en.settings.browser.import,
+        googleSignIn: "Connexion Google la plus récente : {{date}}",
+        googleSignInStale:
+          "Les sessions Google copiées expirent souvent. Pour Google, connectez-vous une fois dans le navigateur PandaOS lui-même (transfert)",
+      },
+    },
     plugins: pluginSettings.fr,
     metadataGeneration: {
       title: "Génération de métadonnées",

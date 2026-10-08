@@ -2667,6 +2667,9 @@ export const en = {
         onHost: "On the host",
         onThisDevice: "On this device",
         success: "Imported {{cookieCount}} cookies for {{domainCount}} domains",
+        googleSignIn: "Newest Google sign-in from {{date}}",
+        googleSignInStale:
+          "Copied Google sessions often expire. For Google, sign in once in the PandaOS browser itself (handoff)",
         unsupported: {
           label: "Update the host",
           hint: "This host does not support browser import yet",

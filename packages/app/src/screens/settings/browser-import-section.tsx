@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import type { EditingTextInputHandle } from "@/components/ui/text-input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { BrowserImportSource } from "@getpaseo/protocol/browser-import/rpc-schemas";
 import { SettingsCard, SettingsRow } from "@/components/settings";
 import { SettingsSection } from "@/components/settings/headings/settings-section";
@@ -17,6 +18,8 @@ import { settingsStyles } from "@/styles/settings";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 
 type ImportLocation = "host" | "device";
+
+const GOOGLE_SESSION_STALE_SECONDS = 24 * 60 * 60;
 
 interface ImportSourceEntry {
   location: ImportLocation;
@@ -145,6 +148,22 @@ function BrowserImportCardBody({
   ));
 }
 
+function googleSignInHint(
+  t: TFunction,
+  result: { cookieCount: number; newestGoogleSignInAt?: number } | undefined,
+): string {
+  const signInAt = result?.newestGoogleSignInAt;
+  if (signInAt === undefined) return "";
+  const date = new Date(signInAt * 1000).toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "2-digit",
+  });
+  const stale = Date.now() / 1000 - signInAt > GOOGLE_SESSION_STALE_SECONDS;
+  return `. ${t("settings.browser.import.googleSignIn", { date })}${
+    stale ? `. ${t("settings.browser.import.googleSignInStale")}` : ""
+  }`;
+}
+
 function BrowserImportRow({
   entry,
   client,
@@ -237,12 +256,14 @@ function BrowserImportRow({
       : t("settings.browser.import.onHost");
   const targetLabel =
     entry.location === "device" && !useHostProfile ? "Desktop browser" : "Host browser / handoff";
+  const googleHint = googleSignInHint(t, mutation.data);
   const hint = mutation.data
     ? t("settings.browser.import.success", {
         cookieCount: mutation.data.cookieCount,
         domainCount: mutation.data.domainCount,
       }) +
-      `; ${mutation.data.passwordCount} passwords (${mutation.data.skippedPasswords} existing passwords preserved) → ${targetLabel}`
+      `; ${mutation.data.passwordCount} passwords (${mutation.data.skippedPasswords} existing passwords preserved) → ${targetLabel}` +
+      googleHint
     : `${location} → ${targetLabel} (${entry.location === "device" || fullHostImport ? "cookies + passwords" : "cookies; update host for passwords"})`;
 
   return (

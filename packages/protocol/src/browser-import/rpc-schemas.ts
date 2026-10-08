@@ -32,6 +32,7 @@ export const BrowserImportCookieSchema = z.object({
   httpOnly: z.boolean(),
   secure: z.boolean(),
   sameSite: z.enum(["Strict", "Lax", "None"]).optional(),
+  updatedAt: z.number().optional(),
 });
 
 export const BrowserImportListSourcesRequestSchema = z.object({
@@ -75,6 +76,7 @@ export const BrowserImportCookiesResponseSchema = z.object({
     domainCount: z.number().int().nonnegative(),
     passwordCount: z.number().int().nonnegative().optional(),
     skippedPasswords: z.number().int().nonnegative().optional(),
+    newestGoogleSignInAt: z.number().optional(),
     error: z.string().nullable(),
   }),
 });

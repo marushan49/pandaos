@@ -2472,7 +2472,15 @@ export const ja: TranslationResources = {
       emptyHint: "エージェントがターンを終えると表示されます。",
     },
     systemOne: en.settings.systemOne,
-    browser: en.settings.browser,
+    browser: {
+      ...en.settings.browser,
+      import: {
+        ...en.settings.browser.import,
+        googleSignIn: "最新の Google ログイン: {{date}}",
+        googleSignInStale:
+          "コピーした Google セッションはすぐに失効することがあります。Google には PandaOS ブラウザで一度直接ログインしてください (引き継ぎ)",
+      },
+    },
     plugins: pluginSettings.ja,
     metadataGeneration: {
       title: "メタデータ生成",
