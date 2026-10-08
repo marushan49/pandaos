@@ -237,6 +237,19 @@ export const fr: TranslationResources = {
       mode: "Changer de mode",
     },
   },
+  reading: {
+    title: "Vue de lecture",
+    presets: {
+      compact: "Compact",
+      calm: "Calme",
+      reading: "Lecture",
+    },
+    answersOnly: {
+      label: "Réponses seules",
+      hint: "Masquer les commandes et les compteurs",
+    },
+  },
+
   agentStream: {
     turnFinished: "Tour terminé",
     empty: "Commencez à discuter avec cet agent…",

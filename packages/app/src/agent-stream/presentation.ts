@@ -15,6 +15,7 @@ interface PresentationInput {
   transform: TimelineItemTransform | undefined;
   level: ToolCallDetailLevel;
   isTurnActive: boolean;
+  answersOnly?: boolean;
 }
 
 function retainItems(previous: StreamItem[], next: StreamItem[]): StreamItem[] {
@@ -179,6 +180,7 @@ export function createStreamPresentation() {
       head,
       preparedHistory,
       isTurnActive: input.isTurnActive,
+      answersOnly: input.answersOnly,
     });
   };
 }

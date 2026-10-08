@@ -235,6 +235,19 @@ export const ar: TranslationResources = {
       mode: "تغيير الوضع",
     },
   },
+  reading: {
+    title: "عرض القراءة",
+    presets: {
+      compact: "مضغوط",
+      calm: "هادئ",
+      reading: "قراءة",
+    },
+    answersOnly: {
+      label: "الإجابات فقط",
+      hint: "إخفاء الأوامر والعدّادات",
+    },
+  },
+
   agentStream: {
     turnFinished: "انتهت الجولة",
     empty: "ابدأ الدردشة مع هذا الوكيل...",

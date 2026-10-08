@@ -12,6 +12,7 @@ import type { MarkdownCopyInlineTag } from "@/assistant-selection-copy/markup";
 interface MarkdownTextSpanProps {
   style?: StyleProp<TextStyle>;
   monoSurface?: boolean;
+  displayFont?: boolean;
   copyTag?: MarkdownCopyInlineTag;
   children: ReactNode;
   onPress?: TextProps["onPress"];

@@ -237,6 +237,19 @@ export const ru: TranslationResources = {
       mode: "Изменить режим",
     },
   },
+  reading: {
+    title: "Режим чтения",
+    presets: {
+      compact: "Компактный",
+      calm: "Спокойный",
+      reading: "Чтение",
+    },
+    answersOnly: {
+      label: "Только ответы",
+      hint: "Скрыть команды и счётчики",
+    },
+  },
+
   agentStream: {
     turnFinished: "Ход завершён",
     empty: "Начните общаться с этим агентом...",

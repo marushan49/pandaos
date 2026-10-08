@@ -231,6 +231,19 @@ export const en = {
       mode: "Change mode",
     },
   },
+  reading: {
+    title: "Reading view",
+    presets: {
+      compact: "Compact",
+      calm: "Calm",
+      reading: "Reading",
+    },
+    answersOnly: {
+      label: "Answers only",
+      hint: "Hide commands and counters",
+    },
+  },
+
   agentStream: {
     turnFinished: "Turn finished",
     empty: "Start chatting with this agent...",

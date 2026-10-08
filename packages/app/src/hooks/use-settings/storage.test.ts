@@ -729,6 +729,36 @@ describe("saveAppSettings", () => {
     });
   });
 
+  it("defaults the reading view to compact with answers only off", async () => {
+    const result = await loadAppSettingsFromStorage(makeDeps());
+
+    expect(result.readingPreset).toBe("compact");
+    expect(result.answersOnly).toBe(false);
+  });
+
+  it("round-trips the reading view and ignores unknown stored values", async () => {
+    const deps = makeDeps();
+    const queryClient = new QueryClient();
+
+    await saveAppSettings({
+      queryClient,
+      updates: { readingPreset: "reading", answersOnly: true },
+      deps,
+    });
+    const saved = await loadAppSettingsFromStorage(deps);
+    expect(saved.readingPreset).toBe("reading");
+    expect(saved.answersOnly).toBe(true);
+
+    const broken = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify({ readingPreset: "huge", answersOnly: "yes" }),
+      }),
+    });
+    const fallback = await loadAppSettingsFromStorage(broken);
+    expect(fallback.readingPreset).toBe("compact");
+    expect(fallback.answersOnly).toBe(false);
+  });
+
   it("persists a selected plugin theme", async () => {
     const deps = makeDeps();
     const queryClient = new QueryClient();
