@@ -94,6 +94,8 @@ Pane chrome — the workspace pane header, the file-explorer header, the diff pa
 
 Floating surfaces — the composer, the user message bubble, queue cards, the pills above the composer — are outlined by `hairline`, a translucent 1px line, instead of `border` or `borderAccent`. Their fill is `surfaceSoft` (a translucent wash) or a surface token, and a surface that carries content has `surfaceHighlightTop` as `inset 0 1px 0` on its top edge. The composer is two layers: a `surfaceSoft` shell with a `hairline` line and `spacing[1]` padding around an input surface with `borderRadius.xl`, so the radii are concentric (`2xl` outside, `xl` inside). The prototype's 5px shell padding and 26/21px radii are off the scale; the scale values replace them. Hairline, wash, and highlight are generated per theme in `theme.ts`, so every tint gets them.
 
+A transcript row keeps its height when it is restyled. The history virtualizer estimates unmeasured rows (`estimateStreamItemHeight`), and a row that turns out taller or shorter than before moves the rows around it while a turn streams in; the submit layout spec fails above 2px. So the user bubble draws its hairline as a `0 0 0 1px` box-shadow ring instead of a border, and the tool-call summary pill keeps the 32px compact control height of the row it replaced.
+
 ---
 
 ## 6. Pickers
