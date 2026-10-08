@@ -48,6 +48,7 @@ export interface SidebarWorkspaceEntry extends SidebarStatusWorkspacePlacement {
   workspaceDirectoryLabel: string;
   title: string | null;
   pinnedAt?: string | null;
+  doneAt?: string | null;
   labels?: string[];
   currentBranch: string | null;
   archivingAt: string | null;
@@ -239,6 +240,7 @@ export function createSidebarWorkspaceEntry(input: {
     name: input.workspace.name,
     title: input.workspace.title ?? null,
     pinnedAt: input.workspace.pinnedAt,
+    doneAt: input.workspace.doneAt ?? null,
     labels: input.workspace.labels ?? EMPTY_WORKSPACE_LABELS,
     currentBranch: normalizeCurrentBranch(input.workspace.gitRuntime?.currentBranch),
     statusBucket: effectiveStatus.status,

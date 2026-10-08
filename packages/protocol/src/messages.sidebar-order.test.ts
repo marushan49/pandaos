@@ -57,6 +57,34 @@ describe("sidebar order message schemas", () => {
     expect(generated.success).toBe(false);
   });
 
+  test("snooze deadlines are optional in both directions", () => {
+    const snoozed = { ...order, snoozedWorkspaceUntil: { "srv_a:wks_1": 1_791_000_000_000 } };
+    expect(
+      SessionInboundMessageSchema.parse({
+        type: "sidebar.order.set.request",
+        requestId: "r3",
+        baseRevision: 4,
+        ...snoozed,
+      }),
+    ).toEqual({ type: "sidebar.order.set.request", requestId: "r3", baseRevision: 4, ...snoozed });
+    for (const payload of [
+      { revision: 5, ...snoozed },
+      { revision: 5, ...order },
+    ]) {
+      const message = { type: "sidebar.order.changed", payload };
+      expect(SessionOutboundMessageSchema.parse(message)).toEqual(message);
+      expect(GeneratedWSOutboundMessageSchema.safeParse({ type: "session", message }).success).toBe(
+        true,
+      );
+    }
+    expect(
+      SessionOutboundMessageSchema.safeParse({
+        type: "sidebar.order.changed",
+        payload: { revision: 5, ...order, snoozedWorkspaceUntil: { "srv_a:wks_1": "tomorrow" } },
+      }).success,
+    ).toBe(false);
+  });
+
   test("the push is an explicit event subscription", () => {
     expect(SessionEventSubscriptionSchema.parse("sidebar.order.changed")).toBe(
       "sidebar.order.changed",

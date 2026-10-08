@@ -1396,6 +1396,23 @@ export const es: TranslationResources = {
       description: "Cambia o borra los filtros de la barra lateral para ver espacios de trabajo.",
       clear: "Borrar filtros",
     },
+    setAside: {
+      done: "Hecho",
+      snooze: "Posponer hasta mañana a las 9:00",
+      undo: "Deshacer",
+      doneToast: "Hecho: {{name}}",
+      snoozedToast: "Pospuesto hasta mañana a las 9:00: {{name}}",
+      restored: "De vuelta en la lista: {{name}}",
+      needsYou_one: "{{count}} te necesita",
+      needsYou_other: "{{count}} te necesitan",
+      settled: "Resueltos ({{count}})",
+      needsYouEmpty: {
+        title: "Nada te necesita ahora mismo",
+        description:
+          "Aquí aparecen los espacios de trabajo con un agente fallido o una pregunta abierta.",
+        showAll: "Mostrar todo",
+      },
+    },
     pinned: {
       title: "Anclados",
     },

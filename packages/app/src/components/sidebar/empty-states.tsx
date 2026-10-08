@@ -5,6 +5,7 @@ import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Button } from "@/components/ui/button";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
+import { useOptionalSidebarModel } from "./sidebar-model";
 
 function SidebarEmptyStateCard({
   testID,
@@ -30,12 +31,27 @@ function SidebarEmptyStateCard({
 
 export function SidebarFilterEmptyState() {
   const { t } = useTranslation();
+  const model = useOptionalSidebarModel();
   const clearLabelFilter = useSidebarViewStore((state) => state.clearLabelFilter);
   const clearProjectFilters = useSidebarViewStore((state) => state.clearProjectFilters);
   const clearFilters = useCallback(() => {
     clearLabelFilter();
     clearProjectFilters();
   }, [clearLabelFilter, clearProjectFilters]);
+
+  if (model?.needsYouOnly) {
+    return (
+      <SidebarEmptyStateCard
+        testID="sidebar-needs-you-empty-state"
+        title={t("sidebar.setAside.needsYouEmpty.title")}
+        description={t("sidebar.setAside.needsYouEmpty.description")}
+      >
+        <Button variant="secondary" size="xs" onPress={model.toggleNeedsYouOnly}>
+          {t("sidebar.setAside.needsYouEmpty.showAll")}
+        </Button>
+      </SidebarEmptyStateCard>
+    );
+  }
 
   return (
     <SidebarEmptyStateCard

@@ -1381,6 +1381,23 @@ export const fr: TranslationResources = {
         "Modifiez ou effacez les filtres de la barre latérale pour afficher les espaces de travail.",
       clear: "Effacer les filtres",
     },
+    setAside: {
+      done: "Terminé",
+      snooze: "Reporter à demain 9:00",
+      undo: "Annuler",
+      doneToast: "Terminé : {{name}}",
+      snoozedToast: "Reporté à demain 9:00 : {{name}}",
+      restored: "De retour dans la liste : {{name}}",
+      needsYou_one: "{{count}} a besoin de vous",
+      needsYou_other: "{{count}} ont besoin de vous",
+      settled: "Réglés ({{count}})",
+      needsYouEmpty: {
+        title: "Rien n'a besoin de vous pour l'instant",
+        description:
+          "Les espaces de travail avec un agent en échec ou une question ouverte apparaissent ici.",
+        showAll: "Tout afficher",
+      },
+    },
     pinned: {
       title: "Épinglés",
     },

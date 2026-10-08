@@ -69,6 +69,10 @@ import {
 import { SidebarAgentListSkeleton } from "./sidebar-agent-list-skeleton";
 import { SidebarCalloutSlot } from "./sidebar-callout-slot";
 import { SidebarWorkspaceList } from "./sidebar-workspace-list";
+import {
+  SidebarNeedsYouPill,
+  SidebarSettledSection,
+} from "@/components/sidebar/sidebar-set-aside-ui";
 
 type SidebarTheme = ReturnType<typeof useUnistyles>["theme"];
 
@@ -611,6 +615,8 @@ function MobileSidebar({
           />
         )}
 
+        <SidebarSettledSection />
+
         <SidebarFooter
           theme={theme}
           handleOpenProject={handleOpenProject}
@@ -782,6 +788,8 @@ function DesktopSidebar({
           />
         )}
 
+        <SidebarSettledSection />
+
         <SidebarCalloutSlot />
 
         <SidebarFooter
@@ -808,7 +816,10 @@ function WorkspacesSectionHeader() {
   const { t } = useTranslation();
   return (
     <View style={styles.workspacesSectionHeader}>
-      <Text style={styles.workspacesSectionTitle}>{t("sidebar.workspaces.title")}</Text>
+      <View style={styles.workspacesSectionLead}>
+        <Text style={styles.workspacesSectionTitle}>{t("sidebar.workspaces.title")}</Text>
+        <SidebarNeedsYouPill />
+      </View>
       <View style={styles.workspacesSectionActions}>
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
@@ -854,6 +865,12 @@ const styles = StyleSheet.create((theme) => ({
     paddingRight: 4,
     paddingTop: theme.spacing[1],
     paddingBottom: theme.spacing[1],
+  },
+  workspacesSectionLead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[2],
+    minWidth: 0,
   },
   workspacesSectionTitle: {
     color: theme.colors.foregroundMuted,

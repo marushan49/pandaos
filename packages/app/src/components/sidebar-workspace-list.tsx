@@ -113,6 +113,8 @@ import {
   SidebarWorkspaceTrailingActionSlot,
 } from "@/components/sidebar/sidebar-workspace-row-content";
 import { useOpenKebabMenuVisibility } from "@/components/sidebar/use-open-kebab-menu-visibility";
+import { SidebarWorkspaceSetAsideActions } from "@/components/sidebar/sidebar-set-aside-ui";
+import { useOptionalSidebarModel } from "@/components/sidebar/sidebar-model";
 import {
   SidebarFilterEmptyState,
   SidebarProjectEmptyState,
@@ -673,6 +675,11 @@ function WorkspaceRowRightGroup({
       {isCreating ? (
         <Text style={styles.workspaceCreatingText}>{t("sidebar.workspace.status.creating")}</Text>
       ) : null}
+      <SidebarWorkspaceSetAsideActions
+        workspace={workspace}
+        visible={!isCreating && (isHovered || isTouchPlatform)}
+        isTouchPlatform={isTouchPlatform}
+      />
       {renderSlot ? (
         <SidebarWorkspaceTrailingActionSlot reserveWidth={reserveSlotWidth}>
           <SidebarWorkspaceTrailingActionBase presentation={trailingPresentation}>
@@ -2001,8 +2008,9 @@ export function SidebarWorkspaceList({
   // Only the label filter can get here. The project filter resolves against the projects it can
   // see and falls back to "all projects" when nothing matches, so it either keeps at least one
   // project or is not applied at all — it can narrow this list but never empty it.
+  const needsYouOnly = useOptionalSidebarModel()?.needsYouOnly === true;
   const sidebarFilterEmpty =
-    hasActiveLabelFilter && hasProjectsBeforeFilter && projects.length === 0;
+    (hasActiveLabelFilter || needsYouOnly) && hasProjectsBeforeFilter && projects.length === 0;
 
   // Project mode is the one that keeps its project headers; every other grouping mode is a flat
   // list of grouped rows, so a new mode lands in the grouped branch rather than silently in this

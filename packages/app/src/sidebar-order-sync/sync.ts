@@ -36,12 +36,16 @@ const EMPTY_ORDER: SidebarOrder = {
   projectOrder: [],
   pinnedWorkspaceOrder: [],
   workspaceOrderByProject: {},
+  snoozedWorkspaceUntil: {},
 };
 
 export function fingerprintSidebarOrder(order: SidebarOrder): string {
   const projectKeys = Object.keys(order.workspaceOrderByProject).sort();
   const workspaceOrders = projectKeys.map((key) => [key, order.workspaceOrderByProject[key]]);
-  return JSON.stringify([order.projectOrder, order.pinnedWorkspaceOrder, workspaceOrders]);
+  const snoozed = Object.entries(order.snoozedWorkspaceUntil ?? {}).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  return JSON.stringify([order.projectOrder, order.pinnedWorkspaceOrder, workspaceOrders, snoozed]);
 }
 
 export function selectSidebarOrderHost(
@@ -57,6 +61,7 @@ function pickOrder(state: SidebarOrder): SidebarOrder {
     projectOrder: state.projectOrder,
     pinnedWorkspaceOrder: state.pinnedWorkspaceOrder,
     workspaceOrderByProject: state.workspaceOrderByProject,
+    snoozedWorkspaceUntil: state.snoozedWorkspaceUntil ?? {},
   };
 }
 

@@ -1,5 +1,13 @@
 import { useTranslation } from "react-i18next";
-import React, { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   useSidebarWorkspacesList,
   type SidebarProjectEntry,
@@ -20,6 +28,8 @@ import { buildSidebarProjection } from "./sidebar-projection";
 import type { SidebarProjectIconTarget } from "@/utils/sidebar-project-row-model";
 import { filterWorkspacesByLabels, type SidebarWorkspaceGroup } from "./sidebar-labels";
 import { filterWorkspacesByProjects, resolveActiveProjectFilters } from "./sidebar-project-filter";
+import { nextSnoozeWake, partitionSetAsideWorkspaces } from "./sidebar-set-aside";
+import { useSidebarSnoozeEnabled } from "@/sidebar-order-sync/host";
 import {
   hasAuthoritativeWorkspaceLabelCatalog,
   useWorkspaceLabelProjection,
@@ -44,6 +54,25 @@ interface SidebarModel extends SidebarWorkspacesListResult {
   collapsedProjectKeys: ReadonlySet<string>;
   toggleProjectCollapsed: (projectViewKey: string) => void;
   shortcutModel: SidebarShortcutModel;
+  setAsideWorkspaces: SidebarWorkspaceEntry[];
+  needsYouCount: number;
+  needsYouOnly: boolean;
+  toggleNeedsYouOnly: () => void;
+}
+
+const EMPTY_SNOOZES: Record<string, number> = {};
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+function useSnoozeClock(snoozedWorkspaceUntil: Readonly<Record<string, number>>): number {
+  const [now, setNow] = useState(() => Date.now());
+  const wake = nextSnoozeWake(snoozedWorkspaceUntil, now);
+  useEffect(() => {
+    if (wake === null) return;
+    const delay = Math.min(Math.max(0, wake - Date.now()), MAX_TIMER_DELAY_MS);
+    const timer = setTimeout(() => setNow(Date.now()), delay);
+    return () => clearTimeout(timer);
+  }, [wake]);
+  return now;
 }
 
 const SidebarModelContext = createContext<SidebarModel | null>(null);
@@ -71,6 +100,12 @@ export function SidebarModelProvider({
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
   const workspacePromotedAt = useSidebarOrderStore((state) => state.workspacePromotedAt);
   const pinnedWorkspaceOrder = useSidebarOrderStore((state) => state.pinnedWorkspaceOrder);
+  const storedSnoozes = useSidebarOrderStore((state) => state.snoozedWorkspaceUntil);
+  const snoozeEnabled = useSidebarSnoozeEnabled();
+  const snoozedWorkspaceUntil = snoozeEnabled ? storedSnoozes : EMPTY_SNOOZES;
+  const now = useSnoozeClock(snoozedWorkspaceUntil);
+  const [needsYouOnly, setNeedsYouOnly] = useState(false);
+  const toggleNeedsYouOnly = useCallback(() => setNeedsYouOnly((value) => !value), []);
   const toggleProjectCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.toggleProjectCollapsed,
   );
@@ -98,19 +133,32 @@ export function SidebarModelProvider({
   // anything; the label filter reads `labels`, which only exists on an entry. Hydration opens a
   // live session-store subscription over every workspace on every visible host, so widening this
   // for a filter that does not need it costs a retained-but-inactive sidebar real work.
-  const needsWorkspaceEntries = groupMode !== "project" || hasActiveLabelFilter;
+  const needsWorkspaceEntries = groupMode !== "project" || hasActiveLabelFilter || needsYouOnly;
   const workspaceEntriesByKey = useSidebarWorkspaceEntries(
     list.workspacePlacements,
     active !== false || needsWorkspaceEntries,
   );
-  const filteredWorkspaceEntriesByKey = useMemo(() => {
+  const setAsidePartition = useMemo(() => {
     const byProject = filterWorkspacesByProjects({
       workspaces: [...workspaceEntriesByKey.values()],
       projectFilters: resolvedProjectFilters,
     });
-    const filtered = filterWorkspacesByLabels({ workspaces: byProject, ...labelFilter });
-    return new Map(filtered.map((workspace) => [workspace.workspaceKey, workspace]));
-  }, [labelFilter, resolvedProjectFilters, workspaceEntriesByKey]);
+    return partitionSetAsideWorkspaces({
+      entries: filterWorkspacesByLabels({ workspaces: byProject, ...labelFilter }),
+      snoozedWorkspaceUntil,
+      now,
+      needsYouOnly,
+    });
+  }, [
+    labelFilter,
+    needsYouOnly,
+    now,
+    resolvedProjectFilters,
+    snoozedWorkspaceUntil,
+    workspaceEntriesByKey,
+  ]);
+  const filteredWorkspaceEntriesByKey = setAsidePartition.visible;
+  const setAsideWorkspaces = setAsidePartition.setAside;
   const visibleWorkspaceKeys = useMemo(
     () => new Set(filteredWorkspaceEntriesByKey.keys()),
     [filteredWorkspaceEntriesByKey],
@@ -125,7 +173,18 @@ export function SidebarModelProvider({
       const included = new Set(resolvedProjectFilters);
       projects = projects.filter((project) => included.has(project.viewKey));
     }
-    if (hasActiveLabelFilter) {
+    if (setAsideWorkspaces.length > 0) {
+      const setAsideKeys = new Set(setAsideWorkspaces.map((workspace) => workspace.workspaceKey));
+      projects = projects.map((project) => {
+        const workspaces = project.workspaces.filter(
+          (workspace) => !setAsideKeys.has(workspace.workspaceKey),
+        );
+        return workspaces.length === project.workspaces.length
+          ? project
+          : { ...project, workspaces };
+      });
+    }
+    if (hasActiveLabelFilter || needsYouOnly) {
       projects = projects.flatMap((project) => {
         const workspaces = project.workspaces.filter((workspace) =>
           visibleWorkspaceKeys.has(workspace.workspaceKey),
@@ -137,8 +196,10 @@ export function SidebarModelProvider({
   }, [
     hasActiveLabelFilter,
     hasActiveProjectFilter,
+    needsYouOnly,
     resolvedProjectFilters,
     list.projects,
+    setAsideWorkspaces,
     visibleWorkspaceKeys,
   ]);
   const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
@@ -186,8 +247,16 @@ export function SidebarModelProvider({
       collapsedProjectKeys,
       toggleProjectCollapsed,
       shortcutModel: projection.shortcutModel,
+      setAsideWorkspaces,
+      needsYouCount: setAsidePartition.needsYouCount,
+      needsYouOnly,
+      toggleNeedsYouOnly,
     }),
     [
+      needsYouOnly,
+      setAsidePartition.needsYouCount,
+      setAsideWorkspaces,
+      toggleNeedsYouOnly,
       resolvedProjectFilters,
       collapsedProjectKeys,
       groupMode,
@@ -200,6 +269,10 @@ export function SidebarModelProvider({
   );
 
   return <SidebarModelContext.Provider value={value}>{children}</SidebarModelContext.Provider>;
+}
+
+export function useOptionalSidebarModel(): SidebarModel | null {
+  return useContext(SidebarModelContext);
 }
 
 export function useSidebarModel(): SidebarModel {

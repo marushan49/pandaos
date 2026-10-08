@@ -49,6 +49,19 @@ describe("SidebarOrderStore", () => {
     );
   });
 
+  test("snooze deadlines round-trip and survive a write from an app that does not send them", async () => {
+    const store = new SidebarOrderStore(home);
+    const snoozedWorkspaceUntil = { "srv_a:wks_1": 1_791_000_000_000 };
+    await store.set({ ...order, snoozedWorkspaceUntil });
+    expect((await store.set(order)).snoozedWorkspaceUntil).toEqual(snoozedWorkspaceUntil);
+    expect((await new SidebarOrderStore(home).get()).snoozedWorkspaceUntil).toEqual(
+      snoozedWorkspaceUntil,
+    );
+    expect(
+      (await store.set({ ...order, snoozedWorkspaceUntil: {} })).snoozedWorkspaceUntil,
+    ).toEqual({});
+  });
+
   test("a corrupt file fails loudly instead of resetting the order", async () => {
     await writeFile(path.join(home, "sidebar-order.json"), "{not json");
     const store = new SidebarOrderStore(home);

@@ -1377,6 +1377,23 @@ export const ru: TranslationResources = {
         "Измените или очистите фильтры боковой панели, чтобы увидеть рабочие пространства.",
       clear: "Очистить фильтры",
     },
+    setAside: {
+      done: "Готово",
+      snooze: "Отложить до завтра 9:00",
+      undo: "Отменить",
+      doneToast: "Готово: {{name}}",
+      snoozedToast: "Отложено до завтра 9:00: {{name}}",
+      restored: "Снова в списке: {{name}}",
+      needsYou_one: "{{count}} ждёт вас",
+      needsYou_other: "{{count}} ждут вас",
+      settled: "Разобранные ({{count}})",
+      needsYouEmpty: {
+        title: "Сейчас вас ничего не ждёт",
+        description:
+          "Здесь появляются рабочие пространства с упавшим агентом или открытым вопросом.",
+        showAll: "Показать все",
+      },
+    },
     pinned: {
       title: "Закреплённые",
     },
