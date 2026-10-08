@@ -1,6 +1,11 @@
 import type { ComposerAttachment } from "@/attachments/types";
 import type { AgentAttachment } from "@getpaseo/protocol/messages";
-import type { AssistantMessageItem, StreamItem, UserMessageItem } from "@/types/stream";
+import type {
+  AssistantMessageItem,
+  NotificationItem,
+  StreamItem,
+  UserMessageItem,
+} from "@/types/stream";
 
 export type TurnFailureKind = "auth" | "limit" | "network" | "other";
 
@@ -65,6 +70,20 @@ export function classifyTurnFailure(raw: string): TurnFailureClass {
   }
   if (NETWORK_PATTERN.test(raw)) return { kind: "network" };
   return { kind: "other" };
+}
+
+export function presentSystemErrorRow(item: AssistantMessageItem): NotificationItem | null {
+  if (!item.text.startsWith(SYSTEM_ERROR_PREFIX)) return null;
+  return {
+    kind: "notification",
+    sourceType: "error",
+    id: item.id,
+    timestamp: item.timestamp,
+    level: "error",
+    message: item.text.slice(SYSTEM_ERROR_PREFIX.length).trim(),
+    ...(item.turnId ? { turnId: item.turnId } : {}),
+    ...(item.timelineCursor ? { timelineCursor: item.timelineCursor } : {}),
+  };
 }
 
 function trailingSystemError(items: StreamItem[]): AssistantMessageItem | null {

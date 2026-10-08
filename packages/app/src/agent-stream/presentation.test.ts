@@ -487,6 +487,27 @@ describe("timeline presentation", () => {
   function projectTimelineItems(items: StreamItem[], transform?: TimelineItemTransform) {
     return present({ ...presentationOptions, tail: items, head: [], transform }).tail;
   }
+
+  it("shows an earlier failed turn as an error row, not as assistant prose", () => {
+    const item: StreamItem = {
+      kind: "assistant_message",
+      id: "failed",
+      text: "[System Error] Requested mock provider failure",
+      timestamp: new Date(1000),
+      turnId: "turn-1",
+    };
+    const [projected] = projectTimelineItems([item]);
+    expect(projected).toEqual({
+      kind: "notification",
+      sourceType: "error",
+      id: "failed",
+      timestamp: new Date(1000),
+      level: "error",
+      message: "Requested mock provider failure",
+      turnId: "turn-1",
+    });
+    expect(projectTimelineItems([item])[0]).toBe(projected);
+  });
   const envelope =
     "<spoken-input>\nPlease fix the voice chat.\n</spoken-input>\n<instruction>This message was spoken by the user. Respond using the speak tool only, not normal messages, because the user may not be looking at the chat.</instruction>";
 
