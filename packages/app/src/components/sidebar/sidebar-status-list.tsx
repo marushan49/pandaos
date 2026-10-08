@@ -964,11 +964,6 @@ function StatusWorkspaceRowInnerContent({
                 showShortcutBadge={showShortcutBadge}
                 reserveIdleStatusIndicatorSpace={reserveIdleStatusIndicatorSpace}
               >
-                <SidebarWorkspaceSetAsideActions
-                  workspace={workspace}
-                  visible={isHovered || isTouchPlatform}
-                  isTouchPlatform={isTouchPlatform}
-                />
                 {renderSlot ? (
                   <StatusWorkspaceActionSlot
                     workspace={workspace}
@@ -994,6 +989,12 @@ function StatusWorkspaceRowInnerContent({
                     archiveShortcutKeys={archiveShortcutKeys}
                   />
                 ) : null}
+                <SidebarWorkspaceSetAsideActions
+                  workspace={workspace}
+                  backdrop={backdrop}
+                  visible={isHovered || isTouchPlatform}
+                  isTouchPlatform={isTouchPlatform}
+                />
               </SidebarWorkspaceRowContent>
             </SidebarWorkspaceContextMenu>
           </View>

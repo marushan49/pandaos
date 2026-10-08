@@ -11,6 +11,7 @@ import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { Check, ChevronUp, Clock } from "@/components/icons/ui-icons";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { SCRIM_WIDTH, TrailingActionScrim } from "@/components/ui/trailing-action-scrim";
 import { useWorkspaceDoneToggle } from "@/components/workspace-done-button";
 import { useToast } from "@/contexts/toast-context";
 import type { SidebarWorkspaceEntry } from "@/hooks/sidebar-workspaces-view-model";
@@ -22,6 +23,7 @@ import {
   useIsActiveWorkspace,
 } from "@/stores/navigation-active-workspace-store";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
+import type { SidebarSurfaceBackdrop } from "@/styles/surface-backdrop";
 import type { Theme } from "@/styles/theme";
 import { getStatusDotColor } from "@/utils/status-dot-color";
 import { STATUS_INDICATOR_FILLED_DOT_SIZE } from "@/utils/status-indicator-geometry";
@@ -119,12 +121,21 @@ function useWorkspaceSetAsideActions(workspace: SidebarWorkspaceEntry): {
   };
 }
 
+function backdropFillStyle(backdrop: SidebarSurfaceBackdrop) {
+  if (backdrop === "surfaceSidebarHover") return styles.fillSidebarHover;
+  if (backdrop === "surfaceSidebarSelected") return styles.fillSidebarSelected;
+  if (backdrop === "surface2") return styles.fillSurface2;
+  return styles.fillSidebar;
+}
+
 export function SidebarWorkspaceSetAsideActions({
   workspace,
+  backdrop,
   visible,
   isTouchPlatform,
 }: {
   workspace: SidebarWorkspaceEntry;
+  backdrop: SidebarSurfaceBackdrop;
   visible: boolean;
   isTouchPlatform: boolean;
 }) {
@@ -138,11 +149,16 @@ export function SidebarWorkspaceSetAsideActions({
   if (isTouchPlatform && !active) return null;
   const shown = visible || focused;
   const buttonStyle = isTouchPlatform ? styles.touchAction : styles.hoverAction;
+  const clusterStyle = isTouchPlatform
+    ? styles.actions
+    : [styles.hoverCluster, backdropFillStyle(backdrop), !shown && styles.hoverClusterHidden];
   return (
-    <View
-      style={shown ? styles.actions : styles.actionsHidden}
-      pointerEvents={shown ? "auto" : "none"}
-    >
+    <View style={clusterStyle} pointerEvents={shown ? "auto" : "none"}>
+      {isTouchPlatform ? null : (
+        <View style={styles.hoverFade} pointerEvents="none">
+          <TrailingActionScrim backdrop={backdrop} />
+        </View>
+      )}
       {onSnooze ? (
         <Button
           variant="ghost"
@@ -299,12 +315,36 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[1],
     flexShrink: 0,
   },
-  actionsHidden: {
+  hoverCluster: {
+    position: "absolute",
+    top: 0,
+    right: theme.spacing[6],
+    height: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
-    flexShrink: 0,
+  },
+  hoverClusterHidden: {
     opacity: 0,
+  },
+  hoverFade: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: "100%",
+    width: SCRIM_WIDTH,
+  },
+  fillSidebar: {
+    backgroundColor: theme.colors.surfaceSidebar,
+  },
+  fillSidebarHover: {
+    backgroundColor: theme.colors.surfaceSidebarHover,
+  },
+  fillSidebarSelected: {
+    backgroundColor: theme.colors.surfaceSidebarSelected,
+  },
+  fillSurface2: {
+    backgroundColor: theme.colors.surface2,
   },
   hoverAction: {
     width: 26,

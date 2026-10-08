@@ -675,11 +675,6 @@ function WorkspaceRowRightGroup({
       {isCreating ? (
         <Text style={styles.workspaceCreatingText}>{t("sidebar.workspace.status.creating")}</Text>
       ) : null}
-      <SidebarWorkspaceSetAsideActions
-        workspace={workspace}
-        visible={!isCreating && (isHovered || isTouchPlatform)}
-        isTouchPlatform={isTouchPlatform}
-      />
       {renderSlot ? (
         <SidebarWorkspaceTrailingActionSlot reserveWidth={reserveSlotWidth}>
           <SidebarWorkspaceTrailingActionBase presentation={trailingPresentation}>
@@ -714,6 +709,12 @@ function WorkspaceRowRightGroup({
           </SidebarWorkspaceTrailingActionOverlay>
         </SidebarWorkspaceTrailingActionSlot>
       ) : null}
+      <SidebarWorkspaceSetAsideActions
+        workspace={workspace}
+        backdrop={backdrop}
+        visible={!isCreating && (isHovered || isTouchPlatform)}
+        isTouchPlatform={isTouchPlatform}
+      />
     </>
   );
 }
