@@ -282,6 +282,33 @@ describe("MockLoadTestAgentClient", () => {
     });
   });
 
+  test("keeps the current title when a title prompt anchors one", async () => {
+    vi.useFakeTimers();
+    const client = new MockLoadTestAgentClient();
+    const session = await client.createSession({
+      provider: "mock",
+      cwd: process.cwd(),
+      model: "ten-second-stream",
+    });
+
+    const resultPromise = session.run(
+      [
+        "Generate a title and a git branch name for a coding agent from the user prompt and attachments.",
+        'The session is currently titled "First viewed chat". The user prompt holds its most recent user messages, oldest first.',
+        "Return JSON only with fields 'title' and 'branch'.",
+        "",
+        "<user-prompt>",
+        "Fix login bug",
+        "</user-prompt>",
+      ].join("\n"),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect(resultPromise).resolves.toMatchObject({
+      finalText: JSON.stringify({ title: "First viewed chat", branch: "first-viewed-chat" }),
+    });
+  });
+
   test("emits sub-word tokens, reasoning, and sequential tool calls during a foreground turn", async () => {
     vi.useFakeTimers();
     const client = new MockLoadTestAgentClient();
