@@ -4,6 +4,7 @@ import { SettingsCard, SettingsRow } from "@/components/settings";
 import { SettingsSection } from "@/components/settings/headings/settings-section";
 import { getIsElectron } from "@/constants/platform";
 import { BrowserDataSection } from "@/desktop/browser/settings/browser-data-section";
+import { BrowserHistorySection } from "@/desktop/browser/settings/browser-history-section";
 import { BrowserStartPageSection } from "@/desktop/browser/settings/browser-start-page-section";
 import { BrowserStreamingSection } from "@/desktop/browser/settings/browser-streaming-section";
 import { SavedPasswordsSection } from "@/desktop/browser/settings/saved-passwords-section";
@@ -41,6 +42,7 @@ export function HostBrowserPage({ serverId }: { serverId: string }) {
       </SettingsSection>
       <BrowserImportSection serverId={serverId} isLocalDaemon={isLocalDaemon} />
       {hostBrowser || getIsElectron() ? <SavedPasswordsSection serverId={serverId} /> : null}
+      {getIsElectron() && !hostBrowser ? <BrowserHistorySection serverId={serverId} /> : null}
       {getIsElectron() ? <BrowserBackupSection serverId={serverId} /> : null}
       {getIsElectron() && isLocalDaemon && !hostBrowser ? <BrowserDataSection /> : null}
     </View>

@@ -635,6 +635,13 @@ export const ptBR: TranslationResources = {
         title: "O navegador é exclusivo do desktop",
         subtitle: "Abra este workspace no Electron para usar o navegador integrado.",
       },
+      suggestions: {
+        label: "Sugestões de endereços",
+        switchToTab: "Mudar para a aba",
+        savedLogin: "Login salvo",
+        searchWeb: "Pesquisar na web: {{text}}",
+        open: "Abrir: {{url}}",
+      },
       session: "Sessão do navegador {{browserId}}",
       activity: {
         title: "Execução do navegador",
@@ -2493,6 +2500,18 @@ export const ptBR: TranslationResources = {
         googleSignIn: "Login mais recente no Google: {{date}}",
         googleSignInStale:
           "Sessões do Google copiadas costumam expirar. Para o Google, faça login uma vez no próprio navegador do PandaOS (transferência)",
+      },
+      history: {
+        title: "Histórico de endereços",
+        info: "O PandaOS lembra os endereços e títulos visitados por host para sugeri-los na barra de endereços. Parâmetros de busca, credenciais e tokens nunca são salvos.",
+        label: "Endereços visitados",
+        hint: "Usados nas sugestões da barra de endereços neste host.",
+        empty: "Nenhum endereço salvo ainda",
+        clear: "Limpar histórico",
+        confirmTitle: "Limpar o histórico de endereços?",
+        confirmMessage:
+          "As sugestões da barra de endereços das páginas visitadas neste host serão removidas. As abas abertas não mudam.",
+        success: "Histórico de endereços limpo.",
       },
     },
     plugins: pluginSettings["pt-BR"],
