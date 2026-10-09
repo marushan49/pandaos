@@ -81,9 +81,6 @@ function normalizeImageData(mimeType: string, data: string): { mimeType: string;
   return { mimeType, data };
 }
 
-// Filenames are a content hash of the bytes so re-materializing the same image
-// within a process reuses the existing temp file instead of leaking a fresh one
-// for repeated image blocks or history replay.
 export function materializeProviderImage(image: {
   data: string;
   mimeType: string | null;
@@ -99,10 +96,6 @@ export function materializeProviderImage(image: {
   return { path: filePath };
 }
 
-// Recognizes markdown rendered for a materialized provider image: its source is a content-hashed
-// file in the attachments dir. Matching the full <hash>.<ext> shape (not just a leading "![")
-// keeps user-authored text from being mistaken for a provider image during history replay. The
-// separator still accepts old doubled-backslash Windows history; new Windows output uses file URIs.
 const PROVIDER_IMAGE_MARKDOWN = new RegExp(
   `^!\\[[^\\]]*\\]\\([^)]*${PROVIDER_IMAGE_ATTACHMENT_DIR}(?:-[^/\\\\)]+)?[/\\\\]+(?:[^/\\\\)]+[/\\\\]+)?[0-9a-f]{64}\\.[a-z0-9]+\\)`,
 );
@@ -166,7 +159,7 @@ function markdownImageSource(value: string): string {
 }
 
 function escapeMarkdownImageSource(value: string): string {
-  return markdownImageSource(value).replace(/\\/g, "\\\\").replace(/\)/g, "\\)");
+  return markdownImageSource(value).replace(/\\/g, "\\\\").replace(/[()]/g, "\\$&");
 }
 
 export function renderProviderImageOutputAsAssistantMarkdown(
