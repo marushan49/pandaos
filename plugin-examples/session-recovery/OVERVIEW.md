@@ -15,7 +15,7 @@ This plugin helps recover work. Host resource limits and the Android queue preve
 Requires PandaOS or Paseo 0.11.0 or newer with plugins enabled. Install this directory or the Git source pinned to the addon release:
 
 ```sh
-paseo plugin install git:marushan49/pandaos:plugin-examples/session-recovery --ref runtime-recovery-v0.1.0
+paseo plugin install git:marushan49/pandaos:plugin-examples/session-recovery --ref runtime-recovery-v0.1.1
 ```
 
 The plugin also discovers an installed Linux Android queue and injects its policy and guarded environment into future provider sessions. Without that queue it provides recovery only. Full installation, limits and removal instructions are in the repository's `docs/runtime-recovery.md`.

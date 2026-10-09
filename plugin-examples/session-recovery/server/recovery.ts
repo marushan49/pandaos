@@ -1,14 +1,17 @@
 import type {
-  OwnedSubscription,
-  PaseoAgent,
-  PaseoAgentListResult,
-  PaseoApi,
-} from "@getpaseo/client";
-import type { PluginHookAgent, PluginTurnOutcome } from "@getpaseo/plugin/server";
+  PluginHandlerContext,
+  PluginHookAgent,
+  PluginTurnOutcome,
+} from "@getpaseo/plugin/server";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { RecoveryCandidate, RecoveryRecord } from "../shared/contracts";
 import { RecoveryStore } from "./store";
+
+type PaseoApi = PluginHandlerContext["paseo"];
+type PaseoAgentListResult = Awaited<ReturnType<PaseoApi["agents"]["list"]>>;
+type PaseoAgent = PaseoAgentListResult["entries"][number]["agent"];
+type AgentObservation = NonNullable<PaseoAgentListResult["subscription"]>;
 
 export const CONTINUE_PROMPT =
   "Setze den durch einen Absturz oder Fehler unterbrochenen Auftrag fort. Lies zuerst den gespeicherten Arbeitsstand und prüfe bereits laufende Prozesse und erledigte Schritte. Arbeite am bestehenden Ziel weiter, ohne Jobs doppelt zu starten. Halte bei einem echten Blocker an und benenne ihn konkret.";
@@ -56,7 +59,7 @@ export class RecoveryService {
   private initialized = false;
   private readonly agents = new Map<string, PaseoAgent>();
   private observing: Promise<void> | null = null;
-  private observation: OwnedSubscription<PaseoAgentListResult> | null = null;
+  private observation: AgentObservation | null = null;
   private observationError: unknown = null;
   private readonly lifetime = new AbortController();
 

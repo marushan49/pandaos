@@ -7,7 +7,7 @@ Install the optional Session Recovery plugin to find unfinished work after daemo
 Use PandaOS or Paseo 0.11.0 or newer and enable plugins in host settings. `pandaos` and `paseo` expose the same plugin commands; use the binary installed on your host.
 
 ```sh
-paseo plugin install git:marushan49/pandaos:plugin-examples/session-recovery --ref runtime-recovery-v0.1.0
+paseo plugin install git:marushan49/pandaos:plugin-examples/session-recovery --ref runtime-recovery-v0.1.1
 paseo plugin ls
 ```
 
