@@ -61,6 +61,10 @@ Gradle auto-fetches the platform/build-tools it needs once licenses are accepted
 
 ## Local build + install
 
+On a host with the Android queue installed, submit complete build commands through
+`pandaos-android-queue -- COMMAND` and preserve the injected toolchain environment.
+See [runtime recovery](runtime-recovery.md#add-the-linux-android-queue) for installation and coverage.
+
 From repo root:
 
 ```bash

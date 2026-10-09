@@ -129,6 +129,11 @@ the bundled integration; an entry with `extends` shadows it with a custom provid
 [provider contributions](#contribute-a-provider) for the contract and
 [Muse Code](../public-docs/muse-code.md) for setup, per-agent options, and version limitations.
 
+## Runtime recovery
+
+The optional [Session Recovery addon](runtime-recovery.md) provides durable interruption tracking,
+manual continuation and environment integration with the Linux Android queue.
+
 ## Install from a registry
 
 `paseo plugin add owner/slug` installs the registry's reviewed artifact by default.

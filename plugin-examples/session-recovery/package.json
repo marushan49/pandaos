@@ -1,0 +1,22 @@
+{
+  "name": "@pandaos/session-recovery",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run server/recovery.test.ts --bail=1"
+  },
+  "devDependencies": {
+    "@getpaseo/client": "0.11.0",
+    "@getpaseo/plugin": "0.11.0",
+    "@tanstack/react-query": "^5.90.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20260423.1",
+    "react": "^19.1.0",
+    "react-native": "^0.81.0",
+    "vitest": "^4.1.6",
+    "zod": "^4.0.0"
+  }
+}
