@@ -1,0 +1,13 @@
+[Unit]
+Description=Shared hard limits for queued Android tooling
+
+[Slice]
+MemoryAccounting=yes
+CPUAccounting=yes
+TasksAccounting=yes
+MemoryHigh=6G
+MemoryMax=8G
+MemorySwapMax=0
+CPUQuota=200%
+CPUWeight=20
+TasksMax=512
