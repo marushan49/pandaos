@@ -55,6 +55,7 @@ function connection(
     refresh: async () => ({ agent: snapshot, project: null }),
     send,
     timeline: {
+      append: vi.fn(async (_item: unknown) => ({ seq: 1, epoch: "timeline" })),
       refetch: vi.fn(async () => ({
         entries: [],
         error: null,
@@ -257,5 +258,264 @@ describe("session recovery", () => {
     await store.flush();
     await writeFile(join(directory, "turns.json"), "invalid-json");
     await expect(new RecoveryStore(directory).all()).rejects.toThrow();
+  });
+
+  it("keeps new failures manual until automatic recovery is enabled", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(agent());
+    await service.ended(hook, null, { kind: "failed", error: { message: "provider exited" } });
+    await service.runAutomatic(paseo);
+    expect(send).not.toHaveBeenCalled();
+    expect((await store.state()).history).toEqual([]);
+    await service.close();
+  });
+
+  it("automatically continues new failures and writes durable history and chat markers", async () => {
+    const { directory, store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send, handle } = connection(agent());
+    await service.configureAutomatic(true, paseo);
+    await service.ended(hook, null, { kind: "failed", error: { message: "provider SIGKILL" } });
+    await service.runAutomatic(paseo);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toContain("Automatische Fortsetzung durch Session Recovery am");
+    expect(send.mock.calls[0][0]).toContain("Grund: provider SIGKILL");
+    expect(handle.timeline.append.mock.calls.map((call) => call[0])).toEqual([
+      expect.objectContaining({
+        kind: "recovery-event",
+        data: expect.objectContaining({ status: "resumed" }),
+      }),
+    ]);
+    const restored = await new RecoveryStore(directory).state();
+    expect(restored).toMatchObject({
+      enabled: true,
+      history: [{ mode: "automatic", status: "resumed", reason: "provider SIGKILL" }],
+    });
+    await service.close();
+  });
+
+  it("does not automatically continue historical imported errors or blocked sessions", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(
+      agent({ status: "error", lastError: "old error", pendingPermissions: [{} as never] }),
+    );
+    await service.configureAutomatic(true, paseo);
+    await service.runAutomatic(paseo);
+    expect(send).not.toHaveBeenCalled();
+    expect((await store.all())[0].autoEligible).toBe(false);
+    await service.ended(hook, null, { kind: "failed", error: { message: "new error" } });
+    await service.runAutomatic(paseo);
+    expect(send).not.toHaveBeenCalled();
+    expect((await service.list(paseo)).candidates[0].blockedReason).toContain("Freigabe");
+    await service.close();
+  });
+
+  it("limits a recurring provider crash to three automatic continuations", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    let turn = 0;
+    const send = vi.fn(async (_text: string, options?: PaseoAgentSendOptions) => {
+      await service.accepted(hook, options!.messageId!);
+      await service.started(hook, `auto-${++turn}`);
+    });
+    const { paseo } = connection(agent(), send);
+    await service.configureAutomatic(true, paseo);
+    await service.ended(hook, null, { kind: "failed", error: { message: "crash" } });
+    for (let index = 0; index < 4; index++) {
+      await service.runAutomatic(paseo);
+      await service.ended(hook, `auto-${turn}`, { kind: "failed", error: { message: "crash" } });
+    }
+    expect(send).toHaveBeenCalledTimes(3);
+    expect((await store.all())[0].autoAttempts).toBe(3);
+    expect((await store.state()).history).toHaveLength(3);
+    await service.close();
+  });
+
+  it("preserves attempt budget when acknowledgement precedes the started hook", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(agent());
+    await service.configureAutomatic(true, paseo);
+    await service.ended(hook, null, { kind: "failed", error: { message: "crash" } });
+    await service.runAutomatic(paseo);
+    await service.accepted(hook, send.mock.calls[0][1]!.messageId!);
+    await service.started(hook, "late-start");
+    expect((await store.all())[0].autoAttempts).toBe(1);
+    await service.close();
+  });
+
+  it("recovers unfinished daemon checkpoints automatically after reconnect", async () => {
+    const { directory, store } = await storage();
+    await new RecoveryService(store, "old-boot").started(hook, "unfinished");
+    await store.setAutomatic(true);
+    const service = new RecoveryService(new RecoveryStore(directory), "new-boot", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(agent());
+    await service.runAutomatic(paseo);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((await service.store.state()).history[0]).toMatchObject({
+      mode: "automatic",
+      status: "resumed",
+    });
+    await service.close();
+  });
+
+  it("respects disabling automation between the durable marker and submission", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(agent());
+    await service.configureAutomatic(true, paseo);
+    await service.ended(hook, null, { kind: "failed", error: { message: "crash" } });
+    let entered!: () => void;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const originalEvent = store.event.bind(store);
+    vi.spyOn(store, "event").mockImplementationOnce(async (event) => {
+      await originalEvent(event);
+      entered();
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    });
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const operation = service.runAutomatic(paseo);
+      await ready;
+      await service.configureAutomatic(false, paseo);
+      release();
+      await operation;
+      expect(send).not.toHaveBeenCalled();
+      expect((await store.state()).history[0].status).toBe("failed");
+    } finally {
+      quiet.mockRestore();
+      await service.close();
+    }
+  });
+
+  it("does not continue a session stopped during the durable submission checkpoint", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(agent());
+    await service.configureAutomatic(true, paseo);
+    await service.ended(hook, null, { kind: "failed", error: { message: "crash" } });
+    const originalEvent = store.event.bind(store);
+    vi.spyOn(store, "event").mockImplementationOnce(async (event) => {
+      await originalEvent(event);
+      await service.ended(hook, null, { kind: "canceled", reason: "user stop" });
+    });
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await service.runAutomatic(paseo);
+      expect(send).not.toHaveBeenCalled();
+      expect((await store.all())[0]).toMatchObject({ phase: "resolved", autoEligible: false });
+    } finally {
+      quiet.mockRestore();
+      await service.close();
+    }
+  });
+
+  it("keeps explicitly closed sessions manual", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(agent());
+    await service.configureAutomatic(true, paseo);
+    await service.started(hook, "closed-turn");
+    await service.closed(hook);
+    await service.runAutomatic(paseo);
+    expect(send).not.toHaveBeenCalled();
+    expect((await service.list(paseo)).candidates[0].autoEligible).toBe(false);
+    await service.close();
+  });
+
+  it("blocks another automatic turn before the previous provider starts", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const snapshot = agent();
+    const { paseo, send } = connection(snapshot);
+    await service.configureAutomatic(true, paseo);
+    await service.ended(hook, null, { kind: "failed", error: { message: "first crash" } });
+    await service.runAutomatic(paseo);
+    const second = { ...hook, id: "second" };
+    await service.ended(second, null, { kind: "failed", error: { message: "second crash" } });
+    await service.runAutomatic(paseo);
+    expect(send).toHaveBeenCalledTimes(1);
+    await service.close();
+  });
+
+  it.each([
+    "quota_exceeded",
+    "rate_limit_exceeded",
+    "authentication_error",
+    "context_length_exceeded",
+  ])("keeps a %s failure manual", async (code) => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", {
+      autoSchedule: false,
+      automaticDelayMs: 0,
+    });
+    const { paseo, send } = connection(agent());
+    await service.configureAutomatic(true, paseo);
+    await service.ended(hook, null, {
+      kind: "failed",
+      error: { code, message: "provider rejected request" },
+    });
+    await service.runAutomatic(paseo);
+    expect(send).not.toHaveBeenCalled();
+    expect((await service.list(paseo)).candidates[0].autoEligible).toBe(false);
+    await service.close();
+  });
+
+  it("preserves old version-one ledgers with opt-in defaults", async () => {
+    const { directory, store } = await storage();
+    await new RecoveryService(store, "boot-one").started(hook, null);
+    const old = JSON.parse(await readFile(join(directory, "turns.json"), "utf8"));
+    delete old.automaticEnabled;
+    delete old.history;
+    for (const record of old.records) {
+      delete record.autoEligible;
+      delete record.autoAttempts;
+      delete record.lastAutoAt;
+    }
+    await writeFile(join(directory, "turns.json"), JSON.stringify(old));
+    const restored = new RecoveryStore(directory);
+    expect(await restored.state()).toEqual({ enabled: false, history: [] });
+    expect((await restored.all())[0]).toMatchObject({
+      autoEligible: false,
+      autoAttempts: 0,
+      lastAutoAt: null,
+    });
   });
 });

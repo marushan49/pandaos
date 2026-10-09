@@ -1,237 +1,159 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { type PluginScreenProps, usePaseo, useRpc } from "@getpaseo/plugin/client";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import type { PluginScreenProps } from "@getpaseo/plugin/client";
+import { Icon } from "@getpaseo/plugin/client/react-native";
 import {
-  dismissRecovery,
-  listRecovery,
-  resumeRecovery,
-  type RecoveryCandidate,
-} from "../shared/contracts";
+  SettingsCard,
+  SettingsRow,
+  SettingsSection,
+  SettingsSwitch,
+} from "@getpaseo/plugin/client/ui";
+import { useMemo } from "react";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { RecoveryHistory } from "./history";
+import { IconButton } from "./icon-button";
+import { automaticHint, describeStatus, toneColor, type RecoveryEvent } from "./labels";
+import { RecoveryCase } from "./recovery-case";
+import { createStyles, type Colors, type Styles } from "./styles";
+import { useRecovery } from "./use-recovery";
 
-type Action = "resume" | "dismiss";
-type Colors = PluginScreenProps["theme"]["colors"];
+type Recovery = ReturnType<typeof useRecovery>;
 
-function createStyles(colors: Colors, compact: boolean) {
-  const button = {
-    minHeight: 44,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: colors.surface2,
-  };
-  return {
-    screen: { flex: 1, backgroundColor: colors.surface0 },
-    content: { padding: compact ? 16 : 24, gap: 16 },
-    title: { color: colors.foreground, fontSize: 24, fontWeight: "600" as const },
-    cardTitle: { color: colors.foreground, fontSize: 18, fontWeight: "600" as const },
-    text: { color: colors.foreground },
-    muted: { color: colors.foregroundMuted },
-    error: { color: colors.statusDanger },
-    success: { color: colors.statusSuccess },
-    warning: { color: colors.statusWarning },
-    card: {
-      padding: 16,
-      gap: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 12,
-      backgroundColor: colors.surface1,
-    },
-    actions: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 8 },
-    button,
-    resume: { ...button, backgroundColor: colors.accent },
-    resumeText: { color: colors.accentForeground },
-  };
-}
+const NO_EVENTS: readonly RecoveryEvent[] = [];
 
-type Styles = ReturnType<typeof createStyles>;
-
-function RecoveryCard({
-  record,
+function StatusHeader({
+  recovery,
   styles,
-  pending,
-  onAction,
-  navigation,
+  colors,
 }: {
-  record: RecoveryCandidate;
+  recovery: Recovery;
   styles: Styles;
-  pending: boolean;
-  onAction(record: RecoveryCandidate, action: Action): void;
-  navigation: PluginScreenProps["navigation"];
+  colors: Colors;
 }) {
-  const resume = useCallback(() => onAction(record, "resume"), [record, onAction]);
-  const dismiss = useCallback(() => onAction(record, "dismiss"), [record, onAction]);
-  const open = useCallback(
-    () => navigation?.openAgent({ agentId: record.agentId }),
-    [navigation, record.agentId],
-  );
-  const disabled = pending || !record.canResume;
+  const { query, refresh } = recovery;
+  const status = describeStatus(query.data);
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{record.title ?? record.agentId}</Text>
-      <Text style={styles.muted}>{record.provider}</Text>
-      <Text selectable style={styles.muted}>
-        {record.cwd}
-      </Text>
-      <Text style={styles.warning}>{record.reason.split("\n", 1)[0]}</Text>
-      <Text style={styles.muted}>Unterbrochen: {new Date(record.updatedAt).toLocaleString()}</Text>
-      {record.blockedReason ? <Text style={styles.muted}>{record.blockedReason}</Text> : null}
-      <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Weiterarbeiten: ${record.title ?? record.agentId}`}
-          disabled={disabled}
-          onPress={resume}
-          style={disabled ? styles.button : styles.resume}
-        >
-          <Text style={disabled ? styles.muted : styles.resumeText}>Weiterarbeiten</Text>
-        </Pressable>
-        {navigation ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Session öffnen: ${record.title ?? record.agentId}`}
-            onPress={open}
-            style={styles.button}
-          >
-            <Text style={styles.text}>Session öffnen</Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Ausblenden: ${record.title ?? record.agentId}`}
-          disabled={pending}
-          onPress={dismiss}
-          style={styles.button}
-        >
-          <Text style={styles.text}>Ausblenden</Text>
-        </Pressable>
+    <View style={styles.status} accessibilityRole="summary">
+      <View style={styles.statusBadge}>
+        {query.isPending ? (
+          <ActivityIndicator color={colors.accent} />
+        ) : (
+          <Icon name={status.icon} size={22} color={toneColor(colors, status.tone)} />
+        )}
       </View>
+      <View style={styles.statusText}>
+        <Text style={styles.statusTitle}>{status.title}</Text>
+        <Text style={styles.muted}>{status.line}</Text>
+      </View>
+      {query.isFetching && !query.isPending ? (
+        <ActivityIndicator color={colors.foregroundMuted} />
+      ) : (
+        <IconButton
+          icon="RefreshCw"
+          label="Recovery-Liste aktualisieren"
+          color={colors.foreground}
+          disabled={query.isFetching}
+          styles={styles}
+          onPress={refresh}
+        />
+      )}
     </View>
   );
 }
 
-export function RecoveryScreen({ theme, layout, host, navigation }: PluginScreenProps) {
-  const paseo = usePaseo();
-  const list = useRpc(listRecovery);
-  const resume = useRpc(resumeRecovery);
-  const dismiss = useRpc(dismissRecovery);
-  const [notice, setNotice] = useState("");
-  const styles = useMemo(
-    () => createStyles(theme.colors, layout.compact),
-    [theme.colors, layout.compact],
-  );
-  const query = useQuery({
-    queryKey: ["session-recovery", host.id],
-    queryFn: () => list({}),
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
-  const refetch = query.refetch;
-  const mutation = useMutation({
-    mutationFn: async ({ record, action }: { record: RecoveryCandidate; action: Action }) => {
-      const selection = { agentId: record.agentId, revision: record.revision };
-      if (action === "resume") await resume(selection);
-      else await dismiss(selection);
-      return { record, action };
-    },
-    onSuccess: async ({ record, action }) => {
-      setNotice(
-        action === "resume"
-          ? `${record.title ?? "Session"}: Weiterarbeiten wurde gesendet.`
-          : "Eintrag wurde ausgeblendet.",
-      );
-      await refetch();
-    },
-    onError: async () => {
-      await refetch();
-    },
-  });
-  const mutate = mutation.mutate;
-  const onAction = useCallback(
-    (record: RecoveryCandidate, action: Action) => {
-      setNotice("");
-      mutate({ record, action });
-    },
-    [mutate],
-  );
-  const refresh = useCallback(() => {
-    void refetch();
-  }, [refetch]);
-  useEffect(() => {
-    const signatures = new Map<string, string>();
-    return paseo.agents.subscribe((update) => {
-      if (update.kind === "remove") {
-        signatures.delete(update.agentId);
-        void refetch();
-        return;
-      }
-      const signature = JSON.stringify([
-        update.agent.status,
-        update.agent.lastError,
-        update.agent.archivedAt,
-      ]);
-      if (signatures.get(update.agent.id) === signature) return;
-      signatures.set(update.agent.id, signature);
-      void refetch();
-    });
-  }, [paseo, refetch]);
+function Messages({ recovery, styles }: { recovery: Recovery; styles: Styles }) {
+  const { query, actionError, actionPending, notice } = recovery;
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Unterbrochene Sessions</Text>
-      <Text style={styles.muted}>
-        Hier stehen fehlgeschlagene Läufe und Arbeit ohne Abschluss nach einem Host-Neustart. Wähle
-        eine Session zum Weiterarbeiten.
-      </Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Recovery-Liste aktualisieren"
-        disabled={query.isFetching}
-        onPress={refresh}
-        style={styles.button}
-      >
-        <Text style={styles.text}>Aktualisieren</Text>
-      </Pressable>
-      {query.isPending ? <ActivityIndicator color={theme.colors.accent} /> : null}
+    <>
       {query.error ? (
         <Text accessibilityRole="alert" style={styles.error}>
           {query.error.message}
         </Text>
       ) : null}
-      {mutation.error ? (
+      {actionError ? (
         <Text accessibilityRole="alert" style={styles.error}>
-          {mutation.error.message}
+          {actionError.message}
         </Text>
       ) : null}
-      {mutation.isPending ? <Text style={styles.muted}>Aktion wird ausgeführt…</Text> : null}
+      {actionPending ? <Text style={styles.muted}>Aktion wird ausgeführt...</Text> : null}
       {notice ? (
         <Text accessibilityRole="alert" style={styles.success}>
           {notice}
         </Text>
       ) : null}
-      {query.data ? (
-        <Text style={styles.muted}>
-          {query.data.tracked} laufende Sessions abgesichert. Zuletzt geprüft:{" "}
-          {new Date(query.data.checkedAt).toLocaleTimeString()}.
-        </Text>
-      ) : null}
-      {query.data?.candidates.length === 0 ? (
-        <Text style={styles.text}>Keine unterbrochenen Sessions erkannt.</Text>
-      ) : null}
-      {query.data?.candidates.map((record) => (
-        <RecoveryCard
-          key={record.agentId}
-          record={record}
+    </>
+  );
+}
+
+function OpenCases({
+  recovery,
+  styles,
+  colors,
+  navigation,
+}: {
+  recovery: Recovery;
+  styles: Styles;
+  colors: Colors;
+  navigation: PluginScreenProps["navigation"];
+}) {
+  const data = recovery.query.data;
+  const open = data?.candidates.length ?? 0;
+  return (
+    <SettingsSection title={open > 0 ? `Offene Fälle, ${open}` : "Offene Fälle"}>
+      <SettingsCard>
+        {data && open === 0 ? (
+          <SettingsRow
+            label="Keine unterbrochenen Sessions"
+            hint="Abgeschlossene, gestoppte und archivierte Läufe werden ausgeschlossen"
+          />
+        ) : null}
+        {data?.candidates.map((record, index) => (
+          <RecoveryCase
+            key={record.agentId}
+            record={record}
+            index={index}
+            automatic={data.automatic}
+            styles={styles}
+            colors={colors}
+            pending={recovery.actionPending}
+            navigation={navigation}
+            onAction={recovery.onAction}
+          />
+        ))}
+      </SettingsCard>
+    </SettingsSection>
+  );
+}
+
+export function RecoveryScreen({ theme, layout, host, navigation }: PluginScreenProps) {
+  const colors = theme.colors;
+  const styles = useMemo(() => createStyles(colors, layout.compact), [colors, layout.compact]);
+  const recovery = useRecovery(host.id);
+  const data = recovery.query.data;
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.column}>
+        <StatusHeader recovery={recovery} styles={styles} colors={colors} />
+        <Messages recovery={recovery} styles={styles} />
+        <SettingsSection title="Automatisch fortsetzen">
+          <SettingsCard>
+            <SettingsSwitch
+              label="Automatisch fortsetzen"
+              hint={automaticHint(data?.automatic)}
+              value={recovery.automaticEnabled}
+              disabled={!data || recovery.automaticPending}
+              error={recovery.automaticError?.message ?? null}
+              onValueChange={recovery.toggleAutomatic}
+            />
+          </SettingsCard>
+        </SettingsSection>
+        <OpenCases recovery={recovery} styles={styles} colors={colors} navigation={navigation} />
+        <RecoveryHistory
+          events={data?.history ?? NO_EVENTS}
+          loaded={Boolean(data)}
           styles={styles}
-          pending={mutation.isPending}
-          onAction={onAction}
+          colors={colors}
           navigation={navigation}
         />
-      ))}
-      <Text style={styles.muted}>
-        Abgeschlossene, gestoppte und archivierte Läufe werden ausgeschlossen. Abstürze vor der
-        Installation lassen sich nur bei einem gespeicherten Fehler sicher erkennen.
-      </Text>
+      </View>
     </ScrollView>
   );
 }
