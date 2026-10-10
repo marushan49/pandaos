@@ -14,5 +14,6 @@ export function formatRoutingNotice(notice: AgentRoutingNotice, locale?: string)
   if (notice.status === "waiting" || notice.status === "exhausted") {
     return `Waiting: ${from}, ${timestamp ? `available after ${timestamp}` : "availability unconfirmed"}. ${notice.reason}`;
   }
+  if (from === to) return notice.reason;
   return `${from} → ${to}, ${timestamp ? `${notice.fromProfile} available after ${timestamp}` : "reset unavailable"}. ${notice.reason}`;
 }

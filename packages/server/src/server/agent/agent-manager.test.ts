@@ -13670,6 +13670,7 @@ test("manual capacity recovery continues timed retries on the chosen model witho
     expect(fixture.attempts).toHaveLength(4);
     await vi.advanceTimersByTimeAsync(30_001);
     await run;
+    expect(fixture.manager.getAgent(fixture.agent.id)?.config.routingNotice).toBeUndefined();
     expect(fixture.attempts).toHaveLength(5);
     expect(new Set(fixture.attempts.map((a) => a.profile))).toEqual(new Set(["codex-plus"]));
     expect(new Set(fixture.attempts.map((a) => a.model))).toEqual(new Set(["gpt-6.1-sol"]));

@@ -30,3 +30,13 @@ it("makes recovery, waiting and missing reset evidence explicit", () => {
   );
   expect(formatRoutingNotice({ ...notice, resetsAt: "invalid" })).toContain("reset unavailable");
 });
+it("shows only the reason when the route does not change", () => {
+  expect(
+    formatRoutingNotice({
+      ...notice,
+      toProfile: notice.fromProfile,
+      resetsAt: null,
+      reason: "Jev reassessed: mechanical",
+    }),
+  ).toBe("Jev reassessed: mechanical");
+});

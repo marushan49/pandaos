@@ -5392,12 +5392,8 @@ export class AgentManager {
       agent.config.routingNotice &&
       ["retrying", "waiting"].includes(agent.config.routingNotice.status)
     ) {
-      agent.config.routingNotice = {
-        ...agent.config.routingNotice,
-        status: "selected",
-        toProfile: agent.provider,
-        reason: "Recovery completed on the same profile, model and effort.",
-      };
+      agent.config.routingNotice = undefined;
+      this.emitState(agent);
     }
     if (
       !isForegroundEvent &&
