@@ -147,8 +147,9 @@ export function collectSnapshotNodes(): CollectedSnapshotNode[] {
           case "radio":
             return "radio";
           case "hidden":
-          case "file":
             return null;
+          case "file":
+            return "button";
           default:
             return "textbox";
         }

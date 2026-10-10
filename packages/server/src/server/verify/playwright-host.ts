@@ -734,9 +734,19 @@ export class DaemonPlaywrightHost {
             message: "browser_upload only accepts files inside the request workspace.",
           });
         }
-        await tab.page
-          .locator(resolveRefSelector(tab, command.args.ref, requestId))
-          .setInputFiles(filePaths);
+        const target = tab.page.locator(resolveRefSelector(tab, command.args.ref, requestId));
+        const isFileInput = await target.evaluate(
+          "(element) => element instanceof HTMLInputElement && element.type === 'file'",
+        );
+        const fileInput = isFileInput ? target : target.locator("input[type=file]").first();
+        if (!isFileInput && (await fileInput.count()) === 0) {
+          return browserToolsFailure({
+            requestId,
+            code: "browser_unsupported",
+            message: "browser_upload needs a file input at this ref.",
+          });
+        }
+        await fileInput.setInputFiles(filePaths);
         return ok(requestId, {
           command: "upload",
           browserId: tab.browserId,
