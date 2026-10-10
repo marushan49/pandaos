@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { isPathInsideRoot } from "../../utils/path.js";
 import type { Logger } from "pino";
 import {
   type BrowserContext,
@@ -134,6 +135,7 @@ export const DAEMON_PLAYWRIGHT_COMMANDS: readonly BrowserAutomationCommandName[]
   "click",
   "fill",
   "select",
+  "upload",
   "type",
   "keypress",
   "wait",
@@ -192,6 +194,7 @@ export interface ExecuteLocalInput {
   profile?: string;
   requestId?: string;
   agentId?: string;
+  cwd?: string;
 }
 
 export class DaemonPlaywrightHost {
@@ -448,6 +451,7 @@ export class DaemonPlaywrightHost {
         profile: input.profile ?? DEFAULT_VERIFY_PROFILE,
         requestId,
         ...(input.agentId ? { agentId: input.agentId } : {}),
+        ...(input.cwd ? { cwd: input.cwd } : {}),
       });
       this.logger.info({
         verifyBrowser: {
@@ -584,6 +588,7 @@ export class DaemonPlaywrightHost {
       command: request.command,
       requestId: request.requestId,
       ...(request.agentId ? { agentId: request.agentId } : {}),
+      ...(request.cwd ? { cwd: request.cwd } : {}),
     });
   }
 
@@ -593,6 +598,7 @@ export class DaemonPlaywrightHost {
     profile: string;
     requestId: string;
     agentId?: string;
+    cwd?: string;
   }): Promise<BrowserToolsResponsePayload> {
     const { command, requestId, workspaceId } = input;
     await this.restoreWorkspaceTabs(workspaceId);
@@ -622,6 +628,7 @@ export class DaemonPlaywrightHost {
           command,
           requestId,
           ...(input.agentId ? { agentId: input.agentId } : {}),
+          ...(input.cwd ? { cwd: input.cwd } : {}),
         });
         const dialogs = takeDialogs(tab);
         const redactsResult = command.command === "snapshot" || command.command === "logs";
@@ -642,6 +649,7 @@ export class DaemonPlaywrightHost {
     command: BrowserAutomationCommand;
     requestId: string;
     agentId?: string;
+    cwd?: string;
   }): Promise<BrowserToolsResponsePayload> {
     const { tab, command } = input;
 
@@ -700,6 +708,7 @@ export class DaemonPlaywrightHost {
     command: BrowserAutomationCommand;
     requestId: string;
     agentId?: string;
+    cwd?: string;
   }): Promise<BrowserToolsResponsePayload> {
     const { tab, command, requestId } = input;
     switch (command.command) {
@@ -716,6 +725,25 @@ export class DaemonPlaywrightHost {
       case "hover":
       case "drag":
         return this.runRefCommand({ tab, command, requestId });
+      case "upload": {
+        const filePaths = resolveUploadFilePaths(command.args.filePaths, input.cwd);
+        if (!filePaths) {
+          return browserToolsFailure({
+            requestId,
+            code: "browser_denied",
+            message: "browser_upload only accepts files inside the request workspace.",
+          });
+        }
+        await tab.page
+          .locator(resolveRefSelector(tab, command.args.ref, requestId))
+          .setInputFiles(filePaths);
+        return ok(requestId, {
+          command: "upload",
+          browserId: tab.browserId,
+          ref: command.args.ref,
+          filePaths,
+        });
+      }
       case "type":
       case "keypress":
       case "scroll":
@@ -1884,6 +1912,17 @@ async function keyAction(
 
 function invalidateSnapshot(tab: DaemonBrowserTab): void {
   tab.snapshot = [];
+}
+
+function resolveUploadFilePaths(filePaths: string[], cwd: string | undefined): string[] | null {
+  if (!cwd) {
+    return null;
+  }
+  const root = path.resolve(cwd);
+  const resolved = filePaths.map((filePath) =>
+    path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(root, filePath),
+  );
+  return resolved.every((filePath) => isPathInsideRoot(root, filePath)) ? resolved : null;
 }
 
 function resolveRefSelector(tab: DaemonBrowserTab, ref: string, requestId: string): string {
