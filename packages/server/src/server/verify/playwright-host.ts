@@ -736,7 +736,7 @@ export class DaemonPlaywrightHost {
         }
         const target = tab.page.locator(resolveRefSelector(tab, command.args.ref, requestId));
         const isFileInput = await target.evaluate(
-          "(element) => element instanceof HTMLInputElement && element.type === 'file'",
+          (element) => element instanceof HTMLInputElement && element.type === "file",
         );
         const fileInput = isFileInput ? target : target.locator("input[type=file]").first();
         if (!isFileInput && (await fileInput.count()) === 0) {
