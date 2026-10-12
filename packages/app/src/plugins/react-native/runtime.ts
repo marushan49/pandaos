@@ -5,9 +5,13 @@ import { TextInput } from "./text-input";
 import { copyText } from "./clipboard";
 import { useToast } from "./toast";
 import { useRevealedText } from "@/hooks/use-revealed-text";
+import { MediaView } from "./media-view";
+import { saveMedia } from "./save-media";
 
 export const pluginReactNativeRuntime = {
   Icon,
+  MediaView,
+  saveMedia,
   Modal,
   ScrollView,
   FlatList,

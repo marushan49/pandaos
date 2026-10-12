@@ -10,6 +10,7 @@ export const builtinPlugins = [
   "cursor-usage-source",
   "grok-usage-source",
   "kimi-usage-source",
+  "media-viewer",
   "minimax-usage-source",
   "muse-provider",
   "opencode-go-usage-source",
@@ -21,7 +22,6 @@ export function resolveBuiltinPluginsRoot(moduleUrl: string | URL = import.meta.
   const archiveSegment = `${path.sep}app.asar${path.sep}`;
   const archiveIndex = moduleDir.indexOf(archiveSegment);
   if (archiveIndex !== -1) {
-    // esbuild runs outside Electron's filesystem shim and cannot read archive entries.
     return path.join(moduleDir.slice(0, archiveIndex), "builtin-plugins");
   }
   const candidates = [

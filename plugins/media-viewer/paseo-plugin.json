@@ -1,0 +1,6 @@
+{
+  "id": "media-viewer",
+  "name": "Media viewer",
+  "description": "Browse pictures and play videos from the selected host.",
+  "requirements": { "paseo": ">=0.11.0" }
+}

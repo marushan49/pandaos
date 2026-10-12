@@ -162,6 +162,12 @@ These exact module specifiers use the host's runtime instances. A client bundle 
 
 Do not import `lucide-react-native`, `react-native-svg`, or DOM libraries. Set contribution `icon` fields to a [Lucide icon name](https://lucide.dev/icons/); Paseo validates the name and renders the icon.
 
+### Pictures and videos
+
+Import `MediaView` from `@getpaseo/plugin/client/react-native` to display a base64 picture or video in the client. Pass `base64`, `mimeType`, `accessibilityLabel`, theme colors as `foreground` and `background`, and `onError(message)` to show decoder or cache failures. The viewer fills its parent. Pictures have zoom controls; videos have playback controls. Native videos use a temporary client cache directory that is removed when the viewer closes. Native Save or Share files stay in cache so receiving apps can read them after the dialog closes; a later save removes copies older than 24 hours. Call `saveMedia({ base64, mimeType, fileName })` to start a browser/desktop download or open the native Save or Share dialog. It returns `downloaded` for a dispatched browser download and `dialog` for a closed native dialog; neither proves the user saved the file. Codec support depends on the client. Both app and daemon must contain this SDK addition.
+
+The bundled **Media viewer** plugin opens a workspace tab beside chats and the browser. Launch it from the tab row’s **+** menu or the workspace Command Center. It browses folders on that workspace’s host and transfers files through authenticated plugin RPCs in bounded chunks. It supports files up to 64 MiB without exposing a public media endpoint. Updated hosts include it even when optional plugins are disabled. `/media <absolute path>` opens a file in the media tab on the composer’s host while keeping the chat open. New agents receive usage instructions through the plugin’s creation hook.
+
 ### Cross-platform rules
 
 Client code runs on iOS, Android, and in browsers through React Native Web. A component that works
