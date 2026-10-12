@@ -601,10 +601,13 @@ export class DaemonPlaywrightHost {
     cwd?: string;
   }): Promise<BrowserToolsResponsePayload> {
     const { command, requestId, workspaceId } = input;
+    if (command.command === "list_tabs") return this.listTabs({ workspaceId, requestId });
+    if (command.command === "close_tab") {
+      const forgotten = await this.forgetUnloadedTab(workspaceId, command.args.browserId);
+      if (forgotten) return ok(requestId, { command: "close_tab", browserId: forgotten });
+    }
     await this.restoreWorkspaceTabs(workspaceId);
     switch (command.command) {
-      case "list_tabs":
-        return this.listTabs({ workspaceId, requestId });
       case "new_tab": {
         const tab = await this.createTab({
           workspaceId,
@@ -1193,11 +1196,34 @@ export class DaemonPlaywrightHost {
     });
   }
 
+  private async forgetUnloadedTab(workspaceId: string, browserId: string): Promise<string | null> {
+    await this.savedTabsLoaded;
+    const saved = this.savedTabs.get(browserId);
+    if (!saved || saved.workspaceId !== workspaceId || saved.context || this.tabs.has(browserId)) {
+      return null;
+    }
+    this.forgetTab(browserId);
+    return browserId;
+  }
+
   private async listTabs(input: {
     workspaceId: string;
     requestId: string;
   }): Promise<BrowserToolsResponsePayload> {
+    await this.savedTabsLoaded;
     const tabs = [];
+    for (const saved of this.savedTabs.values()) {
+      if (saved.workspaceId !== input.workspaceId || saved.context) continue;
+      if (this.tabs.has(saved.browserId)) continue;
+      tabs.push({
+        browserId: saved.browserId,
+        workspaceId: saved.workspaceId,
+        url: saved.url,
+        title: "",
+        isActive: false,
+        isLoading: false,
+      });
+    }
     for (const tab of this.tabs.values()) {
       if (tab.workspaceId !== input.workspaceId || tab.page.isClosed()) {
         continue;

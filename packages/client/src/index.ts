@@ -3,6 +3,10 @@ export type { OwnedSubscription, SubscriptionObserver } from "./connection/index
 import type { DaemonClientConfig } from "./daemon-client.js";
 import type { AgentPermissionResponse } from "@getpaseo/protocol/agent-types";
 import type {
+  BrowserAutomationCommand,
+  BrowserAutomationResponsePayload,
+} from "@getpaseo/protocol/browser-automation/rpc-schemas";
+import type {
   AgentSnapshotPayload,
   CreationSnapshot,
   CreateAgentRequestMessage,
@@ -496,6 +500,14 @@ export interface PaseoConfigActions {
   ): Promise<{ requestId: string; config: MutableDaemonConfig }>;
 }
 
+export interface PaseoBrowserActions {
+  execute(input: {
+    workspaceId: string;
+    command: BrowserAutomationCommand;
+    requestId?: string;
+  }): Promise<BrowserAutomationResponsePayload>;
+}
+
 export interface PaseoApi {
   dispose(): Promise<void>;
   observeEvents: DaemonClient["observeEvents"];
@@ -505,6 +517,7 @@ export interface PaseoApi {
   readonly agents: PaseoAgentActions;
   readonly providers: PaseoProviderActions;
   readonly config: PaseoConfigActions;
+  readonly browser: PaseoBrowserActions;
 }
 
 export interface PaseoClient extends PaseoApi {
@@ -776,6 +789,13 @@ export function createPaseoApi(
     config: {
       get: (requestId) => daemonClient.getDaemonConfig(requestId),
       patch: (patch, requestId) => daemonClient.patchDaemonConfig(patch, requestId),
+    },
+    browser: {
+      execute: (input) => {
+        if (daemonClient.getLastServerInfoMessage()?.features?.remoteBrowser !== true)
+          throw new Error("Update the host to control its browser from plugins.");
+        return daemonClient.executeRemoteBrowserCommand(input);
+      },
     },
   };
 }
