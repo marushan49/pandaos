@@ -62,7 +62,10 @@ export async function listTabs(paseo: PaseoApi): Promise<HostTab[]> {
   const saved = await readSavedTabs();
   const browser = browserOf(paseo);
   const workspaceIds = [...new Set(saved.map((tab) => tab.workspaceId))];
-  const { entries } = await paseo.workspaces.list();
+  const entries = await paseo.workspaces
+    .list()
+    .then((result) => result.entries)
+    .catch(() => []);
   const titles = new Map(entries.map((workspace) => [workspace.id, workspace.name]));
   const now = Date.now();
   const toTab = (
@@ -84,13 +87,15 @@ export async function listTabs(paseo: PaseoApi): Promise<HostTab[]> {
   if (!browser) return saved.map((tab) => toTab(tab.workspaceId, { ...tab, title: "" }, null));
   const lists = await Promise.all(
     workspaceIds.map(async (workspaceId) => {
-      const response = await browser.execute({
-        workspaceId,
-        command: { command: "list_tabs", args: {} },
-      });
-      return (response.ok ? (response.result?.tabs ?? []) : []).map((tab) =>
-        toTab(workspaceId, tab, tab.isActive),
-      );
+      const response = await browser
+        .execute({ workspaceId, command: { command: "list_tabs", args: {} } })
+        .catch(() => null);
+      if (!response?.ok) {
+        return saved
+          .filter((tab) => tab.workspaceId === workspaceId)
+          .map((tab) => toTab(workspaceId, { ...tab, title: "" }, null));
+      }
+      return (response.result?.tabs ?? []).map((tab) => toTab(workspaceId, tab, tab.isActive));
     }),
   );
   return lists.flat();
