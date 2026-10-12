@@ -109,6 +109,7 @@ import {
 } from "@/assistant-file-links";
 import { getCompactionMarkerLabel } from "./message-compaction-label";
 import { useAssistantImage } from "@/assistant-image/use-assistant-image";
+import { AssistantMarkdownVideo } from "@/components/assistant-markdown-video";
 import {
   AttachmentFrame,
   AttachmentLabel,
@@ -214,8 +215,6 @@ const WEB_TOOLCALL_SHIMMER_KEYFRAME_CSS = `
 let webToolCallShimmerRegistered = false;
 const SCROLL_EDGE_EPSILON = 0.5;
 
-// Font size for stream metadata (timestamps, durations, live elapsed timer).
-// Lives between theme.fontSize.sm (12) and theme.fontSize.base (14); no token.
 export const STREAM_METADATA_FONT_SIZE = 13;
 type ScrollAxis = "x" | "y";
 
@@ -1075,10 +1074,6 @@ export const TurnCopyButton = memo(function TurnCopyButton({
     }, 1500);
   }, []);
 
-  // `onPress` drops a rejected promise on the floor, so a clipboard write the browser refuses
-  // left the button doing visibly nothing: no check mark, no error, no clue. A denied write is
-  // ordinary here — Electron rejects it whenever the document is not focused — so it has to be
-  // caught and said out loud.
   const handleCopy = useCallback(() => {
     const content = getContent();
     if (!content) {
@@ -1520,11 +1515,6 @@ function MarkdownInheritedText({
     () => [inheritedStyles, textStyle, overrideStyle],
     [inheritedStyles, textStyle, overrideStyle],
   );
-  // When this span renders link label text on iOS, pick up the link's press
-  // handler from context and hand it to MarkdownTextSpan, which forwards it to
-  // the leaf string children react-native-uitextview makes tappable. Null
-  // outside a link (and on every other platform, where no provider mounts), so
-  // ordinary text is unaffected. See assistant-file-links/link-press-context.
   const linkPress = useAssistantLinkPress();
   return (
     <MarkdownTextSpan
@@ -1610,8 +1600,6 @@ export const AssistantMessage = memo(function AssistantMessage({
   const fileLinkActions = useAssistantFileLinkActions();
   const handleMarkdownLinkPress = useStableEvent((url: string) => {
     fileLinkActions.open({ href: url }, "preferred");
-    // react-native-markdown-display opens the link itself when this returns true.
-    // We already handled it above, so return false to avoid duplicate opens.
     return false;
   });
 
@@ -1749,13 +1737,6 @@ export const AssistantMessage = memo(function AssistantMessage({
           {children}
         </MarkdownInheritedText>
       ),
-      // strong/em/s have no custom rule in react-native-markdown-display's
-      // defaults beyond wrapping children in a plain RN <Text>. On iOS the
-      // paragraph/textgroup are native UITextViews (see markdown-text.ios.tsx),
-      // and a plain <Text> nested inside one is not hoisted into a
-      // UITextViewChild, so its content renders invisibly. Route these inline
-      // marks through MarkdownTextSpan (same path as text/textgroup) so the
-      // styled content composes and stays visible + selectable on iOS.
       strong: (
         node: ASTNode,
         children: ReactNode[],
@@ -1804,14 +1785,6 @@ export const AssistantMessage = memo(function AssistantMessage({
           {children}
         </MarkdownInheritedText>
       ),
-      // hardbreak/softbreak fall back to react-native-markdown-display's
-      // default, a plain RN <Text>{"\n"}. Inside the paragraph UITextView that
-      // plain <Text> is not hoisted into a UITextViewChild and is dropped (same
-      // root cause as strong/em/s) — so on iOS a hard line break vanished, and
-      // a softbreak between words jammed them together ("one\ntwo" -> "onetwo").
-      // Emit the break through MarkdownTextSpan so it composes on iOS. Keep
-      // the resolved break styles: hardbreak is a full-width flex-row child on
-      // Android, and dropping that width joins the surrounding text spans.
       hardbreak: (
         node: ASTNode,
         _children: ReactNode[],
@@ -2009,7 +1982,9 @@ export const AssistantMessage = memo(function AssistantMessage({
         <MarkdownParagraphView
           key={node.key}
           paragraphStyle={styles.paragraph}
-          containsImage={markdownNodeContainsType(node, "image")}
+          containsImage={
+            markdownNodeContainsType(node, "image") || markdownNodeContainsType(node, "video")
+          }
         >
           {children}
         </MarkdownParagraphView>
@@ -2022,6 +1997,16 @@ export const AssistantMessage = memo(function AssistantMessage({
           </AssistantMarkdownLink>
         );
       },
+      video: (node: ASTNode) => (
+        <AssistantMarkdownVideo
+          key={node.key}
+          source={String(node.attributes?.src ?? "")}
+          label={typeof node.attributes?.alt === "string" ? node.attributes.alt : undefined}
+          client={client}
+          workspaceRoot={workspaceRoot}
+          serverId={serverId}
+        />
+      ),
       image: (
         node: ASTNode,
         _children: ReactNode[],
@@ -2611,23 +2596,6 @@ function ExpandableBadgeLabelRow({
   );
 }
 
-// HACK: lucide ships every icon inside a 24×24 viewBox where the path
-// doesn't touch the edges — there's per-icon internal padding. The layout
-// already places the SVG element's box on the rail, but the visible glyph
-// inside the SVG sits inset by a few pixels (and the inset amount differs
-// per icon — chevron-right paints only in the right half of its viewBox,
-// regular tool icons paint roughly the full viewBox minus ~1 unit margin).
-//
-// Lucide has no viewBox knob, so the only way to nudge the visible glyph
-// flush with the rail is a per-icon negative margin. Cosmetic; not exact —
-// every lucide icon has slightly different padding and we're not measuring
-// each one. Two buckets is the compromise:
-//   - LUCIDE_TOOL_ICON_NUDGE_LEFT: regular tool icons (path mostly fills
-//     the viewBox); needs ~1px left shift.
-//   - LUCIDE_CHEVRON_NUDGE_LEFT: chevron-right (path in right half of
-//     viewBox, and we scale it 1.3×); needs ~4px left shift.
-// If we ever want this exact, the principled fix is a custom <Svg> wrapper
-// with a tight viewBox per icon — see option (2) in the design discussion.
 const LUCIDE_TOOL_ICON_NUDGE_LEFT: ViewStyle = { marginLeft: -1 };
 const LUCIDE_CHEVRON_NUDGE_LEFT: ViewStyle = { marginLeft: -4 };
 
@@ -2701,8 +2669,6 @@ function computeShimmerMetrics(input: {
     Math.min(120, input.labelRowWidth > 0 ? input.labelRowWidth * 0.28 : 0),
   );
   const isWebShimmer = input.isLoading && isWeb;
-  // React Native Web only observes a node when onLayout exists at mount. Keep
-  // measuring while idle so a retained badge has dimensions when it starts loading.
   const shouldMeasureWebShimmer = isWeb;
   const shouldMeasureNativeShimmer = input.isLoading && isNative;
   const isNativeShimmer =
@@ -3380,7 +3346,6 @@ export const ToolCall = memo(function ToolCall({
     };
   }, [onInlineDetailsExpandedChange]);
 
-  // Render inline details for desktop
   const renderDetails = useCallback(() => {
     if (!shouldRenderInline) return null;
     return (

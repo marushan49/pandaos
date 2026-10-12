@@ -2,6 +2,43 @@ import { describe, expect, it } from "vitest";
 import { createAssistantMarkdownParser } from "./assistant-markdown-parser";
 
 describe("createAssistantMarkdownParser", () => {
+  it.each([
+    "[Film](out/movie.mp4)",
+    "![Film](file:///tmp/movie.webm)",
+    "[Film](https://example.com/movie.MP4?download=1)",
+  ])("renders complete video references as a media token: %s", (source) => {
+    const tokens = createAssistantMarkdownParser().parse(source, {});
+    const video = tokens
+      .flatMap((token) => token.children || [])
+      .find((token) => token.type === "video");
+    expect(video?.attrGet("src")).toContain("movie");
+    expect(video?.attrGet("alt")).toBe("Film");
+    expect(video?.block).toBe(true);
+  });
+
+  it("keeps image links, code and partial video destinations unchanged", () => {
+    const parser = createAssistantMarkdownParser({ streaming: true });
+    const sources = [
+      "![Image](out/picture.png)",
+      "`[Film](out/movie.mp4)`",
+      "[Film](out/movie.mp4",
+    ];
+    for (const source of sources) {
+      expect(
+        parser
+          .parse(source, {})
+          .flatMap((token) => token.children || [])
+          .some((token) => token.type === "video"),
+      ).toBe(false);
+    }
+    expect(
+      parser
+        .parse("[Film](out/movie.mp4)", {})
+        .flatMap((token) => token.children || [])
+        .some((token) => token.type === "video"),
+    ).toBe(true);
+  });
+
   it("keeps bold text bold through every partial closing marker", () => {
     const parser = createAssistantMarkdownParser({ streaming: true });
 
@@ -146,11 +183,9 @@ describe("createAssistantMarkdownParser", () => {
   it("renders agent text verbatim", () => {
     const parser = createAssistantMarkdownParser();
 
-    // The reported bug, plus the substitutions that share its cause.
     expect(parser.renderInline("(c) (C) (r) (tm) (p)")).toBe("(c) (C) (r) (tm) (p)");
     expect(parser.renderInline("wait for it...")).toBe("wait for it...");
     expect(parser.renderInline("a -- b")).toBe("a -- b");
-    // Smart quotes are off too: a curled quote is not pasteable into a shell.
     expect(parser.renderInline(`run --name="my repo"`)).toBe("run --name=&quot;my repo&quot;");
     expect(parser.renderInline("it's fine")).toBe("it's fine");
   });
