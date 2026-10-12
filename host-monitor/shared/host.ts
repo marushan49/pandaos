@@ -70,6 +70,7 @@ export const hostSnapshotSchema = z.object({
       title: z.string(),
       loaded: z.boolean().nullable(),
       ageMinutes: z.number().nullable(),
+      memoryGb: z.number().nullable(),
     }),
   ),
   tabsClosable: z.boolean(),

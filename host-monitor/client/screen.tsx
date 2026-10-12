@@ -1,6 +1,6 @@
 import type { PluginScreenProps } from "@getpaseo/plugin/client";
-import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { type LayoutChangeEvent, Pressable, ScrollView, Text, View } from "react-native";
 import type { HostAgent, HostConsumer, HostTab, HostTriage, HostVerdict } from "../shared/host";
 import { useHostCloseTab, useHostSnapshot, useHostStop, useHostTriage } from "./use-host";
 
@@ -22,6 +22,7 @@ function describeTab(tab: HostTab): string {
   return [
     tab.workspace ?? tab.workspaceId,
     tab.loaded === false ? "not loaded, reopens with its workspace" : null,
+    tab.memoryGb === null ? null : `JS memory ${tab.memoryGb.toFixed(2)} GB`,
     tab.ageMinutes === null ? null : `open ${formatAge(tab.ageMinutes)}`,
   ]
     .filter(Boolean)
@@ -84,8 +85,17 @@ function describeTriage(triage: HostTriage): string {
   }
 }
 
-export function HostScreen({ theme, layout }: PluginScreenProps) {
+export function HostScreen({ theme, layout, host, navigation }: PluginScreenProps) {
   const { data, error, isFetching, refetch } = useHostSnapshot();
+  const scrollRef = useRef<ScrollView>(null);
+  const tabsTop = useRef(0);
+  const onTabsLayout = useCallback((event: LayoutChangeEvent) => {
+    tabsTop.current = event.nativeEvent.layout.y;
+  }, []);
+  const onShowTabs = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: tabsTop.current, animated: true });
+  }, []);
+  const openWorkspace = navigation?.openWorkspace;
   const onRefresh = useCallback(() => {
     void refetch();
   }, [refetch]);
@@ -250,7 +260,9 @@ export function HostScreen({ theme, layout }: PluginScreenProps) {
   );
   const tabGroups = useMemo(() => {
     const tabs = [...(data?.tabs ?? [])].sort(
-      (left, right) => (right.ageMinutes ?? 0) - (left.ageMinutes ?? 0),
+      (left, right) =>
+        (right.memoryGb ?? 0) - (left.memoryGb ?? 0) ||
+        (right.ageMinutes ?? 0) - (left.ageMinutes ?? 0),
     );
     const unloaded = tabs.filter((tab) => tab.loaded === false);
     const ordered = [...tabs.filter((tab) => tab.loaded !== false), ...unloaded];
@@ -258,9 +270,15 @@ export function HostScreen({ theme, layout }: PluginScreenProps) {
       loadedCount: tabs.length - unloaded.length,
       unloadedCount: unloaded.length,
       onCloseUnloaded: () => onCloseUnloaded(unloaded),
-      rows: ordered.map((tab) => ({ tab, onPress: () => onCloseTab(tab) })),
+      rows: ordered.map((tab) => ({
+        tab,
+        onPress: () => onCloseTab(tab),
+        onOpen: openWorkspace
+          ? () => openWorkspace({ workspaceId: tab.workspaceId, serverId: host.id })
+          : null,
+      })),
     };
-  }, [data, onCloseTab, onCloseUnloaded]);
+  }, [data, onCloseTab, onCloseUnloaded, openWorkspace, host.id]);
   const buttonStyle = busy === null ? styles.button : styles.disabledButton;
   const consumerRows = useMemo(
     () =>
@@ -286,7 +304,7 @@ export function HostScreen({ theme, layout }: PluginScreenProps) {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.row}>
         <Text style={styles.heading}>{`${data.memory.availableGb.toFixed(1)} GB free`}</Text>
         <Pressable
@@ -365,18 +383,28 @@ export function HostScreen({ theme, layout }: PluginScreenProps) {
                       </Text>
                     </Pressable>
                   ) : null}
+                  {consumer.kind === "agent-browser" ? (
+                    <Pressable
+                      accessibilityRole="link"
+                      accessibilityLabel="Show the agent browser tabs"
+                      onPress={onShowTabs}
+                      style={styles.button}
+                    >
+                      <Text style={styles.buttonText}>Tabs</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               ))}
           </View>
         ))}
       </View>
 
-      <View style={styles.card}>
+      <View style={styles.card} onLayout={onTabsLayout}>
         <View style={styles.row}>
           <View style={styles.grow}>
             <Text style={styles.title}>Browser tabs</Text>
             <Text style={styles.muted}>
-              {`${tabGroups.loadedCount} loaded, about 0.1 to 0.4 GB each. ${tabGroups.unloadedCount} saved but not loaded.`}
+              {`${tabGroups.loadedCount} loaded, ${tabGroups.unloadedCount} saved but not loaded. Each Agent browser tab process above is one of the loaded tabs; JS memory shows which tab weighs most.`}
             </Text>
           </View>
           {data.tabsClosable && tabGroups.unloadedCount > 0 ? (
@@ -398,7 +426,7 @@ export function HostScreen({ theme, layout }: PluginScreenProps) {
             Update this host to see which tabs are loaded and to close them here.
           </Text>
         )}
-        {tabGroups.rows.map(({ tab, onPress }) => (
+        {tabGroups.rows.map(({ tab, onPress, onOpen }) => (
           <View key={tab.browserId} style={styles.consumer}>
             <View style={styles.grow}>
               <Text style={styles.body} numberOfLines={1}>
@@ -408,6 +436,16 @@ export function HostScreen({ theme, layout }: PluginScreenProps) {
                 {describeTab(tab)}
               </Text>
             </View>
+            {onOpen ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={`Open the workspace of ${tabName(tab)}`}
+                onPress={onOpen}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>Open</Text>
+              </Pressable>
+            ) : null}
             {data.tabsClosable ? (
               <Pressable
                 accessibilityRole="button"

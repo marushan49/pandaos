@@ -57,6 +57,8 @@ interface ProcessRow {
 }
 
 const kindRules: Array<{ pattern: RegExp; kind: string; label: string }> = [
+  { pattern: /^\S*\/ccd-cli\/|^\S*\bclaude\s/, kind: "agent-cli", label: "Claude Code session" },
+  { pattern: /^\S*\bcodex\b/, kind: "agent-cli", label: "Codex session" },
   { pattern: /qemu-system/, kind: "emulator", label: "Emulator" },
   { pattern: /nest start --watch/, kind: "nest-watch", label: "Nest watcher" },
   { pattern: /--enable-source-maps/, kind: "backend-app", label: "Backend app" },
@@ -66,7 +68,15 @@ const kindRules: Array<{ pattern: RegExp; kind: string; label: string }> = [
   { pattern: /jest-worker|processChild/, kind: "test-worker", label: "Test worker" },
   { pattern: /PandaOS Daemon/, kind: "daemon", label: "PandaOS daemon" },
   { pattern: /gradle|kotlin-compiler/i, kind: "gradle", label: "Gradle/Kotlin" },
-  { pattern: /firefox|chromium|chrome/i, kind: "browser", label: "Browser" },
+  {
+    pattern: /browser-profiles.*--type=renderer|--type=renderer.*browser-profiles/,
+    kind: "agent-browser",
+    label: "Agent browser tab",
+  },
+  { pattern: /browser-profiles/, kind: "agent-browser", label: "Agent browser" },
+  { pattern: /\.config\/PandaOS/, kind: "desktop-app", label: "PandaOS app" },
+  { pattern: /^\S*chrome-remote-desktop/, kind: "remote-desktop", label: "Chrome Remote Desktop" },
+  { pattern: /^\S*(firefox|chromium|chrome)/i, kind: "browser", label: "Browser" },
   { pattern: /ollama|llama-server/, kind: "llm-server", label: "Local LLM server" },
 ];
 

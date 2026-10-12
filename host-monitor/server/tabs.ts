@@ -9,7 +9,13 @@ interface BrowserCommandResult {
   ok: boolean;
   result?: {
     command: string;
-    tabs?: { browserId: string; url: string; title: string; isActive: boolean }[];
+    tabs?: {
+      browserId: string;
+      url: string;
+      title: string;
+      isActive: boolean;
+      memoryBytes?: number;
+    }[];
   };
   error?: { message: string };
 }
@@ -70,7 +76,7 @@ export async function listTabs(paseo: PaseoApi): Promise<HostTab[]> {
   const now = Date.now();
   const toTab = (
     workspaceId: string,
-    tab: { browserId: string; url: string; title: string },
+    tab: { browserId: string; url: string; title: string; memoryBytes?: number },
     loaded: boolean | null,
   ): HostTab => {
     const opened = openedAt(tab.browserId);
@@ -82,6 +88,10 @@ export async function listTabs(paseo: PaseoApi): Promise<HostTab[]> {
       title: tab.title,
       loaded,
       ageMinutes: opened === null ? null : Math.max(0, Math.round((now - opened) / 60_000)),
+      memoryGb:
+        tab.memoryBytes === undefined
+          ? null
+          : Math.round((tab.memoryBytes / 1024 ** 3) * 100) / 100,
     };
   };
   if (!browser) return saved.map((tab) => toTab(tab.workspaceId, { ...tab, title: "" }, null));
