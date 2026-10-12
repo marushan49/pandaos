@@ -447,6 +447,7 @@ export const zhCN: TranslationResources = {
       auto: "上下文已自动压缩",
       manual: "上下文已手动压缩",
       withTokens: "上下文已压缩（{{tokens}}K tokens）",
+      tokens: "{{tokens}}K tokens",
       completed: "上下文已压缩",
     },
   },

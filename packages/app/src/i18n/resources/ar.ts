@@ -447,6 +447,7 @@ export const ar: TranslationResources = {
       auto: "يتم ضغط السياق تلقائيًا",
       manual: "تم ضغط السياق يدويًا",
       withTokens: "تم ضغط السياق (رموز{{tokens}}K)",
+      tokens: "{{tokens}}K رمز",
       completed: "تم ضغط السياق",
     },
   },

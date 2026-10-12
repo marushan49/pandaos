@@ -3141,6 +3141,22 @@ describe("ClaudeAgentSession context window usage", () => {
     }
   });
 
+  test("a compaction still open when the turn completes is resolved", async () => {
+    const session = await createSessionForTurns([
+      [createCompactingStatus(), createSuccessResult()],
+    ]);
+
+    try {
+      const events = await collectStreamEvents(session, "compact without boundary");
+      const compactions = events.flatMap((event) =>
+        event.type === "timeline" && event.item.type === "compaction" ? [event.item.status] : [],
+      );
+      expect(compactions).toEqual(["loading", "completed"]);
+    } finally {
+      await session.close();
+    }
+  });
+
   test("reports the plan mode Claude enters on its own with EnterPlanMode", async () => {
     // Claude Code announces a mode it switched to itself as a status message
     // carrying the new permissionMode, right after the EnterPlanMode tool call.

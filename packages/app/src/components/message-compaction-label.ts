@@ -12,6 +12,13 @@ export function getCompactionMarkerLabel({
   preTokens,
 }: CompactionMarkerLabelInput): string {
   if (status === "loading") return i18n.t("message.compaction.loading");
+  const base = getCompletedLabel(trigger, preTokens);
+  if (!preTokens || !trigger) return base;
+  const tokens = i18n.t("message.compaction.tokens", { tokens: Math.round(preTokens / 1000) });
+  return `${base} (${tokens})`;
+}
+
+function getCompletedLabel(trigger: "auto" | "manual" | undefined, preTokens?: number): string {
   if (trigger === "auto") return i18n.t("message.compaction.auto");
   if (trigger === "manual") return i18n.t("message.compaction.manual");
   if (preTokens) {

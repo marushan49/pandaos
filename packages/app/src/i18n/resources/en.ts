@@ -444,6 +444,7 @@ export const en = {
       auto: "Context automatically compacted",
       manual: "Context manually compacted",
       withTokens: "Context compacted ({{tokens}}K tokens)",
+      tokens: "{{tokens}}K tokens",
       completed: "Context compacted",
     },
   },

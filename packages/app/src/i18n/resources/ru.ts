@@ -451,6 +451,7 @@ export const ru: TranslationResources = {
       auto: "Контекст сжат автоматически",
       manual: "Контекст сжат вручную",
       withTokens: "Контекст сжат ({{tokens}} тыс. токенов)",
+      tokens: "{{tokens}} тыс. токенов",
       completed: "Контекст сжат",
     },
   },

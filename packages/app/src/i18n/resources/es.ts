@@ -452,6 +452,7 @@ export const es: TranslationResources = {
       auto: "Contexto compactado automáticamente",
       manual: "Contexto compactado manualmente",
       withTokens: "Contexto compactado (tokens{{tokens}}K)",
+      tokens: "{{tokens}}K tokens",
       completed: "Contexto compactado",
     },
   },

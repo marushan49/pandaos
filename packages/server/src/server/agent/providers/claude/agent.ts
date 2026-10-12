@@ -4997,6 +4997,14 @@ class ClaudeAgentSession implements AgentSession {
   }
 
   private notifySubscribers(event: AgentStreamEvent): void {
+    if (event.type === "turn_completed" && this.compactionMarkerOpen) {
+      this.compactionMarkerOpen = false;
+      this.notifySubscribers({
+        type: "timeline",
+        item: { type: "compaction", status: "completed" },
+        provider: "claude",
+      });
+    }
     const turnId = this.activeForegroundTurnId ?? this.autonomousTurn?.id;
     const tagged = turnId ? { ...event, turnId } : event;
     this.logger.trace(

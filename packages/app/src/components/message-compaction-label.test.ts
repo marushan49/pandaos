@@ -12,6 +12,9 @@ describe("getCompactionMarkerLabel", () => {
     expect(getCompactionMarkerLabel({ status: "completed", trigger: "manual" })).toBe(
       "Context manually compacted",
     );
+    expect(
+      getCompactionMarkerLabel({ status: "completed", trigger: "manual", preTokens: 14_990 }),
+    ).toBe("Context manually compacted (15K tokens)");
     expect(getCompactionMarkerLabel({ status: "completed", preTokens: 12_345 })).toBe(
       "Context compacted (12K tokens)",
     );
