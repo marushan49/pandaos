@@ -89,6 +89,21 @@ export function seedSharedProfile(input: {
   });
 }
 const SAVED_TABS_FILE = "open-tabs.json";
+const TAB_MEMORY_TIMEOUT_MS = 300;
+
+async function tabMemoryBytes(page: Page): Promise<number | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const measured = await Promise.race([
+    page
+      .evaluate("performance.memory ? performance.memory.usedJSHeapSize : null")
+      .catch(() => null),
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), TAB_MEMORY_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(timer);
+  return typeof measured === "number" ? measured : null;
+}
 const SAVE_TABS_DELAY_MS = 300;
 
 const LOST_TAB_GRACE_MS = 1_000;
@@ -1228,6 +1243,7 @@ export class DaemonPlaywrightHost {
       if (tab.workspaceId !== input.workspaceId || tab.page.isClosed()) {
         continue;
       }
+      const memoryBytes = await tabMemoryBytes(tab.page);
       tabs.push({
         browserId: tab.browserId,
         workspaceId: tab.workspaceId,
@@ -1235,6 +1251,7 @@ export class DaemonPlaywrightHost {
         title: await tab.page.title().catch(() => ""),
         isActive: true,
         isLoading: false,
+        ...(memoryBytes === null ? {} : { memoryBytes }),
       });
     }
     const mirrorEvents = [...this.tabs.values()]

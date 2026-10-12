@@ -293,6 +293,7 @@ export const BrowserAutomationTabInfoSchema = z.object({
   title: z.string(),
   isActive: z.boolean().default(false),
   isLoading: z.boolean().default(false),
+  memoryBytes: z.number().optional(),
   canGoBack: z.boolean().optional(),
   canGoForward: z.boolean().optional(),
 });
