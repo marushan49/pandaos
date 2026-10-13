@@ -370,6 +370,10 @@ export const ru: TranslationResources = {
       showFull_other: "Показать весь промпт, строк: {{count}}",
       collapse: "Свернуть промпт",
     },
+    imagePreview: {
+      expand: "Развернуть изображение",
+      collapse: "Свернуть изображение",
+    },
     diagram: {
       diagram: "Диаграмма",
       zoomIn: "Увеличить масштаб",

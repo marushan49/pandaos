@@ -366,6 +366,10 @@ export const ar: TranslationResources = {
       showFull_other: "عرض الموجّه كاملاً، عدد الأسطر: {{count}}",
       collapse: "طيّ الموجّه",
     },
+    imagePreview: {
+      expand: "توسيع الصورة",
+      collapse: "طي الصورة",
+    },
     diagram: {
       diagram: "مخطط",
       zoomIn: "تكبير",

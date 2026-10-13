@@ -371,6 +371,10 @@ export const ja: TranslationResources = {
       showFull_other: "プロンプト全文を表示（{{count}} 行）",
       collapse: "プロンプトを折りたたむ",
     },
+    imagePreview: {
+      expand: "画像を展開",
+      collapse: "画像を折りたたむ",
+    },
     diagram: {
       diagram: "図",
       zoomIn: "拡大",

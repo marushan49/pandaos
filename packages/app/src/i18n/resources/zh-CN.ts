@@ -366,6 +366,10 @@ export const zhCN: TranslationResources = {
       showFull_other: "显示完整提示词（{{count}} 行）",
       collapse: "收起提示词",
     },
+    imagePreview: {
+      expand: "展开图片",
+      collapse: "收起图片",
+    },
     diagram: {
       diagram: "图表",
       zoomIn: "放大",

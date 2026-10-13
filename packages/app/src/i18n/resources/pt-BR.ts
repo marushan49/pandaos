@@ -370,6 +370,10 @@ export const ptBR: TranslationResources = {
       showFull_other: "Mostrar o prompt completo ({{count}} linhas)",
       collapse: "Recolher o prompt",
     },
+    imagePreview: {
+      expand: "Expandir imagem",
+      collapse: "Recolher imagem",
+    },
     diagram: {
       diagram: "Diagrama",
       zoomIn: "Aproximar",

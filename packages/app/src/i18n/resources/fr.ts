@@ -369,6 +369,10 @@ export const fr: TranslationResources = {
       showFull_other: "Afficher le prompt complet ({{count}} lignes)",
       collapse: "Réduire le prompt",
     },
+    imagePreview: {
+      expand: "Développer l’image",
+      collapse: "Réduire l’image",
+    },
     diagram: {
       diagram: "Diagramme",
       zoomIn: "Zoomer",

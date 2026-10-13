@@ -367,6 +367,10 @@ export const ko: TranslationResources = {
       showFull_other: "프롬프트 전체 보기({{count}}줄)",
       collapse: "프롬프트 접기",
     },
+    imagePreview: {
+      expand: "이미지 펼치기",
+      collapse: "이미지 접기",
+    },
     diagram: {
       diagram: "다이어그램",
       zoomIn: "확대",

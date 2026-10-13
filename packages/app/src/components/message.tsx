@@ -1,5 +1,11 @@
-import { ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO } from "@/utils/assistant-image-metadata";
+import {
+  ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO,
+  ASSISTANT_IMAGE_PREVIEW_MAX_HEIGHT,
+  ASSISTANT_IMAGE_PREVIEW_MAX_WIDTH,
+  getAssistantImageMetadata,
+} from "@/utils/assistant-image-metadata";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Button } from "@/components/ui/button";
 import { TaskListRow } from "@/components/task-list-row";
 import {
   View,
@@ -33,7 +39,9 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import {
   Info,
   XCircle,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Check,
   CheckSquare,
   CircleDot,
@@ -808,6 +816,11 @@ export const assistantMessageStylesheet = StyleSheet.create((theme) => ({
     width: "100%",
     overflow: "hidden",
     position: "relative",
+    alignSelf: "center",
+  },
+  imageDisclosure: {
+    alignSelf: "flex-start",
+    marginTop: theme.spacing[1],
   },
   image: {
     width: "100%",
@@ -855,8 +868,10 @@ function AssistantMarkdownImage({
 }) {
   const { t } = useTranslation();
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const openViewer = useCallback(() => setViewerOpen(true), []);
   const closeViewer = useCallback(() => setViewerOpen(false), []);
+  const toggleExpanded = useCallback(() => setIsExpanded((value) => !value), []);
   const containerStyle = useMemo<StyleProp<ViewStyle>>(
     () => ({
       marginTop: hasLeadingContent ? 16 : 0,
@@ -875,14 +890,34 @@ function AssistantMarkdownImage({
   const aspectRatio = image.status === "failed" ? null : image.aspectRatio;
   const imageUri = binding?.uri ?? "";
   const imageSource = useMemo(() => ({ uri: imageUri }), [imageUri]);
+  const imageMetadata = getAssistantImageMetadata({ source, workspaceRoot, serverId });
+  const resolvedAspectRatio =
+    imageMetadata?.aspectRatio ?? aspectRatio ?? ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO;
+  const previewMaxWidth = Math.min(
+    ASSISTANT_IMAGE_PREVIEW_MAX_WIDTH,
+    ASSISTANT_IMAGE_PREVIEW_MAX_HEIGHT * resolvedAspectRatio,
+  );
+  const collapsedMaxWidth = imageMetadata
+    ? Math.min(previewMaxWidth, imageMetadata.width)
+    : previewMaxWidth;
+  const canToggleExpansion =
+    image.status === "loaded" &&
+    (imageMetadata === null ||
+      imageMetadata.width > ASSISTANT_IMAGE_PREVIEW_MAX_WIDTH ||
+      imageMetadata.height > ASSISTANT_IMAGE_PREVIEW_MAX_HEIGHT);
+  const disclosureAccessibilityState = useMemo(() => ({ expanded: isExpanded }), [isExpanded]);
   const frameStyle = useMemo<StyleProp<ViewStyle>>(
     () => [assistantMessageStylesheet.imageFrame, containerStyle],
     [containerStyle],
   );
   const imageSizeStyle = useMemo<ViewStyle>(() => {
     if (image.status === "failed") return { height: 160 };
-    return { aspectRatio: aspectRatio ?? ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO };
-  }, [aspectRatio, image.status]);
+    return {
+      width: "100%",
+      maxWidth: isExpanded ? imageMetadata?.width : collapsedMaxWidth,
+      aspectRatio: resolvedAspectRatio,
+    };
+  }, [collapsedMaxWidth, image.status, imageMetadata, isExpanded, resolvedAspectRatio]);
   const surfaceStyle = useMemo<StyleProp<ViewStyle>>(
     () => [assistantMessageStylesheet.imageSurface, imageSizeStyle],
     [imageSizeStyle],
@@ -952,6 +987,21 @@ function AssistantMarkdownImage({
           ) : null}
         </View>
       </Pressable>
+      {canToggleExpansion && image.status === "loaded" ? (
+        <Button
+          accessibilityLabel={t(
+            isExpanded ? "message.imagePreview.collapse" : "message.imagePreview.expand",
+          )}
+          accessibilityState={disclosureAccessibilityState}
+          leftIcon={isExpanded ? ChevronUp : ChevronDown}
+          onPress={toggleExpanded}
+          size="xs"
+          style={assistantMessageStylesheet.imageDisclosure}
+          variant="ghost"
+        >
+          {t(isExpanded ? "message.imagePreview.collapse" : "message.imagePreview.expand")}
+        </Button>
+      ) : null}
       <AttachmentLightbox source={lightboxSource} onClose={closeViewer} />
     </View>
   );

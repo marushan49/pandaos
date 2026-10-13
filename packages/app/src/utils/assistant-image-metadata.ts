@@ -19,6 +19,8 @@ const ASSISTANT_IMAGE_PARSE_CACHE_LIMIT = 500;
 
 const MARKDOWN_IMAGE_PATTERN = /!\[[^\]]*]\((<[^>]+>|[^)\n]+)\)/g;
 export const ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO = 3 / 2;
+export const ASSISTANT_IMAGE_PREVIEW_MAX_HEIGHT = 360;
+export const ASSISTANT_IMAGE_PREVIEW_MAX_WIDTH = 640;
 const ASSISTANT_IMAGE_INSET = 8;
 const ASSISTANT_IMAGE_MIN_HEIGHT = 160;
 const ASSISTANT_IMAGE_BLOCK_GAP = 24;
@@ -172,10 +174,12 @@ export function estimateAssistantMessageHeightFromCache({
     const aspectRatio =
       getAssistantImageMetadata({ source, ...imageContext })?.aspectRatio ??
       ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO;
-    return Math.max(
-      ASSISTANT_IMAGE_MIN_HEIGHT,
-      Math.round((contentMaxWidth - ASSISTANT_IMAGE_INSET) / aspectRatio),
+    const maxWidth = Math.min(
+      Math.max(0, contentMaxWidth - ASSISTANT_IMAGE_INSET),
+      ASSISTANT_IMAGE_PREVIEW_MAX_WIDTH,
+      aspectRatio * ASSISTANT_IMAGE_PREVIEW_MAX_HEIGHT,
     );
+    return Math.max(ASSISTANT_IMAGE_MIN_HEIGHT, Math.round(maxWidth / aspectRatio));
   });
 
   const baseHeight = parsed.hasNonImageText

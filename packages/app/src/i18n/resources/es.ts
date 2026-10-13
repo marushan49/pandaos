@@ -371,6 +371,10 @@ export const es: TranslationResources = {
       showFull_other: "Mostrar el prompt completo ({{count}} líneas)",
       collapse: "Contraer el prompt",
     },
+    imagePreview: {
+      expand: "Ampliar imagen",
+      collapse: "Contraer imagen",
+    },
     diagram: {
       diagram: "Diagrama",
       zoomIn: "Acercar",

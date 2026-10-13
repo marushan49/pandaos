@@ -363,6 +363,10 @@ export const en = {
       showFull_other: "Show full prompt ({{count}} lines)",
       collapse: "Collapse prompt",
     },
+    imagePreview: {
+      expand: "Expand image",
+      collapse: "Collapse image",
+    },
     diagram: {
       diagram: "Diagram",
       zoomIn: "Zoom in",
