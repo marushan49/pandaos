@@ -58,55 +58,60 @@ export const EditingTextInput = forwardRef<EditingTextInputHandle, EditingTextIn
       setReplacement((current) => ({ ...current, autoFocus }));
     }, []);
 
-    useImperativeHandle(ref, () => ({
-      focus: () => {
-        if (isAwaitingReplacementRef.current) {
-          userFocus.beforeProgrammaticFocus();
-          setReplacementFocus(true);
-          return;
-        }
-        if (!inputRef.current?.isFocused?.()) userFocus.beforeProgrammaticFocus();
-        inputRef.current?.focus();
-      },
-      blur: () => {
-        if (isAwaitingReplacementRef.current) {
-          setReplacementFocus(false);
-          return;
-        }
-        inputRef.current?.blur();
-      },
-      isFocused: () => inputRef.current?.isFocused?.() ?? false,
-      getText: () => textRef.current,
-      replaceText: (nextText, selection) => {
-        textRef.current = nextText;
-        if (inputRef.current?.replaceText) {
-          inputRef.current.replaceText(nextText, selection);
-          return;
-        }
-        if (nextText === "") {
-          inputRef.current?.clear?.();
-          return;
-        }
-        inputRef.current?.setNativeProps?.({
-          text: nextText,
-          ...(selection ? { selection } : {}),
-        });
-        if (selection) inputRef.current?.setSelection?.(selection.start, selection.end);
-      },
-      reset: () => {
-        textRef.current = "";
-        const autoFocus = inputRef.current?.isFocused?.() ?? false;
-        if (autoFocus) userFocus.beforeProgrammaticFocus();
-        if (inputRef.current?.replaceText) {
-          inputRef.current.replaceText("");
-        } else {
-          inputRef.current?.clear?.();
-        }
-        isAwaitingReplacementRef.current = true;
-        setReplacement((current) => ({ revision: current.revision + 1, autoFocus }));
-      },
-      getNativeRef: () => inputRef.current?.getNativeRef?.() ?? inputRef.current,
-    }));
+    const { beforeProgrammaticFocus } = userFocus;
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => {
+          if (isAwaitingReplacementRef.current) {
+            beforeProgrammaticFocus();
+            setReplacementFocus(true);
+            return;
+          }
+          if (!inputRef.current?.isFocused?.()) beforeProgrammaticFocus();
+          inputRef.current?.focus();
+        },
+        blur: () => {
+          if (isAwaitingReplacementRef.current) {
+            setReplacementFocus(false);
+            return;
+          }
+          inputRef.current?.blur();
+        },
+        isFocused: () => inputRef.current?.isFocused?.() ?? false,
+        getText: () => textRef.current,
+        replaceText: (nextText, selection) => {
+          textRef.current = nextText;
+          if (inputRef.current?.replaceText) {
+            inputRef.current.replaceText(nextText, selection);
+            return;
+          }
+          if (nextText === "") {
+            inputRef.current?.clear?.();
+            return;
+          }
+          inputRef.current?.setNativeProps?.({
+            text: nextText,
+            ...(selection ? { selection } : {}),
+          });
+          if (selection) inputRef.current?.setSelection?.(selection.start, selection.end);
+        },
+        reset: () => {
+          textRef.current = "";
+          const autoFocus = inputRef.current?.isFocused?.() ?? false;
+          if (autoFocus) beforeProgrammaticFocus();
+          if (inputRef.current?.replaceText) {
+            inputRef.current.replaceText("");
+          } else {
+            inputRef.current?.clear?.();
+          }
+          isAwaitingReplacementRef.current = true;
+          setReplacement((current) => ({ revision: current.revision + 1, autoFocus }));
+        },
+        getNativeRef: () => inputRef.current?.getNativeRef?.() ?? inputRef.current,
+      }),
+      [beforeProgrammaticFocus, setReplacementFocus],
+    );
 
     const handleChangeText = useCallback(
       (nextText: string) => {

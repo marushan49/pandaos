@@ -1207,6 +1207,9 @@ function matchesKeyOrCode(combo: KeyCombo, event: KeyboardShortcutInput): boolea
   if (combo.shift === true && combo.shiftedKey !== undefined && eventKey === combo.shiftedKey) {
     return true;
   }
+  if (/^[a-z]$/.test(combo.key) && /^\p{Letter}$/u.test(event.key) && !/^[a-z]$/.test(eventKey)) {
+    return event.code === combo.code;
+  }
   if (combo.alt === true && event.code === combo.code) return true;
   return combo.codeFallback === true && event.code === combo.code;
 }

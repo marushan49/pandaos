@@ -202,7 +202,6 @@ export class DaemonExecutions implements HubExecutionAgents {
           ...(input.toolPolicy ? { toolPolicy: input.toolPolicy } : {}),
         },
         worktree: toCreateAgentWorktree(input.worktree),
-        background: true,
         notifyOnFinish: false,
         owner,
         onWorktreeCreated: (worktree) => {

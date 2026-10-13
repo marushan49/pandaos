@@ -89,41 +89,30 @@ function resolveAutoSubmitConfig(
   };
 }
 
-function reconcileSelectedMode(modeOptionIds: readonly string[], selectedMode: string): string {
-  if (modeOptionIds.length === 0) {
-    return "";
-  }
-  return modeOptionIds.includes(selectedMode) ? selectedMode : (modeOptionIds[0] ?? "");
-}
-
 function resolveDraftModeIdOverride(input: {
   autoSubmitConfig: AutoSubmitConfig | null;
-  modeOptionIds: readonly string[];
-  selectedMode: string;
+  effectiveModeId: string;
 }): { modeId: string } | Record<string, never> {
-  const { autoSubmitConfig, modeOptionIds, selectedMode } = input;
+  const { autoSubmitConfig, effectiveModeId } = input;
   if (autoSubmitConfig?.modeId) {
     return { modeId: autoSubmitConfig.modeId };
   }
-  const reconciled = reconcileSelectedMode(modeOptionIds, selectedMode);
-  if (reconciled !== "") {
-    return { modeId: reconciled };
+  if (effectiveModeId !== "") {
+    return { modeId: effectiveModeId };
   }
   return {};
 }
 
 function resolveDraftModeId(input: {
   autoSubmitConfig: AutoSubmitConfig | null;
-  modeOptionIds: readonly string[];
-  selectedMode: string;
+  effectiveModeId: string;
 }): string | null {
-  const { autoSubmitConfig, modeOptionIds, selectedMode } = input;
+  const { autoSubmitConfig, effectiveModeId } = input;
   if (autoSubmitConfig?.modeId !== undefined) {
     return autoSubmitConfig.modeId;
   }
-  const reconciled = reconcileSelectedMode(modeOptionIds, selectedMode);
-  if (reconciled !== "") {
-    return reconciled;
+  if (effectiveModeId !== "") {
+    return effectiveModeId;
   }
   return null;
 }
@@ -142,8 +131,7 @@ async function submitDraftCreateRequest(input: {
   composerState: {
     selectedProvider: string | null;
     isAuto?: boolean;
-    selectedMode: string;
-    modeOptions: readonly { id: string }[];
+    effectiveModeId: string;
     effectiveModelId: string | null;
     effectiveThinkingOptionId: string | null;
     featureValues: Record<string, unknown> | undefined;
@@ -176,8 +164,7 @@ async function submitDraftCreateRequest(input: {
   }
   const modeIdOverride = resolveDraftModeIdOverride({
     autoSubmitConfig,
-    modeOptionIds: composerState.modeOptions.map((mode) => mode.id),
-    selectedMode: composerState.selectedMode,
+    effectiveModeId: composerState.effectiveModeId,
   });
   const config = buildWorkspaceDraftAgentConfig({
     provider,
@@ -220,8 +207,7 @@ function buildDraftAgentSnapshot(input: {
   composerState: {
     effectiveModelId: string | null;
     effectiveThinkingOptionId: string | null;
-    modeOptions: readonly { id: string }[];
-    selectedMode: string;
+    effectiveModeId: string;
     selectedProvider: string | null;
     agentControls: { features?: Agent["features"] };
   };
@@ -235,8 +221,7 @@ function buildDraftAgentSnapshot(input: {
     autoSubmitConfig?.thinkingOptionId ?? (composerState.effectiveThinkingOptionId || null);
   const modeId = resolveDraftModeId({
     autoSubmitConfig,
-    modeOptionIds: composerState.modeOptions.map((mode) => mode.id),
-    selectedMode: composerState.selectedMode,
+    effectiveModeId: composerState.effectiveModeId,
   });
   const provider = autoSubmitConfig?.provider ?? composerState.selectedProvider;
   if (!provider) {

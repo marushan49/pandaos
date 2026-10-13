@@ -16,6 +16,7 @@ import {
   type SidebarWorkspaceTrailing,
 } from "@/components/sidebar/workspace-trailing";
 import { useAppSettings } from "@/hooks/use-settings";
+import { density, densityFontSize, densityIconBox } from "@/styles/density";
 import type { Theme } from "@/styles/theme";
 import { getStatusDotColor } from "@/utils/status-dot-color";
 import {
@@ -464,8 +465,8 @@ const styles = StyleSheet.create((theme) => ({
   },
   workspaceStatusDot: {
     position: "relative",
-    width: theme.iconSize.md,
-    height: 20,
+    width: densityIconBox("md"),
+    height: density.rowLineHeight,
     borderRadius: theme.borderRadius.full,
     flexShrink: 0,
     alignItems: "center",
@@ -494,9 +495,9 @@ const styles = StyleSheet.create((theme) => ({
   // to the meta row, so it takes the full width the trailing slot leaves behind.
   workspaceBranchText: {
     color: theme.colors.foreground,
-    fontSize: theme.fontSize.base,
+    fontSize: densityFontSize(theme, "base"),
     fontWeight: "400",
-    lineHeight: 20,
+    lineHeight: density.rowLineHeight,
     opacity: 0.76,
     flex: 1,
     minWidth: 0,

@@ -31,7 +31,7 @@ import { isWeb as platformIsWeb, isNative as platformIsNative } from "@/constant
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { useAppSettings } from "@/hooks/use-settings";
 import { StyleSheet } from "react-native-unistyles";
-import type { Theme } from "@/styles/theme";
+import { density, densityIconBox, densityIconProps } from "@/styles/density";
 import type { SidebarSurfaceBackdrop } from "@/styles/surface-backdrop";
 import { withUnistyles } from "react-native-unistyles";
 import {
@@ -88,21 +88,21 @@ import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press
 import { useWorkspaceSessionsDrop } from "@/workspace-move/use-workspace-sessions-drop";
 import { useWorkspaceTopicMenu } from "@/topics/use-workspace-topic-menu";
 
-const foregroundMutedColorMapping = (theme: Theme) => ({
+const mutedGroupIconProps = densityIconProps("sm", (theme) => ({
   color: theme.colors.foregroundMuted,
-});
-const needsInputColorMapping = (theme: Theme) => ({
+}));
+const needsInputGroupIconProps = densityIconProps("sm", (theme) => ({
   color: getStatusDotColor({ theme, bucket: "needs_input" }) ?? undefined,
-});
-const failedColorMapping = (theme: Theme) => ({
+}));
+const failedGroupIconProps = densityIconProps("sm", (theme) => ({
   color: getStatusDotColor({ theme, bucket: "failed" }) ?? undefined,
-});
-const attentionColorMapping = (theme: Theme) => ({
+}));
+const attentionGroupIconProps = densityIconProps("sm", (theme) => ({
   color: getStatusDotColor({ theme, bucket: "attention" }) ?? undefined,
-});
-const runningColorMapping = (theme: Theme) => ({
+}));
+const runningGroupIconProps = densityIconProps("sm", (theme) => ({
   color: getStatusDotColor({ theme, bucket: "running" }) ?? undefined,
-});
+}));
 
 const ThemedChevronDown = withUnistyles(ChevronDown);
 const ThemedChevronRight = withUnistyles(ChevronRight);
@@ -521,23 +521,23 @@ function StatusGroupLeadingVisual({
     return <StatusGroupIcon bucket={leading.bucket} />;
   }
   if (collapsed) {
-    return <ThemedChevronRight size={14} uniProps={foregroundMutedColorMapping} />;
+    return <ThemedChevronRight uniProps={mutedGroupIconProps} />;
   }
-  return <ThemedChevronDown size={14} uniProps={foregroundMutedColorMapping} />;
+  return <ThemedChevronDown uniProps={mutedGroupIconProps} />;
 }
 
 function StatusGroupIcon({ bucket }: { bucket: StatusBucket }) {
   switch (bucket) {
     case "needs_input":
-      return <ThemedCircleAlert size={14} uniProps={needsInputColorMapping} />;
+      return <ThemedCircleAlert uniProps={needsInputGroupIconProps} />;
     case "failed":
-      return <ThemedCircleX size={14} uniProps={failedColorMapping} />;
+      return <ThemedCircleX uniProps={failedGroupIconProps} />;
     case "attention":
-      return <ThemedCircleCheck size={14} uniProps={attentionColorMapping} />;
+      return <ThemedCircleCheck uniProps={attentionGroupIconProps} />;
     case "running":
-      return <ThemedCircleDot size={14} uniProps={runningColorMapping} />;
+      return <ThemedCircleDot uniProps={runningGroupIconProps} />;
     case "done":
-      return <ThemedCircleCheck size={14} uniProps={foregroundMutedColorMapping} />;
+      return <ThemedCircleCheck uniProps={mutedGroupIconProps} />;
   }
 }
 
@@ -1133,7 +1133,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   statusWorkspaceListContainer: {},
   statusGroupRow: {
-    minHeight: 36,
+    minHeight: density.rowHeight,
     paddingVertical: theme.spacing[2],
     paddingHorizontal: theme.spacing[2],
     borderRadius: theme.borderRadius.lg,
@@ -1159,8 +1159,8 @@ const styles = StyleSheet.create((theme) => ({
   },
   statusGroupLeadingVisualSlot: {
     position: "relative",
-    width: theme.iconSize.md,
-    height: theme.iconSize.md,
+    width: densityIconBox("md"),
+    height: densityIconBox("md"),
     flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
@@ -1192,7 +1192,7 @@ const styles = StyleSheet.create((theme) => ({
     position: "relative",
   },
   workspaceRow: {
-    minHeight: 36,
+    minHeight: density.rowHeight,
     marginBottom: theme.spacing[0.5],
     paddingVertical: {
       xs: theme.spacing[3],

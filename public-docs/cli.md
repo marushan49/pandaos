@@ -21,7 +21,48 @@ pandaos attach <id>                    # Stream agent output
 pandaos send <id> "also fix linting"   # Send follow-up task
 pandaos logs <id>                      # View agent timeline
 pandaos stop <id>                      # Stop an agent
+pandaos usage                          # Show account quotas and balances
 ```
+
+## Account usage
+
+Show account quotas and balances from the host's usage sources:
+
+```bash
+pandaos usage
+pandaos usage ls --refresh
+pandaos usage ls --agent <agent-id>
+pandaos usage inspect <report-id>
+pandaos usage inspect <report-id> --refresh
+```
+
+`pandaos usage` is equivalent to `pandaos usage ls`. The summary groups windows and balances by account, with report IDs, source and account labels, status, and fetch timestamps. Missing values appear as `-`; unavailable and failed reports include their reasons.
+
+Copy the full report ID from the list into `inspect` to see reset times, balances and units, plan details, supplied forecasts, and login failures with recovery instructions. Report IDs require exact matches.
+
+`--agent` selects the account quota associated with an agent. It does not measure that agent's token consumption or cost. Use the full agent ID, and do not combine `--agent` with `inspect`.
+
+Queries use the host's five-minute cache when available. Add `--refresh` to bypass it. Use `--host` or `--home` to [select a daemon](#select-one-daemon). Hosts without usage-source support return an update message.
+
+### Usage in scripts
+
+```bash
+pandaos usage ls --json
+pandaos usage inspect <report-id> --json
+pandaos usage ls --quiet
+```
+
+List JSON is always an array, including `[]` when no reports are returned. Inspect JSON is one report entry. Each entry includes `id`, `sourceId`, `sourceLabel`, `account`, `fetchedAt`, and a nested `report`. Read `report.status` before accessing its data:
+
+| Status        | Fields                                                                 |
+| ------------- | ---------------------------------------------------------------------- |
+| `available`   | `windows`, with optional `planLabel`, `balances`, and `details`        |
+| `unavailable` | `problem`, describing expired or rejected credentials or missing quota |
+| `error`       | `error`, the failure message                                           |
+
+Entries may also include `loginErrors`. Structured output preserves numeric values and optional fields. Standard `--format yaml`, `--no-headers`, and `--no-color` options are supported; `--quiet` prints full report IDs.
+
+A completed query exits with status `0`, including when individual reports are unavailable or failed. Connection or request failures, unsupported hosts, unknown report IDs, and conflicting selectors exit with status `1` and write the error to stderr. Human output says **No usage reports returned** for an empty result; this does not establish whether account discovery succeeded for every source.
 
 ## Provider diagnostics
 
@@ -42,7 +83,8 @@ Use `pandaos run` to start a new agent with a task:
 ```bash
 pandaos run "implement user authentication"
 pandaos run --provider codex "refactor the API layer"
-pandaos run --background "run the focused test suite"
+pandaos run --no-wait "run the focused test suite"
+pandaos run --output-schema schema.json "name this branch"
 pandaos run --new-workspace worktree --worktree-mode branch-off --new-branch feature/x --base origin/main "implement feature X"
 pandaos run --workspace <workspace-id> "review the current diff"
 pandaos run --output-schema schema.json "extract release notes"
@@ -55,9 +97,14 @@ Worktree creation accepts `--worktree-mode branch-off|checkout-branch|checkout-p
 
 When an existing Paseo agent runs the same command, Paseo recognizes it through `PASEO_AGENT_ID`. Without explicit placement, the new agent becomes its subagent in the same workspace. `--workspace` can place that subagent elsewhere without changing its parent.
 
-Use `--output-schema` to return only matching JSON output. You can pass a schema file path or an inline JSON schema object. This mode cannot be used with `--background`.
+Use `--output-schema` to return only matching JSON output. You can pass a schema file path or an inline JSON schema object. This mode cannot be used with `--no-wait`.
 
-By default, `pandaos run` waits for completion. Use `--background` to return immediately while the agent keeps running.
+By default, `pandaos run` waits for completion. Use `--no-wait` to return immediately while the agent keeps running, the same flag `pandaos send` takes.
+
+The old `run --background` and `-d` aliases still mean `--no-wait`. They are deprecated, hidden
+from help, and print a warning to stderr. Use `--no-wait` in scripts. Workspace visibility is
+selected separately with `workspace create --background`; this release does not repurpose
+`run --background`.
 
 ## Projects
 
@@ -116,10 +163,23 @@ pandaos workspace create \
   --pr-number 2186
 ```
 
+Add `--background` to hide a workspace from default discovery. Its agents and terminals keep
+ordinary history, persistence, hooks, and restart recovery. `--no-background` explicitly overrides
+caller-workspace inheritance; omission inherits when run by a Paseo agent and defaults to false
+from a human shell. Visibility is creation-only.
+
+```bash
+pandaos workspace create --isolation local --background --path /path/to/repo
+pandaos run --workspace <workspace-id> --no-wait "review the checkout flow"
+```
+
+Exact workspace and agent IDs remain accessible regardless of listing visibility.
+
 Then list, use, rename, or archive it:
 
 ```bash
 pandaos workspace ls
+pandaos workspace ls --background               # Also include background workspaces
 pandaos run --workspace <workspace-id> "implement authentication"
 pandaos workspace rename <workspace-id> "Auth rework"
 pandaos workspace rename <workspace-id> --reset   # back to the branch or directory name
@@ -197,6 +257,7 @@ pandaos ls                    # Non-archived agents in active workspaces
 pandaos ls -a                 # Also include archived agents
 pandaos ls -g                 # Non-archived agents across all workspaces
 pandaos ls -a -g --json       # All agents, including archived, as JSON
+pandaos ls --background       # Also include agents in background workspaces
 ```
 
 ## Streaming output
@@ -406,7 +467,7 @@ The CLI is designed to be used by agents themselves. You can instruct an agent t
 
 ```bash
 # Agent A spawns Agent B and waits for it
-agent_id=$(pandaos run --background --quiet --title api-agent "implement the API")
+agent_id=$(pandaos run --no-wait --quiet --title api-agent "implement the API")
 pandaos wait "$agent_id"
 pandaos logs "$agent_id" --tail 5
 ```

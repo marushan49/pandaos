@@ -818,10 +818,9 @@ plans, and mode changes; requesting permission does not end the turn.
 | `workspace.archived`          | `workspace`                                         | Archive state is saved                                                                     |
 | `agent.closed`                | `agent`                                             | A live agent runtime closes                                                                |
 
-Agent events exclude internal utility agents. Archive events can precede runtime/worktree cleanup;
-closing an agent that is already closed does not emit another `agent.closed` event.
-During daemon shutdown, pending event hooks have up to five seconds to finish before plugins stop.
-`workspace.created` is not a setup barrier before agent startup.
+Agent events exclude the daemon's private disposable helpers. Public background workspaces and
+their ordinary agents run the same lifecycle hooks as other workspaces. Archive events can precede
+runtime/worktree cleanup; observe lifecycle completion separately when cleanup matters.
 
 **Shared payload shapes** (`@getpaseo/plugin/server`):
 
@@ -884,7 +883,6 @@ Input activity does not answer a question, grant permissions, or resume an agent
 | `providerOptions`                             | Opaque provider-specific options                                           |
 | `mcpServers`, `toolPolicy`                    | MCP configuration and exact-tool preapprovals                              |
 | `cwd`                                         | Cannot change                                                              |
-| `internal`                                    | Daemon-owned; cannot change through this hook                              |
 
 **`agent.session_open` request example:**
 
