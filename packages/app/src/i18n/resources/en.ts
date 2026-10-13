@@ -3413,6 +3413,9 @@ export const en = {
     providers: {
       title: "Providers",
       addProvider: "Add provider",
+      accountColor: "Account color",
+      accountColorSaving: "Saving color...",
+      accountColorSaveError: "Unable to update provider color",
       providerDetails: "{{name}} provider details",
       enableProvider: "Enable {{name}}",
       unavailable: "Connect to this host to see providers",

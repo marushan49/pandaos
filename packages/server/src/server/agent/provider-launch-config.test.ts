@@ -274,14 +274,20 @@ describe("ProviderOverrideSchema", () => {
       env: {
         FOO: "bar",
       },
+      color: "violet",
       enabled: false,
       order: 2,
     });
 
     expect(parsed.command).toEqual(["custom-claude", "--json"]);
     expect(parsed.env?.FOO).toBe("bar");
+    expect(parsed.color).toBe("violet");
     expect(parsed.enabled).toBe(false);
     expect(parsed.order).toBe(2);
+  });
+
+  test("accepts null to clear an account color", () => {
+    expect(ProviderOverrideSchema.parse({ color: null }).color).toBeNull();
   });
 
   test("accepts models with thinking options", () => {

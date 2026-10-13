@@ -1,4 +1,5 @@
 import type { AgentAttachment, AgentRoutingPolicy } from "./messages.js";
+import type { ProviderIdentityColor } from "./provider-config.js";
 
 export type AgentProvider = string;
 
@@ -125,6 +126,8 @@ export interface ProviderSnapshotEntry {
   label?: string;
   description?: string;
   iconSvg?: string;
+  iconProvider?: string;
+  color?: ProviderIdentityColor;
   defaultModeId?: string | null;
 }
 

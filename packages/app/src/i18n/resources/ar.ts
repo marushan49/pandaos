@@ -3126,6 +3126,9 @@ export const ar: TranslationResources = {
     },
     providers: {
       title: "مقدمي الخدمات",
+      accountColor: "لون الحساب",
+      accountColorSaving: "جارٍ حفظ اللون...",
+      accountColorSaveError: "تعذر تحديث لون المزوّد",
       addProvider: "إضافة مزود",
       providerDetails: "تفاصيل مزود{{name}}",
       enableProvider: "تمكين{{name}}",

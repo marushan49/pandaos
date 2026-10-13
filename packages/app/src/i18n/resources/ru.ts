@@ -3184,6 +3184,9 @@ export const ru: TranslationResources = {
     },
     providers: {
       title: "Провайдеры",
+      accountColor: "Цвет аккаунта",
+      accountColorSaving: "Сохранение цвета...",
+      accountColorSaveError: "Не удалось изменить цвет провайдера",
       addProvider: "Добавить провайдера",
       providerDetails: "Сведения о провайдере {{name}}",
       enableProvider: "Включить {{name}}",

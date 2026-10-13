@@ -50,6 +50,17 @@ describe("provider snapshot message schemas", () => {
     expect(parsed.source).toBe("custom");
   });
 
+  test("parses optional provider account identity", () => {
+    const parsed = ProviderSnapshotEntrySchema.parse({
+      provider: "codex-plus",
+      status: "ready",
+      iconProvider: "codex",
+      color: "violet",
+    });
+
+    expect(parsed).toMatchObject({ iconProvider: "codex", color: "violet" });
+  });
+
   test("defaults missing enabled state in providers snapshot response entries", () => {
     const parsed = GetProvidersSnapshotResponseMessageSchema.parse({
       type: "get_providers_snapshot_response",

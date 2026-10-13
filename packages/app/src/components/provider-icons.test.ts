@@ -17,6 +17,17 @@ function renderIcon(Component: ProviderIconComponent) {
 }
 
 describe("useProviderIcon", () => {
+  it("uses the inherited provider icon and per-account color from the snapshot", () => {
+    replaceProviderSnapshotIcons("server-1", [
+      { provider: "codex-plus", iconProvider: "codex", color: "violet" },
+    ]);
+
+    const Icon = renderHook(() => useProviderIcon("codex-plus", "server-1")).result.current;
+
+    expect(Icon).not.toBe(Bot);
+    expect(Icon.displayName).toBe("IdentityProviderIcon(violet)");
+  });
+
   it("renders registered snapshot SVG metadata with the requested size and color", () => {
     const svg = '<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" /></svg>';
     replaceProviderSnapshotIcons("server-1", [{ provider: "rendered-provider", iconSvg: svg }]);

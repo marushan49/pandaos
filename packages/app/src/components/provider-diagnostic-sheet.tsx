@@ -1,5 +1,13 @@
 import * as Clipboard from "expo-clipboard";
-import { AlertTriangle, Copy, FileText, Plus, RotateCw, Trash2 } from "@/components/icons/ui-icons";
+import {
+  AlertTriangle,
+  Check,
+  Copy,
+  FileText,
+  Plus,
+  RotateCw,
+  Trash2,
+} from "@/components/icons/ui-icons";
 import type { TFunction } from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,12 +28,17 @@ import { CODE_SURFACE_DATASET } from "@/styles/code-surface";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
 import { useProvidersSnapshot } from "@/hooks/use-providers-snapshot";
 import { useTimeAgo } from "@/hooks/use-time-ago";
+import { useHostFeature } from "@/runtime/host-features";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
+import { IDENTITY_COLOR_NAMES, identityForeground } from "@/styles/identity-colors";
 import { settingsStyles } from "@/styles/settings";
 import { resolveProviderLabel } from "@/utils/provider-definitions";
 import { compareMatchScores, scoreTextFields } from "@getpaseo/protocol/search/text-match";
 import type { AgentModelDefinition, AgentProvider } from "@getpaseo/protocol/agent-types";
-import type { ProviderProfileModel } from "@getpaseo/protocol/provider-config";
+import type {
+  ProviderIdentityColor,
+  ProviderProfileModel,
+} from "@getpaseo/protocol/provider-config";
 import {
   resolveProviderDiscoveredModels,
   type ProviderDiscoveredModelsCache,
@@ -130,6 +143,101 @@ function SectionHeader({ title, count, hint }: { title: string; count?: number; 
           <Text style={settingsStyles.sectionHeaderTitle}>{count}</Text>
         ) : null}
         {hint ? <Text style={settingsStyles.sectionHeaderTitle}>{hint}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+const PROVIDER_IDENTITY_COLOR_OPTIONS: (ProviderIdentityColor | null)[] = [
+  null,
+  ...IDENTITY_COLOR_NAMES,
+];
+
+function ProviderIdentityColorPicker({
+  provider,
+  selectedColor,
+  saving,
+  onSelect,
+  colorScheme,
+  checkColor,
+  mutedCheckColor,
+  checkSize,
+}: {
+  provider: string;
+  selectedColor: ProviderIdentityColor | null;
+  saving: boolean;
+  onSelect: (color: ProviderIdentityColor | null) => void;
+  colorScheme: "light" | "dark";
+  checkColor: string;
+  mutedCheckColor: string;
+  checkSize: number;
+}) {
+  const { t } = useTranslation();
+  const handlers = useMemo(
+    () =>
+      new Map(
+        PROVIDER_IDENTITY_COLOR_OPTIONS.map((color) => [color ?? "none", () => onSelect(color)]),
+      ),
+    [onSelect],
+  );
+  const accessibilityStates = useMemo(
+    () =>
+      new Map(
+        PROVIDER_IDENTITY_COLOR_OPTIONS.map((color) => [
+          color ?? "none",
+          {
+            selected: selectedColor === color,
+            disabled: saving,
+          },
+        ]),
+      ),
+    [saving, selectedColor],
+  );
+
+  return (
+    <View style={sheetStyles.section}>
+      <SectionHeader
+        title={t("settings.providers.accountColor")}
+        hint={saving ? t("settings.providers.accountColorSaving") : undefined}
+      />
+      <View style={sheetStyles.identityColorChoices}>
+        {PROVIDER_IDENTITY_COLOR_OPTIONS.map((color) => {
+          const colorId = color ?? "none";
+          const selected = selectedColor === color;
+          const label = t(`settings.host.appearance.color.options.${colorId}`);
+          return (
+            <Pressable
+              key={colorId}
+              onPress={handlers.get(colorId)}
+              disabled={saving}
+              style={[
+                sheetStyles.identityColorChoice,
+                selected && sheetStyles.identityColorChoiceSelected,
+                saving && sheetStyles.disabled,
+              ]}
+              accessibilityRole="radio"
+              accessibilityState={accessibilityStates.get(colorId)}
+              accessibilityLabel={label}
+              testID={`provider-color-${provider}-${colorId}`}
+            >
+              <View
+                style={[
+                  sheetStyles.identityColorSwatch,
+                  color
+                    ? {
+                        backgroundColor: identityForeground(color, colorScheme),
+                        borderColor: "transparent",
+                      }
+                    : sheetStyles.identityColorNoneSwatch,
+                ]}
+              >
+                {selected ? (
+                  <Check size={checkSize} color={color ? checkColor : mutedCheckColor} />
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -584,14 +692,18 @@ export function ProviderDiagnosticSheet({
   serverId,
 }: ProviderDiagnosticSheetProps) {
   const { t } = useTranslation();
+  const toast = useToast();
   const { theme } = useUnistyles();
   const isCompact = useIsCompactFormFactor();
+  // COMPAT(providerAccountIdentity): added in v0.11.1, remove gate after 2027-04-08 once daemon floor >= v0.11.1.
+  const supportsProviderAccountIdentity = useHostFeature(serverId, "providerAccountIdentity");
   const { entries: snapshotEntries, refresh, isRefreshing } = useProvidersSnapshot(serverId);
   const { config, patchConfig } = useDaemonConfig(serverId);
   const [query, setQuery] = useState("");
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [diagSheetOpen, setDiagSheetOpen] = useState(false);
   const [deletingModelId, setDeletingModelId] = useState<string | null>(null);
+  const [isSavingAccountColor, setIsSavingAccountColor] = useState(false);
 
   const providerLabel = resolveProviderLabel(provider, snapshotEntries);
   const providerEntry = useMemo(
@@ -647,6 +759,23 @@ export function ProviderDiagnosticSheet({
   const handleOpenDiagSheet = useCallback(() => setDiagSheetOpen(true), []);
   const handleCloseDiagSheet = useCallback(() => setDiagSheetOpen(false), []);
 
+  const handleChangeAccountColor = useCallback(
+    async (color: ProviderIdentityColor | null) => {
+      if (color === (providerEntry?.color ?? null) || isSavingAccountColor) return;
+      setIsSavingAccountColor(true);
+      try {
+        await patchConfig({ providers: { [provider]: { color } } });
+        await refresh([provider]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        toast.error(`${t("settings.providers.accountColorSaveError")}: ${message}`);
+      } finally {
+        setIsSavingAccountColor(false);
+      }
+    },
+    [isSavingAccountColor, patchConfig, provider, providerEntry?.color, refresh, t, toast],
+  );
+
   const handleDeleteCustom = useCallback(
     (modelId: string) => {
       setDeletingModelId(modelId);
@@ -696,6 +825,18 @@ export function ProviderDiagnosticSheet({
         snapPoints={MAIN_SNAP_POINTS}
         keyboardBehavior="interactive"
       >
+        {supportsProviderAccountIdentity ? (
+          <ProviderIdentityColorPicker
+            provider={provider}
+            selectedColor={providerEntry?.color ?? null}
+            saving={isSavingAccountColor}
+            onSelect={handleChangeAccountColor}
+            colorScheme={theme.colorScheme}
+            checkColor={theme.colors.background}
+            mutedCheckColor={theme.colors.foregroundMuted}
+            checkSize={theme.iconSize.sm}
+          />
+        ) : null}
         <ProviderModalBody
           discoveredCount={discoveredModels.length}
           additionalCount={additionalModels.length}
@@ -791,6 +932,36 @@ const sheetStyles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[2],
+  },
+  identityColorChoices: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing[2],
+  },
+  identityColorChoice: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.borderRadius.md,
+    borderWidth: theme.borderWidth[1],
+    borderColor: "transparent",
+  },
+  identityColorChoiceSelected: {
+    backgroundColor: theme.colors.surface2,
+    borderColor: theme.colors.border,
+  },
+  identityColorSwatch: {
+    width: 24,
+    height: 24,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: theme.borderWidth[1],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  identityColorNoneSwatch: {
+    backgroundColor: theme.colors.surface2,
+    borderColor: theme.colors.border,
   },
   modelRow: {
     flexDirection: "row",

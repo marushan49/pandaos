@@ -3197,6 +3197,9 @@ export const es: TranslationResources = {
     },
     providers: {
       title: "Proveedores",
+      accountColor: "Color de la cuenta",
+      accountColorSaving: "Guardando color...",
+      accountColorSaveError: "No se pudo actualizar el color del proveedor",
       addProvider: "Agregar proveedor",
       providerDetails: "Detalles del proveedor{{name}}",
       enableProvider: "Habilitar{{name}}",

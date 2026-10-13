@@ -8,6 +8,7 @@ import type {
   ProviderOptions,
   ToolPolicy,
 } from "@getpaseo/protocol/agent-types";
+import type { ProviderIdentityColor } from "@getpaseo/protocol/provider-config";
 import type {
   AgentAttachment,
   AgentRoutingNotice,
@@ -139,6 +140,8 @@ export interface ProviderSnapshotEntry {
   label?: string;
   description?: string;
   iconSvg?: string;
+  iconProvider?: string;
+  color?: ProviderIdentityColor;
   defaultModeId?: string | null;
 }
 

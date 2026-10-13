@@ -2,6 +2,22 @@ import { z } from "zod";
 import type { AgentProvider } from "./agent-types.js";
 import { AgentProviderSchema } from "./provider-manifest.js";
 
+export const PROVIDER_IDENTITY_COLOR_NAMES = [
+  "violet",
+  "sky",
+  "emerald",
+  "orange",
+  "pink",
+  "indigo",
+  "teal",
+  "red",
+  "amber",
+  "blue",
+] as const;
+
+export const ProviderIdentityColorSchema = z.enum(PROVIDER_IDENTITY_COLOR_NAMES);
+export type ProviderIdentityColor = z.infer<typeof ProviderIdentityColorSchema>;
+
 const ProviderCommandDefaultSchema = z.object({
   mode: z.literal("default"),
 });
@@ -52,6 +68,7 @@ export const ProviderOverrideSchema = z.object({
   extends: z.string().optional(),
   label: z.string().optional(),
   description: z.string().optional(),
+  color: ProviderIdentityColorSchema.nullable().optional(),
   command: z.array(z.string().min(1)).min(1).optional(),
   env: z.record(z.string(), z.string()).optional(),
   options: z.record(z.string(), z.unknown()).optional(),
@@ -84,9 +101,6 @@ export const ProviderOverridesSchema = z
       }
 
       const isBuiltinProvider = builtinProviderIdSet.has(providerId);
-      // Config loads before plugin registration. An entry without extends is an override;
-      // registry construction decides whether its provider exists. Configurable plugin IDs
-      // use this existing config alphabet; dots/underscores remain registration-only.
       if (!isBuiltinProvider && provider.extends && !provider.label) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

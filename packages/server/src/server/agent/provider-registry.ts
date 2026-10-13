@@ -69,6 +69,7 @@ export interface ProviderDefinition extends AgentProviderDefinition {
   /** Effective inputs after overrides and inheritance; plugin registrations are owned separately. */
   configuration: Omit<ResolvedProvider, "createBaseClient" | "contract"> | null;
   iconSvg?: string;
+  identityColor?: NonNullable<ProviderOverride["color"]>;
   enabled: boolean;
   /**
    * The id of another *registered* provider this one extends (e.g. a Z.AI
@@ -139,6 +140,7 @@ interface ResolvedProvider {
   profileModelsAreAdditive: boolean;
   enabled: boolean;
   derivedFromProviderId: string | null;
+  identityColor?: NonNullable<ProviderOverride["color"]>;
   providerOptions?: ProviderOptions;
   createBaseClient: (logger: Logger) => AgentClient;
   contract: ProviderContract;
@@ -641,12 +643,18 @@ function createRegistryEntry(
 
   const hasStaticModes = resolved.definition.modes.length > 0;
 
-  const { createBaseClient: _createBaseClient, contract: _contract, ...configuration } = resolved;
+  const {
+    createBaseClient: _createBaseClient,
+    contract: _contract,
+    identityColor,
+    ...configuration
+  } = resolved;
   return {
     ...resolved.definition,
     configuration,
     enabled: resolved.enabled,
     derivedFromProviderId: resolved.derivedFromProviderId,
+    identityColor,
     supportsExactMcpPreapproval: resolved.contract.supportsExactMcpPreapproval,
     applyToolPolicy: (config, toolPolicy) => {
       if (toolPolicy && !resolved.contract.supportsExactMcpPreapproval) {
@@ -747,6 +755,7 @@ function resolveRegisteredProvider(input: RegisteredProvider): ResolvedProvider 
     profileModelsAreAdditive: false,
     enabled: override?.enabled ?? definition.enabledByDefault ?? true,
     derivedFromProviderId: null,
+    identityColor: override?.color ?? undefined,
     providerOptions: configuredProviderOptions(override),
     createBaseClient: (logger) => input.createClient(logger, runtimeSettings),
     contract,
@@ -832,6 +841,7 @@ function addDerivedProviders(
         profileModelsAreAdditive: false,
         enabled: override.enabled !== false,
         derivedFromProviderId: null,
+        identityColor: override.color ?? undefined,
         providerOptions: configuredProviderOptions(override),
         createBaseClient: (logger) => {
           const acpOptions = {
@@ -887,6 +897,7 @@ function addDerivedProviders(
       profileModelsAreAdditive: false,
       enabled: override.enabled !== false,
       derivedFromProviderId: baseProviderId,
+      identityColor: override.color ?? undefined,
       providerOptions,
       createBaseClient: (logger) =>
         baseFactory(logger, mergedRuntimeSettings, {

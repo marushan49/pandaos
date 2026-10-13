@@ -1,5 +1,7 @@
 import { useStore } from "zustand";
+import { withUnistyles } from "react-native-unistyles";
 import { providerSnapshotIcons } from "@/data/provider-icons";
+import type { ProviderSnapshotIcon } from "@/data/provider-icons";
 import { Bot, PackagePlus } from "@/components/icons/ui-icons";
 import { createElement, useCallback, type ComponentType } from "react";
 import { SvgXml } from "react-native-svg";
@@ -12,6 +14,8 @@ import { OmpIcon } from "@/components/icons/omp-icon";
 import { PiIcon } from "@/components/icons/pi-icon";
 import { ACP_PROVIDER_CATALOG } from "@/data/acp-provider-catalog";
 import { resolveProviderIconName } from "@/components/provider-icon-name";
+import { identityForeground } from "@/styles/identity-colors";
+import type { ProviderIdentityColor } from "@getpaseo/protocol/provider-config";
 
 export interface ProviderIconProps {
   size: number;
@@ -19,6 +23,29 @@ export interface ProviderIconProps {
 }
 
 export type ProviderIconComponent = ComponentType<ProviderIconProps>;
+
+interface IdentityProviderIconProps {
+  size: number;
+  providerIcon: ProviderIconComponent;
+  identityColor: ProviderIdentityColor;
+  colorScheme: "light" | "dark";
+}
+
+function IdentityProviderIconBase({
+  size,
+  providerIcon,
+  identityColor,
+  colorScheme,
+}: IdentityProviderIconProps) {
+  return createElement(providerIcon, {
+    size,
+    color: identityForeground(identityColor, colorScheme),
+  });
+}
+
+const ThemedIdentityProviderIconBase = withUnistyles(IdentityProviderIconBase, (theme) => ({
+  colorScheme: theme.colorScheme,
+}));
 
 const BUILTIN_PROVIDER_ICONS: Record<string, ProviderIconComponent> = {
   claude: ClaudeIcon as unknown as ProviderIconComponent,
@@ -37,6 +64,10 @@ const CATALOG_ICON_SVGS = new Map(
 
 const catalogIconComponents = new Map<string, ProviderIconComponent>();
 const snapshotIconComponents = new Map<string, ProviderIconComponent>();
+const identityIconComponents = new WeakMap<
+  ProviderIconComponent,
+  Map<ProviderIdentityColor, ProviderIconComponent>
+>();
 
 export function SvgIcon({ svg, size, color }: ProviderIconProps & { svg: string }) {
   return createElement(SvgXml, { xml: svg, width: size, height: size, color });
@@ -71,25 +102,48 @@ function getSnapshotProviderIcon(provider: string, svg: string): ProviderIconCom
   return component;
 }
 
-function resolveProviderIcon(provider: string, svg?: string): ProviderIconComponent {
-  const name = resolveProviderIconName(provider, svg);
+function getIdentityProviderIcon(
+  Icon: ProviderIconComponent,
+  color: ProviderIdentityColor,
+): ProviderIconComponent {
+  const cachedByColor = identityIconComponents.get(Icon) ?? new Map();
+  const cached = cachedByColor.get(color);
+  if (cached) return cached;
+  const IdentityProviderIcon: ProviderIconComponent = ({ size }) =>
+    createElement(ThemedIdentityProviderIconBase, {
+      size,
+      providerIcon: Icon,
+      identityColor: color,
+    });
+  IdentityProviderIcon.displayName = "IdentityProviderIcon(" + color + ")";
+  cachedByColor.set(color, IdentityProviderIcon);
+  identityIconComponents.set(Icon, cachedByColor);
+  return IdentityProviderIcon;
+}
+
+function resolveProviderIcon(
+  provider: string,
+  snapshot?: ProviderSnapshotIcon,
+): ProviderIconComponent {
+  const name = resolveProviderIconName(provider, snapshot?.iconSvg, snapshot?.iconProvider);
+  let Icon: ProviderIconComponent;
   if (name.kind === "builtin") {
-    return BUILTIN_PROVIDER_ICONS[name.id];
+    Icon = BUILTIN_PROVIDER_ICONS[name.id];
+  } else if (name.kind === "catalog") {
+    Icon = getCatalogProviderIcon(name.id);
+  } else if (name.kind === "svg") {
+    Icon = getSnapshotProviderIcon(provider, name.svg);
+  } else {
+    Icon = Bot;
   }
-  if (name.kind === "catalog") {
-    return getCatalogProviderIcon(name.id);
-  }
-  if (name.kind === "svg") {
-    return getSnapshotProviderIcon(provider, name.svg);
-  }
-  return Bot;
+  return snapshot?.color ? getIdentityProviderIcon(Icon, snapshot.color) : Icon;
 }
 
 export function useProviderIcon(provider: string, serverId?: string | null): ProviderIconComponent {
-  const svg = useStore(providerSnapshotIcons, (state) =>
+  const snapshot = useStore(providerSnapshotIcons, (state) =>
     serverId ? state.get(serverId)?.get(provider) : undefined,
   );
-  return resolveProviderIcon(provider, svg);
+  return resolveProviderIcon(provider, snapshot);
 }
 
 export function useProviderIcons(serverId?: string | null) {

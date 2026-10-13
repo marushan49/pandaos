@@ -3160,6 +3160,9 @@ export const ja: TranslationResources = {
     },
     providers: {
       title: "プロバイダー",
+      accountColor: "アカウントの色",
+      accountColorSaving: "色を保存しています...",
+      accountColorSaveError: "プロバイダーの色を更新できませんでした",
       addProvider: "プロバイダーを追加",
       providerDetails: "{{name}}プロバイダーの詳細",
       enableProvider: "{{name}}を有効にする",

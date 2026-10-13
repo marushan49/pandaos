@@ -2421,8 +2421,8 @@ describe("provider-owned catalogue identity", () => {
       logger: createTestLogger(),
       providerOverrides: {
         ...disabledProviders,
-        first: { extends: "codex", label: "First", enabled: true },
-        second: { extends: "codex", label: "Second", enabled: true },
+        first: { extends: "codex", label: "First", color: "violet", enabled: true },
+        second: { extends: "codex", label: "Second", color: "sky", enabled: true },
       },
       extraClients: { first: client("first"), second: client("second") },
     });
@@ -2434,6 +2434,7 @@ describe("provider-owned catalogue identity", () => {
         read(resolveSnapshotCwd("/b")),
         read(resolveSnapshotCwd("/c")),
       ]);
+      expect(a).toMatchObject({ iconProvider: "codex", color: "violet" });
       expect(a.models).toEqual(b.models);
       expect(c.models).not.toEqual(a.models);
       expect(discoveries).toHaveLength(2);
@@ -2442,7 +2443,10 @@ describe("provider-owned catalogue identity", () => {
         { scope: "workspace", cwd: resolveSnapshotCwd("/a"), force: false },
         { scope: "workspace", cwd: resolveSnapshotCwd("/c"), force: false },
       ]);
-      await read(resolveSnapshotCwd("/a"), "second");
+      await expect(read(resolveSnapshotCwd("/a"), "second")).resolves.toMatchObject({
+        iconProvider: "codex",
+        color: "sky",
+      });
       expect(discoveries).toHaveLength(3);
       identities.set(resolveSnapshotCwd("/b"), "runtime-2/config-1");
       expect((await read(resolveSnapshotCwd("/b"))).models).toEqual(c.models);

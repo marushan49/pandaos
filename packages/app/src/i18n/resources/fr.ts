@@ -3202,6 +3202,9 @@ export const fr: TranslationResources = {
     },
     providers: {
       title: "Fournisseurs",
+      accountColor: "Couleur du compte",
+      accountColorSaving: "Enregistrement de la couleur…",
+      accountColorSaveError: "Impossible de modifier la couleur du fournisseur",
       addProvider: "Ajouter un fournisseur",
       providerDetails: "Détails du fournisseur {{name}}",
       enableProvider: "Activer {{name}}",

@@ -3089,6 +3089,9 @@ export const zhCN: TranslationResources = {
     },
     providers: {
       title: "Providers",
+      accountColor: "账户颜色",
+      accountColorSaving: "正在保存颜色...",
+      accountColorSaveError: "无法更新提供方颜色",
       addProvider: "添加 Provider",
       providerDetails: "{{name}} Provider 详情",
       enableProvider: "启用 {{name}}",

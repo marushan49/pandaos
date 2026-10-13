@@ -140,9 +140,9 @@ describe("provider fetch with runtime abort signals", () => {
         expect(result.entries).toEqual(entries);
         expect(queryClient.getQueryData(queryKey)).toEqual(result);
         expect((await cache.read(serverId, snapshot.cwd))?.entries).toEqual(entries);
-        expect(providerSnapshotIcons.getState().get(serverId)?.get("test-provider")).toEqual(
-          entries[0].iconSvg,
-        );
+        expect(providerSnapshotIcons.getState().get(serverId)?.get("test-provider")).toEqual({
+          iconSvg: entries[0].iconSvg,
+        });
       } finally {
         queryClient.clear();
         replaceProviderSnapshotIcons(serverId, []);
@@ -199,9 +199,9 @@ describe.each([
         ).rejects.toBeInstanceOf(CancelledError);
         expect(controller.signal.aborted).toBe(true);
         expect(queryClient.getQueryData(queryKey)).toEqual(previous);
-        expect(providerSnapshotIcons.getState().get(serverId)?.get("test-provider")).toEqual(
-          "previous-icon",
-        );
+        expect(providerSnapshotIcons.getState().get(serverId)?.get("test-provider")).toEqual({
+          iconSvg: "previous-icon",
+        });
         expect((await cache.readHash(serverId, "test-hash"))?.entries ?? null).toEqual(
           hasBody ? entries : null,
         );
@@ -282,9 +282,9 @@ it("keeps a replacement query when the cancelled native fetch finishes late", as
     expect(queryClient.getQueryData(queryKey)).toEqual(replacement);
     expect(replacement.entries).toEqual(replacementEntries);
     expect((await cache.read(serverId, snapshot.cwd))?.entries).toEqual(replacementEntries);
-    expect(providerSnapshotIcons.getState().get(serverId)?.get("test-provider")).toEqual(
-      "replacement-icon",
-    );
+    expect(providerSnapshotIcons.getState().get(serverId)?.get("test-provider")).toEqual({
+      iconSvg: "replacement-icon",
+    });
   } finally {
     finishResponse();
     queryClient.clear();

@@ -3177,6 +3177,9 @@ export const ptBR: TranslationResources = {
     },
     providers: {
       title: "Provedores",
+      accountColor: "Cor da conta",
+      accountColorSaving: "Salvando cor...",
+      accountColorSaveError: "Não foi possível atualizar a cor do provedor",
       addProvider: "Adicionar provedor",
       providerDetails: "Detalhes do provedor {{name}}",
       enableProvider: "Ativar {{name}}",

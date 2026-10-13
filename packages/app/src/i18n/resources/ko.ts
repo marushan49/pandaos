@@ -3143,6 +3143,9 @@ export const ko: TranslationResources = {
     },
     providers: {
       title: "프로바이더",
+      accountColor: "계정 색상",
+      accountColorSaving: "색상 저장 중...",
+      accountColorSaveError: "공급자 색상을 업데이트할 수 없습니다",
       addProvider: "프로바이더 추가",
       providerDetails: "{{name}} 프로바이더 세부 정보",
       enableProvider: "{{name}} 활성화",

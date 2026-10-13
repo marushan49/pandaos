@@ -857,6 +857,8 @@ export class ProviderSnapshotManager {
           label: definition.label,
           description: definition.description,
           iconSvg: definition.iconSvg,
+          iconProvider: definition.derivedFromProviderId ?? undefined,
+          color: definition.identityColor,
           defaultModeId: definition.defaultModeId ?? null,
         }),
       });
