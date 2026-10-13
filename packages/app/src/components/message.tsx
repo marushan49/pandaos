@@ -111,6 +111,7 @@ import {
 import { getCompactionMarkerLabel } from "./message-compaction-label";
 import { useAssistantImage } from "@/assistant-image/use-assistant-image";
 import { AssistantMarkdownVideo } from "@/components/assistant-markdown-video";
+import { AssistantMarkdownFile } from "@/components/assistant-markdown-file";
 import {
   AttachmentFrame,
   AttachmentLabel,
@@ -1984,7 +1985,9 @@ export const AssistantMessage = memo(function AssistantMessage({
           key={node.key}
           paragraphStyle={styles.paragraph}
           containsImage={
-            markdownNodeContainsType(node, "image") || markdownNodeContainsType(node, "video")
+            markdownNodeContainsType(node, "image") ||
+            markdownNodeContainsType(node, "video") ||
+            markdownNodeContainsType(node, "file_card")
           }
         >
           {children}
@@ -2005,6 +2008,14 @@ export const AssistantMessage = memo(function AssistantMessage({
           label={typeof node.attributes?.alt === "string" ? node.attributes.alt : undefined}
           client={client}
           workspaceRoot={workspaceRoot}
+          serverId={serverId}
+        />
+      ),
+      file_card: (node: ASTNode) => (
+        <AssistantMarkdownFile
+          key={node.key}
+          source={String(node.attributes?.src ?? "")}
+          label={typeof node.attributes?.alt === "string" ? node.attributes.alt : undefined}
           serverId={serverId}
         />
       ),
