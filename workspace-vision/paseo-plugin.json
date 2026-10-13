@@ -1,0 +1,8 @@
+{
+  "id": "workspace-vision",
+  "name": "Workspace vision",
+  "media": [],
+  "requirements": {
+    "paseo": ">=0.11.0"
+  }
+}
