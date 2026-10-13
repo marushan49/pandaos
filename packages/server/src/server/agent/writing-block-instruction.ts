@@ -1,16 +1,18 @@
-export const WRITING_BLOCK_INSTRUCTION = `When you produce a finished piece of text for the user to copy and use elsewhere — an email, a chat message, a prompt, a description, a commit message — put it in a fenced block tagged \`writing\`, with an optional short title after the keyword:
+export const WRITING_BLOCK_INSTRUCTION = `When you produce a finished piece of content for the user to take elsewhere, put it in a fenced block whose tag names its type, with an optional short title after the tag. Paseo renders these blocks apart from your prose with copy and edit controls:
 
-\`\`\`\`writing Reply to Mr Venn
-Dear Mr Venn,
+- \`email <subject>\` for an email. Write the body as Markdown; bold, lists, links and tables paste formatted into Gmail or Outlook.
+- \`document <title>\` for a longer formatted text, such as a report, notes or a description.
+- \`writing-rich <title>\` for any other formatted text that must keep its formatting when pasted.
+- \`writing <title>\` for plain text pasted verbatim, such as a chat message or a commit message. Markdown characters stay literal here.
+- \`prompt <title>\` for a prompt for another model or agent, kept verbatim.
 
-thank you, that worked.
+\`\`\`\`email Re: Angebot
+Hallo Herr Venn,
+
+danke, **das hat funktioniert**.
 \`\`\`\`
 
-Paseo renders that block set apart from your prose, with a copy button. Use four backticks so text containing its own code fences survives.
-
-Use \`writing\` only when the content is meant to be taken verbatim. Explanations, summaries, lists and quotes stay normal prose; code stays in a fence tagged with its language.
-
-When the text needs formatting that must survive pasting, such as an email with a table, bold text or links, tag the fence \`writing-rich\` instead and write the body as Markdown. Paseo renders it formatted and copies it as rich text, so a Markdown table pastes into Outlook or Gmail as a table.
+Use four backticks so content containing its own code fences survives. Code stays in a fence tagged with its language. Explanations, summaries and answers stay normal prose; use a block only when the content is meant to be taken somewhere else.
 
 Show the finished text in the chat even when you also save it to a file or create a draft somewhere else. Never deliver only a summary of it. When you produce a file for the user, such as an .eml, .pdf, .docx, .xlsx or .zip, save it on the host you run on and link it with its absolute path, for example [Nachtrag.eml](</home/user/out/Nachtrag.eml>). Paseo shows a card with a Download button that saves the file on the user's device. A path on another device, or one starting with ~, cannot be opened from the chat.`;
 

@@ -3,11 +3,12 @@ import { HighlightedCodeBlock } from "@/components/highlighted-code-block";
 import { getMarkdownFenceLanguage } from "./language";
 import { MermaidFence } from "./mermaid";
 import type { MarkdownFenceRendererProps } from "./types";
-import { WritingFence } from "../writing";
-import { parseWritingFenceInfo } from "../writing/info";
+import { ContentBlock } from "../content-block";
+import { parseContentBlockInfo } from "../content-block/info";
 
 export interface MarkdownFenceBlockProps extends MarkdownFenceRendererProps {
   info: string | null | undefined;
+  blockKey?: string;
 }
 
 const diagramFences: Partial<Record<string, ComponentType<MarkdownFenceRendererProps>>> = {
@@ -20,14 +21,14 @@ export function MarkdownFenceBlock({
   phase,
   inheritedStyles,
   textStyle,
+  blockKey,
 }: MarkdownFenceBlockProps) {
-  // Checked before the language table: a writing fence carries a free-text title
-  // after the keyword, so its info string is not a language name.
-  if (parseWritingFenceInfo(info)) {
+  if (parseContentBlockInfo(info)) {
     return (
-      <WritingFence
+      <ContentBlock
         code={code}
         info={info}
+        blockKey={blockKey}
         phase={phase}
         inheritedStyles={inheritedStyles}
         textStyle={textStyle}

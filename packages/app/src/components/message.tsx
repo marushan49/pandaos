@@ -1833,6 +1833,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           key={node.key}
           code={node.content}
           info={node.sourceInfo}
+          blockKey={`${occurrenceKey}:${node.key}`}
           phase={phase}
           inheritedStyles={inheritedStyles}
           textStyle={styles.fence}
