@@ -2,7 +2,7 @@
 
 ## Goal and delivery
 
-Generated video links render a large player and Download directly in assistant chat; opening a separate tab is optional. The provided CCA Claim Intake master on the Zotac is the acceptance file. The implementation and isolated web acceptance are complete. Production/client rollout remains with the Host-Monitor session; this task does not restart or deploy the main daemon.
+Generated video links render a large player and Download directly in assistant chat; opening a separate tab is optional. The provided CCA Claim Intake master on the Zotac is the acceptance file. The implementation and user-authorized Zotac/Mac rollout are complete. Zotac daemon/web uses c74d217e8-inline-media; the Mac renderer is installed, signed and reloaded. Marushan confirms the player works on his Mac.
 
 ## Decisions and scope
 
@@ -20,4 +20,10 @@ Own paths: assistant-video source/read, AssistantMarkdownVideo, assistant Markdo
 
 ## Limits and handoff
 
-Native/Mac installed-client behavior and production inline rendering are unconfirmed. Existing standalone media tab activation was completed earlier; its scoped commit is9f242dc5af97f1aa9964521d7d08fe756ee03daf. The inline change is delivered separately on main with only its own paths and its own portion of shared message.tsx. Peer worktree bytes are preserved through a saved snapshot and guarded restoration. All sessions, tabs and managed previews remain open. Local checkpoint/commit receipt: .dev/media-viewer-qa/inline-checkpoint.json and inline-commit.json.
+Native Android/iOS behavior is unconfirmed. Production chat Download passed browser acceptance; Mac playback is user-confirmed. Existing standalone media tab activation was completed earlier; its scoped commit is9f242dc5af97f1aa9964521d7d08fe756ee03daf. The inline change is delivered separately on main with only its own paths and its own portion of shared message.tsx. Peer worktree bytes are preserved through a saved snapshot and guarded restoration. All sessions, tabs and managed previews remain open. Local checkpoint/commit receipt: .dev/media-viewer-qa/inline-checkpoint.json and inline-commit.json.
+
+## Authorized rollout,13October
+
+User explicitly requested rollout for Mac, superseding prior Host-Monitor-only restriction and authorizing required main restart. Isolated c74d217e8 build#581 passed server/web/Electron exports; freeze/transfer#583 passed. Mac renderer installed/signed/verified and CmdR requested in#589, same app process3049 and same local identity hashes. Expected index SHA256 c5fad2836a6f1ee39be9f5d2a17a89c6854b527e7abf55034377e25afd69033a and Electron bundle6cd591696391b8281b829214316866cd7bc21821a03235b3bb1ceb3abbe6535b match on Mac. Screen capture unavailable. Linux renderer installation#592 failed before mutation because guarded queue no-new-privileges blocks sudo; do not weaken limits. Advisor deployment findings corrected/source-confirmed. Frozen Zotac release c74d217e8-inline-media, detached activation with identity/agent/archive guards and rollback. Resume from .dev/media-viewer-qa/rollout-checkpoint.json after recovery; actual live UI verification pending. Heartbeat39d46604 remains registered.
+
+Rollout completed: detached Zotac activation succeeded, server identity/keypair and all728saved agent/archive states preserved. Live browser_test evr_2530cfea-4c2a-439d-8c6d-ec7262c94d2e passed in the real chat with Film v3 Seraphina and Download; screenshot and recipe inline-video-live-v3 saved. Zero console errors, one blob-media network entry. Initial check looked for an older offscreen Film v3 ansehen caption and timed out; takeover/fresh visible link succeeded. Subsequent old browser handle was no longer registered after the recipe; no further QA was needed once Marushan explicitly confirmed it works and thanked us. Mac installed renderer/signature/hash/reload verified by agent, playback confirmed by user. Same Mac main PID/identity retained. Linux renderer unchanged after queue sudo denial; Android/iOS not rolled out in this Mac-focused task. Heartbeat39d46604 removed. All agent sessions/tabs retained; no close/archive action issued.
