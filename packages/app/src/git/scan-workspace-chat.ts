@@ -1,6 +1,5 @@
 import type { RelatedPullRequest } from "@/git/related-pull-requests";
 
-/** Owner and name of the repository a workspace actually sits in. */
 export interface ScanRepository {
   owner: string;
   name: string;
@@ -8,38 +7,28 @@ export interface ScanRepository {
 
 export interface PullRequestCandidate {
   number: number;
-  /** How often the number came up, which is the only ranking signal a scan has. */
+  urls?: string[];
   mentions: number;
 }
 
 export interface WorkspaceChatScan {
   candidates: PullRequestCandidate[];
   found: RelatedPullRequest[];
-  /** Mentioned but not confirmed by the forge, so the caller can say why. */
   unresolved: number[];
 }
 
-/** One page of chat is small; a transcript tail is not. Bounded on purpose. */
 const MAX_CANDIDATES = 50;
 const RESOLVE_CONCURRENCY = 8;
 
 const PULL_URL_PATTERN = /https?:\/\/[^\s/]+\/([^\s/]+)\/([^\s/]+)\/pull\/(\d{1,7})/g;
 const BARE_REF_PATTERN = /(?:^|[^\w/#])#(\d{2,7})(?![\w/])/g;
 
-/**
- * Pull request numbers a conversation actually talked about.
- *
- * Only what was said counts. Serialising the whole timeline and scanning that
- * swept up every number a tool ever printed -- merge output, quoted diffs, `gh`
- * listings -- and a session that merely mentioned an old ticket came back with
- * dozens of unrelated pull requests. A number in someone's sentence is a claim
- * about this work; a number in a command's output is not.
- */
 export function collectPullRequestCandidates(input: {
   entries: readonly unknown[];
   repo: ScanRepository | null;
 }): PullRequestCandidate[] {
   const mentions = new Map<number, number>();
+  const urls = new Map<number, Set<string>>();
   const count = (number: number) => {
     if (mentions.size >= MAX_CANDIDATES && !mentions.has(number)) {
       return;
@@ -60,13 +49,17 @@ export function collectPullRequestCandidates(input: {
       if (!Number.isSafeInteger(number) || number <= 0) {
         continue;
       }
-      // A link naming another repository is evidence against the number, not
-      // for it: attaching it would put someone else's pull request on this row.
+
       if (input.repo && !sameRepo(input.repo, match[1], match[2])) {
         foreign.add(number);
         continue;
       }
       count(number);
+      if (mentions.has(number)) {
+        const links = urls.get(number) ?? new Set<string>();
+        links.add(match[0]);
+        urls.set(number, links);
+      }
     }
     BARE_REF_PATTERN.lastIndex = 0;
     while ((match = BARE_REF_PATTERN.exec(text)) !== null) {
@@ -78,15 +71,13 @@ export function collectPullRequestCandidates(input: {
   }
 
   return [...mentions.entries()]
-    .map(([number, seen]) => ({ number, mentions: seen }))
+    .map(([number, seen]) => {
+      const links = urls.get(number);
+      return { number, mentions: seen, urls: links ? [...links] : undefined };
+    })
     .sort((left, right) => right.mentions - left.mentions || left.number - right.number);
 }
 
-/**
- * Candidates plus whatever the forge confirms about them. Lookups run in
- * parallel: they are independent round trips, and doing them one at a time made
- * a scan of two dozen numbers take longer than reading the chat by hand.
- */
 export async function scanTranscriptForPullRequests(input: {
   entries: readonly unknown[];
   repo: ScanRepository | null;
@@ -99,10 +90,18 @@ export async function scanTranscriptForPullRequests(input: {
   for (let start = 0; start < candidates.length; start += RESOLVE_CONCURRENCY) {
     const batch = candidates.slice(start, start + RESOLVE_CONCURRENCY);
     const settled = await Promise.all(
-      batch.map(async (candidate) => ({
-        number: candidate.number,
-        facts: await input.resolveNumber(candidate.number).catch(() => null),
-      })),
+      batch.map(async (candidate) => {
+        const facts = await input.resolveNumber(candidate.number).catch(() => null);
+        return {
+          number: candidate.number,
+          facts:
+            facts &&
+            (!candidate.urls ||
+              candidate.urls.some((url) => url.toLowerCase() === facts.url.toLowerCase()))
+              ? facts
+              : null,
+        };
+      }),
     );
     for (const entry of settled) {
       if (entry.facts) {
@@ -122,11 +121,6 @@ export async function scanTranscriptForPullRequests(input: {
   };
 }
 
-/**
- * The timeline serves envelopes: provider, timestamps and sequence numbers
- * around an `item` that holds the message. Reading `type` off the envelope
- * matches nothing at all, and does so silently, so both shapes are accepted.
- */
 function messageText(entry: unknown): string | null {
   const item = timelineItem(entry);
   if (item === null) {

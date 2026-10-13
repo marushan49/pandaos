@@ -10,37 +10,24 @@ import type { RelatedPullRequest } from "@/git/related-pull-requests";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import { useWorkspace } from "@/stores/session-store-hooks";
 import { useSessionStore } from "@/stores/session-store";
+import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useToast } from "@/contexts/toast-api-context";
 
 interface UseScanWorkspaceChatInput {
   serverId?: string;
   workspaceId?: string;
   workspaceKey: string;
-  /** Already-known pull requests, the only place the app learns its own repo. */
   pullRequests?: readonly RelatedPullRequest[];
 }
 
-/** Bounded walk per agent: a scan must stay a background nicety, never a full export. */
 const SCAN_MAX_ENTRIES = 1500;
 const SCAN_MAX_PAGES = 8;
-/** How many of the workspace's agents to walk, most recent first. */
-const SCAN_MAX_AGENTS = 3;
 
 export interface ScanWorkspaceChatResult {
   findings: ScanChatFinding[];
   unresolved: number[];
 }
 
-/**
- * "PRs aus dem Chat übernehmen" for a sidebar workspace row: walks a bounded
- * transcript tail of the workspace's recent agents, resolves the pull requests
- * its messages name, and hands the result back for someone to confirm.
- *
- * Nothing is attached here. A scan that attaches on its own is only correct when
- * every number a conversation mentions belongs to it, and that is not how people
- * talk: the sessions that ship eight pull requests reference older ones in the
- * same breath. Deciding is the caller's job, and the person's.
- */
 export function useScanWorkspaceChat(input: UseScanWorkspaceChatInput): {
   scanChat: () => Promise<ScanWorkspaceChatResult | null>;
   scanning: boolean;
@@ -49,6 +36,8 @@ export function useScanWorkspaceChat(input: UseScanWorkspaceChatInput): {
   const toast = useToast();
   const [scanning, setScanning] = useState(false);
   const client = useHostRuntimeClient(input.serverId ?? "");
+  const selection = useActiveWorkspaceSelection();
+  const sourceClient = useHostRuntimeClient(selection?.serverId ?? "");
   const workspace = useWorkspace(input.serverId ?? null, input.workspaceId ?? null);
   const repo = useMemo(() => repositoryOf(input.pullRequests), [input.pullRequests]);
 
@@ -57,8 +46,10 @@ export function useScanWorkspaceChat(input: UseScanWorkspaceChatInput): {
       toast.error(t("workspace.terminal.hostDisconnected"));
       return null;
     }
-    const agents = findScanAgents(input.serverId, input.workspaceId);
-    if (agents.length === 0) {
+    const agentId = selection
+      ? useSessionStore.getState().sessions[selection.serverId]?.focusedAgentId
+      : null;
+    if (!agentId || !sourceClient) {
       toast.error(t("workspace.git.pr.set.scanChatNoAgent"));
       return null;
     }
@@ -67,18 +58,14 @@ export function useScanWorkspaceChat(input: UseScanWorkspaceChatInput): {
       const searchClient: ForgeSearchClient = {
         searchForge: (options) => client.searchForge(options),
       };
-      const entries: unknown[] = [];
-      for (const agent of agents) {
-        const transcript = await collectAgentTranscript({
-          fetchPage: (options) => client.fetchAgentTimeline(agent.id, options),
-          maxEntries: SCAN_MAX_ENTRIES,
-          maxPages: SCAN_MAX_PAGES,
-          maxRestarts: 0,
-        });
-        entries.push(...transcript.entries);
-      }
+      const transcript = await collectAgentTranscript({
+        fetchPage: (options) => sourceClient.fetchAgentTimeline(agentId, options),
+        maxEntries: SCAN_MAX_ENTRIES,
+        maxPages: SCAN_MAX_PAGES,
+        maxRestarts: 0,
+      });
       const scan = await scanTranscriptForPullRequests({
-        entries,
+        entries: transcript.entries,
         repo,
         resolveNumber: async (number) =>
           resolvePullRequestForAttach({
@@ -88,7 +75,11 @@ export function useScanWorkspaceChat(input: UseScanWorkspaceChatInput): {
           }).catch(() => null),
       });
       if (scan.found.length === 0) {
-        toast.show(t("workspace.git.pr.set.scanChatEmpty"));
+        toast.show(
+          scan.unresolved.length > 0
+            ? t("workspace.git.pr.set.scanChatUnresolved", { numbers: scan.unresolved.join(", ") })
+            : t("workspace.git.pr.set.scanChatEmpty"),
+        );
         return null;
       }
       const byNumber = new Map(scan.candidates.map((entry) => [entry.number, entry.mentions]));
@@ -99,18 +90,17 @@ export function useScanWorkspaceChat(input: UseScanWorkspaceChatInput): {
         })),
         unresolved: scan.unresolved,
       };
-    } catch {
-      toast.error(t("workspace.git.pr.set.scanChatEmpty"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
       return null;
     } finally {
       setScanning(false);
     }
-  }, [client, input.serverId, input.workspaceId, repo, workspace, t, toast]);
+  }, [client, sourceClient, selection, repo, workspace, t, toast]);
 
   return { scanChat, scanning };
 }
 
-/** Records the confirmed choice, which is the only path that writes the set. */
 export function attachScannedPullRequests(
   workspaceKey: string,
   pullRequests: readonly RelatedPullRequest[],
@@ -120,11 +110,6 @@ export function attachScannedPullRequests(
   }
 }
 
-/**
- * The repo a workspace's pull requests live in, read off one of their URLs. A
- * workspace with no pull requests yet has nothing to compare against, and a scan
- * without that check is still better than no scan.
- */
 function repositoryOf(
   pullRequests: readonly RelatedPullRequest[] | undefined,
 ): ScanRepository | null {
@@ -137,24 +122,4 @@ function repositoryOf(
     }
   }
   return null;
-}
-
-function findScanAgents(
-  serverId: string | undefined,
-  workspaceId: string | undefined,
-): { id: string }[] {
-  if (!serverId || !workspaceId) {
-    return [];
-  }
-  const agents = useSessionStore.getState().sessions[serverId]?.agents;
-  if (!agents) {
-    return [];
-  }
-  const candidates = [...agents.values()].filter((agent) => agent.workspaceId === workspaceId);
-  candidates.sort((left, right) => right.lastActivityAt.getTime() - left.lastActivityAt.getTime());
-  // Active sessions first, archived ones still count: their timelines keep
-  // the references long after the work shipped.
-  const active = candidates.filter((agent) => !agent.archivedAt);
-  const archived = candidates.filter((agent) => agent.archivedAt);
-  return [...active, ...archived].slice(0, SCAN_MAX_AGENTS);
 }
