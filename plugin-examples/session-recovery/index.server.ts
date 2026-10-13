@@ -68,7 +68,7 @@ export default function contribute(server: PluginServerContext) {
     service.resume(agentId, revision, paseo),
   );
   server.handle(prepareRestart, (input, { paseo }) => service.prepareRestart(input, paseo));
-  server.handle(restartStatus, ({ runId }) => service.restartStatus(runId));
+  server.handle(restartStatus, ({ runId, phase }) => service.restartStatus(runId, phase));
   server.handle(resumeRestart, ({ runId }, { paseo }) => service.resumeRestart(runId, paseo));
   server.handle(dismissRecovery, ({ agentId, revision }) => service.dismiss(agentId, revision));
   return async () => {

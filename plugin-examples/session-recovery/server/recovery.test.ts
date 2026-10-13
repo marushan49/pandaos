@@ -528,17 +528,26 @@ describe("session recovery", () => {
       status: "idle" as const,
       final: null,
       error: null,
+      lastMessage: "Zusammenfassung des laufenden Zugs ohne Status",
+    }));
+    const waitForFinish = vi.fn(async (_timeoutMs?: number) => ({
+      status: "idle" as const,
+      final: null,
+      error: null,
       lastMessage: "STATUS: working\nCHECKPOINT: Schritt 3 von 5, Queue-Job #42 prüfen",
     }));
-    Object.assign(beforeHandle, { run });
+    Object.assign(beforeHandle, { run, waitForFinish });
     const started = await before.prepareRestart(
-      { runId: "run-1", timeoutMs: 1000, activeWithinMinutes: 15 },
+      { runId: "run-1", timeoutMs: 5000, activeWithinMinutes: 15 },
       beforePaseo,
     );
     expect(started.entries.map((entry) => entry.result)).toEqual(["pending"]);
-    await vi.waitFor(() => expect(before.restartStatus("run-1").done).toBe(true));
+    await vi.waitFor(() => expect(before.restartStatus("run-1").done).toBe(true), {
+      timeout: 4000,
+    });
     expect(before.restartStatus("run-1").entries[0].result).toBe("working");
-    expect(run.mock.calls[0][1]).toEqual({ activeTurnBehavior: "steer", timeoutMs: 1000 });
+    expect(run.mock.calls[0][1]).toEqual({ activeTurnBehavior: "steer", timeoutMs: 5000 });
+    expect(waitForFinish).toHaveBeenCalledTimes(1);
     await before.started(hook, "turn-two");
     await before.close();
 
@@ -551,13 +560,44 @@ describe("session recovery", () => {
     await after.runAutomatic(paseo);
     expect(send).not.toHaveBeenCalled();
 
-    const resumed = await after.resumeRestart("run-1", paseo);
-    expect(resumed.entries.map((entry) => entry.result)).toEqual(["resumed"]);
+    after.resumeRestart("run-1", paseo);
+    after.resumeRestart("run-1", paseo);
+    await vi.waitFor(() => expect(after.restartStatus("run-1", "resume").done).toBe(true));
+    expect(after.restartStatus("run-1", "resume").entries.map((entry) => entry.result)).toEqual([
+      "resumed",
+    ]);
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][0]).toContain("Schritt 3 von 5, Queue-Job #42 prüfen");
-    expect((await after.resumeRestart("run-1", paseo)).entries).toEqual([]);
+    expect(send.mock.calls[0][0]).not.toContain("Zusammenfassung des laufenden Zugs");
     expect((await after.list(paseo)).candidates).toEqual([]);
     await after.runAutomatic(paseo);
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a session without a STATUS reply on the interrupted path", async () => {
+    const { store } = await storage();
+    const service = new RecoveryService(store, "boot-one", { autoSchedule: false });
+    const { paseo, handle } = connection(agent({ status: "running" }));
+    const reply = {
+      status: "idle" as const,
+      final: null,
+      error: null,
+      lastMessage: "Noch beschäftigt",
+    };
+    Object.assign(handle, {
+      run: vi.fn(async () => reply),
+      waitForFinish: vi.fn(async () => reply),
+    });
+    await service.prepareRestart(
+      { runId: "run-2", timeoutMs: 1500, activeWithinMinutes: 15 },
+      paseo,
+    );
+    await vi.waitFor(() => expect(service.restartStatus("run-2").done).toBe(true), {
+      timeout: 4000,
+    });
+    expect(service.restartStatus("run-2").entries[0].result).toBe("no-answer");
+    expect((await store.all()).find((record) => record.agentId === hook.id)?.planned ?? null).toBe(
+      null,
+    );
   });
 });

@@ -19,6 +19,10 @@ Den Daemon neu starten, ohne auf Leerlauf zu warten und ohne Arbeit zu verlieren
 - Typecheck, Lint und Format des Plugins sauber.
 - Plugin live neu geladen, `pandaos-planned-restart --dry-run` listet 15 Sessions ohne etwas zu senden.
 
-## Offen
+## Erster echter Lauf (19:09, Release 2d3042380-scroll-fix)
 
-Der erste echte Lauf mit Neustart steht aus.
+- 17 Sessions gefragt, Neustart nach 3 min, Daemon gesund auf dem neuen Release, Web-UI liefert das Bundle mit dem Scroll-Fix.
+- 12 Sessions mit `working`/`watching` bekamen ihren Checkpoint zurück, 5 mit `done` nichts, die eine ohne Antwort kam über den normalen Unterbrechungsweg zurück.
+- Fehler 1: Bei Sessions mitten im Zug endete `run()` mit diesem Zug, gespeichert wurde dessen letzte Antwort statt der STATUS-Antwort. Behoben: Das Plugin wartet bis zur Frist auf eine Antwort mit `STATUS:`, ohne sie gilt die Session als nicht beantwortet.
+- Fehler 2: Das Skript wiederholte `resume`, während der erste Aufruf noch lief, eine Session bekam ihren Checkpoint doppelt. Behoben: `resume` läuft je Lauf genau einmal im Hintergrund, das Skript fragt `restart.status` mit `phase: resume` ab.
+- Tests 29/29 mit beiden Fällen.

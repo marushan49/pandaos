@@ -127,7 +127,10 @@ export const prepareRestart = defineRpc({
 
 export const restartStatus = defineRpc({
   name: "session-recovery.restart.status",
-  input: z.object({ runId: z.string().min(1) }),
+  input: z.object({
+    runId: z.string().min(1),
+    phase: z.enum(["prepare", "resume"]).default("prepare"),
+  }),
   output: PlannedRestartRunSchema,
 });
 

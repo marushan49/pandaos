@@ -42,7 +42,7 @@ export function parsePlannedReply(reply: string | null): {
   checkpoint: string;
 } {
   const text = (reply ?? "").trim();
-  const match = /STATUS:\s*\**\s*(working|watching|done)\b/i.exec(text);
+  const match = PLANNED_STATUS_PATTERN.exec(text);
   return {
     status: (match?.[1]?.toLowerCase() as PlannedRestart["status"] | undefined) ?? "working",
     checkpoint: text.slice(0, PLANNED_CHECKPOINT_LIMIT),
@@ -58,6 +58,12 @@ export function plannedResumePrompt(planned: PlannedRestart): string {
     "",
     "Arbeite dort weiter. Prüfe zuerst, ob die genannten Hintergrundprozesse, Jobs und Heartbeats noch laufen oder neu gestartet werden müssen, und starte nichts doppelt.",
   ].join("\n");
+}
+
+const PLANNED_STATUS_PATTERN = /STATUS:\s*\**\s*(working|watching|done)\b/i;
+
+function hasPlannedStatus(reply: string | null) {
+  return PLANNED_STATUS_PATTERN.test(reply ?? "");
 }
 
 function ownsPlannedRestart(record: RecoveryRecord) {
@@ -120,6 +126,7 @@ export class RecoveryService {
   private automaticWork: Promise<void> | null = null;
   private disposed = false;
   private readonly plannedRuns = new Map<string, PlannedRestartRun>();
+  private readonly resumeRuns = new Map<string, PlannedRestartRun>();
 
   constructor(
     readonly store: RecoveryStore,
@@ -734,8 +741,8 @@ export class RecoveryService {
     return structuredClone(run);
   }
 
-  restartStatus(runId: string): PlannedRestartRun {
-    const run = this.plannedRuns.get(runId);
+  restartStatus(runId: string, phase: "prepare" | "resume" = "prepare"): PlannedRestartRun {
+    const run = (phase === "resume" ? this.resumeRuns : this.plannedRuns).get(runId);
     if (!run) throw new Error(`Unbekannter Neustart-Lauf ${runId}.`);
     return structuredClone(run);
   }
@@ -748,12 +755,22 @@ export class RecoveryService {
     if (agent.pendingPermissions.length)
       return { result: "skipped", detail: "Wartet auf eine Freigabe." };
     try {
-      const result = await paseo.agents.ref(agent.id).run(PLANNED_RESTART_PROMPT, {
+      const deadline = Date.now() + input.timeoutMs;
+      const handle = paseo.agents.ref(agent.id);
+      let result = await handle.run(PLANNED_RESTART_PROMPT, {
         activeTurnBehavior: "steer",
         timeoutMs: input.timeoutMs,
       });
+      while (result.status === "idle" && !hasPlannedStatus(result.lastMessage)) {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) break;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(1000, remaining)));
+        result = await handle.waitForFinish(Math.max(1, deadline - Date.now()));
+      }
       if (result.status !== "idle")
         return { result: "no-answer", detail: result.error ?? `Status ${result.status}` };
+      if (!hasPlannedStatus(result.lastMessage))
+        return { result: "no-answer", detail: "Keine STATUS-Antwort vor Ablauf der Frist." };
       const { status, checkpoint } = parsePlannedReply(result.lastMessage);
       const planned: PlannedRestart = {
         runId: input.runId,
@@ -779,63 +796,80 @@ export class RecoveryService {
     }
   }
 
-  async resumeRestart(runId: string, paseo: PaseoApi): Promise<PlannedRestartRun> {
-    const entries: PlannedRestartRun["entries"] = [];
-    for (const record of await this.store.all()) {
-      const planned = record.planned;
-      if (!planned || planned.runId !== runId || planned.resumedAt) continue;
-      const base = { agentId: record.agentId, title: record.title };
-      if (planned.status === "done") {
-        await this.consumePlanned(record.agentId, runId, null);
-        entries.push({ ...base, result: "done" as const, detail: "Nichts offen." });
-        continue;
-      }
-      const messageId = planned.resumeMessageId ?? randomUUID();
-      const retry = planned.resumeMessageId !== null;
-      const event: RecoveryEvent = {
-        id: messageId,
-        agentId: record.agentId,
-        title: record.title,
-        provider: record.provider,
-        at: new Date().toISOString(),
-        mode: "automatic",
-        status: "pending",
-        reason: "Geplanter Daemon-Neustart",
-        error: null,
-        messageId,
-      };
-      try {
-        await this.store.change(record.agentId, (current) =>
-          current?.planned?.runId === runId
-            ? { ...current, planned: { ...current.planned, resumeMessageId: messageId } }
-            : undefined,
-        );
-        const handle = paseo.agents.ref(record.agentId);
-        const agent = (await handle.refresh())?.agent;
-        if (!agent) throw new Error("Die Session existiert nicht mehr.");
-        if (agent.archivedAt) throw new Error("Die Session ist archiviert.");
-        if (agent.pendingPermissions.length)
-          throw new Error("Die Session wartet auf eine Freigabe.");
-        const alreadyAccepted =
-          retry && (await this.previouslyAccepted(record.agentId, messageId, paseo));
-        if (!alreadyAccepted)
-          await handle.send(plannedResumePrompt(planned), {
-            messageId,
-            activeTurnBehavior: "steer",
-          });
-        await this.consumePlanned(record.agentId, runId, messageId);
-        await this.publishEvent({ ...event, status: "resumed" }, paseo);
-        entries.push({ ...base, result: "resumed" as const, detail: planned.status });
-      } catch (error) {
-        const failure =
-          error instanceof Error ? errorSummary(error.message) : "Fortsetzung fehlgeschlagen";
-        await this.publishEvent({ ...event, status: "failed", error: failure }, paseo).catch(
-          () => undefined,
-        );
-        entries.push({ ...base, result: "failed" as const, detail: failure });
-      }
+  resumeRestart(runId: string, paseo: PaseoApi): PlannedRestartRun {
+    const existing = this.resumeRuns.get(runId);
+    if (existing) return structuredClone(existing);
+    const run: PlannedRestartRun = { runId, done: false, entries: [] };
+    this.resumeRuns.set(runId, run);
+    void this.store
+      .all()
+      .then((records) =>
+        Promise.all(
+          records
+            .filter((record) => record.planned?.runId === runId && !record.planned.resumedAt)
+            .map(async (record) => {
+              run.entries.push(await this.resumePlanned(record, runId, paseo));
+            }),
+        ),
+      )
+      .catch((error) => console.error("Geplanter Neustart konnte nicht fortsetzen", error))
+      .finally(() => {
+        run.done = true;
+      });
+    return structuredClone(run);
+  }
+
+  private async resumePlanned(
+    record: RecoveryRecord,
+    runId: string,
+    paseo: PaseoApi,
+  ): Promise<PlannedRestartRun["entries"][number]> {
+    const planned = record.planned!;
+    const base = { agentId: record.agentId, title: record.title };
+    if (planned.status === "done") {
+      await this.consumePlanned(record.agentId, runId, null);
+      return { ...base, result: "done", detail: "Nichts offen." };
     }
-    return { runId, done: true, entries };
+    const messageId = planned.resumeMessageId ?? randomUUID();
+    const retry = planned.resumeMessageId !== null;
+    const event: RecoveryEvent = {
+      id: messageId,
+      agentId: record.agentId,
+      title: record.title,
+      provider: record.provider,
+      at: new Date().toISOString(),
+      mode: "automatic",
+      status: "pending",
+      reason: "Geplanter Daemon-Neustart",
+      error: null,
+      messageId,
+    };
+    try {
+      await this.store.change(record.agentId, (current) =>
+        current?.planned?.runId === runId
+          ? { ...current, planned: { ...current.planned, resumeMessageId: messageId } }
+          : undefined,
+      );
+      const handle = paseo.agents.ref(record.agentId);
+      const agent = (await handle.refresh())?.agent;
+      if (!agent) throw new Error("Die Session existiert nicht mehr.");
+      if (agent.archivedAt) throw new Error("Die Session ist archiviert.");
+      if (agent.pendingPermissions.length) throw new Error("Die Session wartet auf eine Freigabe.");
+      const alreadyAccepted =
+        retry && (await this.previouslyAccepted(record.agentId, messageId, paseo));
+      if (!alreadyAccepted)
+        await handle.send(plannedResumePrompt(planned), { messageId, activeTurnBehavior: "steer" });
+      await this.consumePlanned(record.agentId, runId, messageId);
+      await this.publishEvent({ ...event, status: "resumed" }, paseo);
+      return { ...base, result: "resumed", detail: planned.status };
+    } catch (error) {
+      const failure =
+        error instanceof Error ? errorSummary(error.message) : "Fortsetzung fehlgeschlagen";
+      await this.publishEvent({ ...event, status: "failed", error: failure }, paseo).catch(
+        () => undefined,
+      );
+      return { ...base, result: "failed", detail: failure };
+    }
   }
 
   private async consumePlanned(agentId: string, runId: string, messageId: string | null) {

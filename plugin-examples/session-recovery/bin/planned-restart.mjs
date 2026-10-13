@@ -166,7 +166,7 @@ say(`Hinweis an ${run.entries.length} Sessions gesendet.`);
 const deadline = Date.now() + timeoutMs + 30_000;
 while (!run.done && Date.now() < deadline) {
   await sleep(5000);
-  run = await rpc("session-recovery.restart.status", { runId });
+  run = await rpc("session-recovery.restart.status", { runId, phase: "prepare" });
 }
 for (const entry of run.entries)
   say(
@@ -205,6 +205,13 @@ for (let attempt = 0; attempt < 24 && !resumed; attempt++) {
       say(`Fortsetzen fehlgeschlagen: ${error instanceof Error ? error.message : error}`);
     await sleep(5000);
   }
+}
+const resumeDeadline = Date.now() + 300_000;
+while (resumed && !resumed.done && Date.now() < resumeDeadline) {
+  await sleep(3000);
+  resumed = await rpc("session-recovery.restart.status", { runId, phase: "resume" }).catch(
+    () => resumed,
+  );
 }
 for (const entry of resumed?.entries ?? [])
   say(
