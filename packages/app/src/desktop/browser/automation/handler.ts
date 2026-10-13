@@ -16,7 +16,6 @@ import {
 import { collectAllTabs, useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 import { DEFAULT_BROWSER_URL } from "@/desktop/browser/store/state";
-import { mountBrowserOwnerCleanup } from "@/desktop/browser/owner-cleanup";
 
 type BrowserAutomationExecuteRequest = Extract<
   SessionOutboundMessage,
@@ -80,7 +79,6 @@ export function mountBrowserAutomationDaemonClientHandler(
     hostKind: "desktop app",
     supportedCommands: [...BROWSER_AUTOMATION_COMMAND_NAMES],
   });
-  const stopOwnerCleanup = options?.serverId ? mountBrowserOwnerCleanup(options.serverId) : null;
   const unmount = mountBrowserAutomationHandler({
     client: {
       on: (_type, handler) =>
@@ -96,7 +94,6 @@ export function mountBrowserAutomationDaemonClientHandler(
     ...(options?.serverId ? { serverId: options.serverId } : {}),
   });
   return () => {
-    stopOwnerCleanup?.();
     unmount();
     void observation
       .release()
@@ -200,10 +197,6 @@ async function handleBrowserAutomationRequest(params: {
   }
 }
 
-/**
- * A tab that mirrors a daemon tab carries that tab's id. Listing it here too would let
- * the broker route the agent's commands to this copy instead of the daemon's page.
- */
 function withoutMirroredTabs<T>(payload: T): T {
   const result = (
     payload as { ok?: boolean; result?: { command?: string; tabs?: { browserId: string }[] } }

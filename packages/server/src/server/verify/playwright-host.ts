@@ -395,9 +395,10 @@ export class DaemonPlaywrightHost {
     return (this.screencastViewers.get(browserId) ?? 0) > 0;
   }
 
-  public releaseTab(browserId: string): boolean {
+  public releaseTab(browserId: string, preserve = false): boolean {
     const lease = this.tabLeases.get(browserId);
     if (!lease) return false;
+    if (preserve) lease.owned = false;
     lease.users -= 1;
     if (lease.users > 0) return false;
     this.tabLeases.delete(browserId);

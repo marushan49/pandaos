@@ -56,6 +56,7 @@ export interface VerifyRunResult {
   failedRequests: number;
   evidenceRef: string | null;
   screenshotRef?: string;
+  browserId?: string;
   rawBytes: number;
   agentBytes: number;
   error?: string;
@@ -70,7 +71,6 @@ export interface RecipeRunnerOptions {
   evidence: EvidenceStore;
   resolveServiceUrl: (input: { workspaceId: string; service: string }) => Promise<string | null>;
   env?: NodeJS.ProcessEnv;
-  /** Enables `goal` steps; absent when System One is not available. */
   goal?: { decisionSource: TypeSafeDecisionSource; minConfidence: () => number };
   activity?: BrowserActivityHub;
 }
@@ -81,7 +81,6 @@ export interface RunRecipeInput {
   verification: PaseoVerificationConfig;
   recipeName: string;
   params?: Record<string, string>;
-  /** False for projects excluded from System One: goal steps then fail closed. */
   allowGoal?: boolean;
 }
 
@@ -237,7 +236,7 @@ export class RecipeRunner {
         status: "failed",
         message: context.redactor.redact(error instanceof Error ? error.message : String(error)),
       });
-      await this.releaseTab(context);
+      await this.releaseTab(context, true, null);
       throw error;
     }
     const status = failedCheck ? "fail" : "pass";
@@ -246,7 +245,7 @@ export class RecipeRunner {
     await this.writeRunEvidence({ context, recipeName: input.recipeName, status, startedAt });
     await this.evidence.finishRun({ runId: manifest.runId, status });
     const counts = await this.finalLogCounts(context);
-    await this.releaseTab(context);
+    await this.releaseTab(context, failedCheck !== null, screenshotRef);
     const redactedChecks = context.checks.map((check) => ({
       ...check,
       ...(check.detail ? { detail: context.redactor.redact(check.detail) } : {}),
@@ -271,7 +270,7 @@ export class RecipeRunner {
         ? { error: context.redactor.redact(failedCheck.detail ?? "Setup failed") }
         : {}),
     };
-    return sealResult(result, `${input.workspaceId}|${input.recipeName}`);
+    return sealResult(result, `${input.workspaceId}|${input.recipeName}`, context.browserId);
   }
 
   private async captureEndScreenshot(context: RunContext, failed: boolean): Promise<string | null> {
@@ -292,9 +291,16 @@ export class RecipeRunner {
       : context.lastScreenshotRef;
   }
 
-  private async releaseTab(context: RunContext): Promise<void> {
+  private async releaseTab(
+    context: RunContext,
+    failed: boolean,
+    screenshotRef: string | null,
+  ): Promise<void> {
+    const close = !failed && screenshotRef !== null;
     const { browserId } = context;
-    if (!browserId || !this.host.releaseTab(browserId)) return;
+    if (!browserId) return;
+    const owned = this.host.releaseTab(browserId, !close);
+    if (!close || !owned) return;
     const payload = await this.execute(context, {
       command: "close_tab",
       args: { browserId },
@@ -306,11 +312,6 @@ export class RecipeRunner {
     if (note) context.tabNote = note;
   }
 
-  /**
-   * Opens the activity run once a tab exists, then pauses between steps on takeover.
-   * Every step after a pause resolves its refs from a new snapshot; the extra snapshot here
-   * also confirms the tab survived the takeover before the recipe continues.
-   */
   private async reportStep(input: {
     context: RunContext;
     recipeName: string;
@@ -1150,7 +1151,12 @@ const lastFailureByRun = new Map<string, string>();
 const REPEAT_FAILURE_HINT =
   "Same failure as the previous run, check login and app state before rerunning.";
 
-function sealResult(result: VerifyRunResult, key: string): VerifyRunResult {
+function sealResult(
+  result: VerifyRunResult,
+  key: string,
+  browserId: string | null,
+): VerifyRunResult {
+  if (result.status === "fail" && browserId) result.browserId = browserId;
   const failure = result.checks.find((check) => !check.ok);
   if (!failure || failure.name === "setup") {
     lastFailureByRun.delete(key);
@@ -1180,7 +1186,6 @@ function finishActivity(
   );
 }
 
-// Jev's live action stands in for the goal step; the recipe keeps its own step index and plan.
 function goalStepReporter(run: BrowserActivityRun, goal: string): BrowserActivityReporter {
   const goalStep: BrowserActivityStep = { operation: "goal", detail: goal, status: "active" };
   return {
@@ -1205,7 +1210,6 @@ function withStatus(
   return plan.map((step, stepIndex) => (stepIndex === index ? { ...step, status } : step));
 }
 
-// Names what a step does without values: fills show the credential slot, URLs drop query and hash.
 function describeRecipeStep(step: PaseoRecipeStep, redactor: SecretRedactor): BrowserActivityStep {
   const base = { operation: step.action, status: "pending" as const };
   const redact = (text: string) => redactor.redact(text);
@@ -1282,9 +1286,6 @@ function fail(name: string, detail: string): RecipeCheckResult {
   return { name, ok: false, detail };
 }
 
-// Browsers fetch /favicon.ico unprompted and its timing races log capture, so a
-// missing favicon must never fail a UI verification. The raw network log keeps
-// the entry; only the failed-request assertion and counts ignore it.
 function isIgnorableRequestUrl(url: string): boolean {
   try {
     return new URL(url).pathname === "/favicon.ico";

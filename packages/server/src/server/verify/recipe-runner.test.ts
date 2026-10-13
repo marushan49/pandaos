@@ -464,4 +464,68 @@ describe.skipIf(!BROWSER_AVAILABLE)("RecipeRunner", () => {
     expect(serialized).not.toContain(FIXTURE_PASSWORD);
     expect(serialized).toContain("denied");
   });
+  it("keeps failed verification tabs for takeover and preserves them on a later passing run", async () => {
+    const config = testConfig();
+    config.verification.recipes["retained-failure"] = {
+      profile: "retained-failure",
+      steps: [
+        { action: "navigate", url: `${app.url.replace("127.0.0.1", "localhost")}/login` },
+        { action: "assert-visible", role: "button", name: "Missing button" },
+      ],
+    };
+    const workspaceId = "wks_retained_failure";
+    const failed = await runner.run({ workspaceId, ...config, recipeName: "retained-failure" });
+    expect(failed.status).toBe("fail");
+    expect(failed.browserId).toBeTruthy();
+    const browserId = failed.browserId!;
+    const snapshot = await host.executeLocal({
+      workspaceId,
+      profile: "retained-failure",
+      command: { command: "snapshot", args: { browserId } },
+    });
+    expect(snapshot.ok).toBe(true);
+    config.verification.recipes["retained-failure"].steps[1] = {
+      action: "assert-visible",
+      role: "button",
+      name: "Sign in",
+    };
+    const passed = await runner.run({ workspaceId, ...config, recipeName: "retained-failure" });
+    expect(passed.status).toBe("pass");
+    const retained = await host.executeLocal({
+      workspaceId,
+      profile: "retained-failure",
+      command: { command: "snapshot", args: { browserId } },
+    });
+    expect(retained.ok).toBe(true);
+    await host.executeLocal({
+      workspaceId,
+      profile: "retained-failure",
+      command: { command: "close_tab", args: { browserId } },
+    });
+  });
+
+  it("closes its dedicated successful verification tab after saving evidence", async () => {
+    const config = testConfig();
+    config.verification.recipes["finished-verification"] = {
+      profile: "finished-verification",
+      steps: [
+        { action: "navigate", url: `${app.url.replace("127.0.0.1", "localhost")}/login` },
+        { action: "assert-visible", role: "button", name: "Sign in" },
+      ],
+    };
+    const workspaceId = "wks_finished_verification";
+    const result = await runner.run({
+      workspaceId,
+      ...config,
+      recipeName: "finished-verification",
+    });
+    expect(result.status).toBe("pass");
+    expect(result.screenshotRef).toBeTruthy();
+    const tabs = await host.executeLocal({
+      workspaceId,
+      profile: "finished-verification",
+      command: { command: "list_tabs", args: {} },
+    });
+    expect(tabs.ok && tabs.result.command === "list_tabs" && tabs.result.tabs).toEqual([]);
+  });
 });

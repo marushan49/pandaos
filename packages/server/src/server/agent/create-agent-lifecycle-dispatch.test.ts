@@ -25,7 +25,7 @@ class AgentLifecycleEvents {
   }
 }
 
-test("auto-archive self-releases once and later cancellation waits harmlessly", async () => {
+test("legacy auto-archive leaves finished agents open without a lifecycle subscription", async () => {
   const agentId = "4a7e2521-286d-4ad5-af35-e091c55302e3";
   const agents = new AgentLifecycleEvents();
   let archiveCount = 0;
@@ -42,6 +42,6 @@ test("auto-archive self-releases once and later cancellation waits harmlessly", 
   await registration.cancel();
   agents.completeTurn(agentId);
 
-  expect(archiveCount).toBe(1);
+  expect(archiveCount).toBe(0);
   expect(agents.listenerCount()).toBe(0);
 });

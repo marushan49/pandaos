@@ -227,41 +227,12 @@ export class CreateAgentLifecycleDispatch {
   }
 }
 
-export function registerAgentAutoArchive(input: {
+export function registerAgentAutoArchive(_input: {
   agentManager: AgentLifecycleEvents;
   agentId: string;
   archive: () => Promise<unknown>;
 }): LifecycleRegistration {
-  let unsubscribe: (() => void) | null = null;
-  let archiveTask: Promise<unknown> | null = null;
-  const release = () => {
-    if (!unsubscribe) return;
-    const subscribed = unsubscribe;
-    unsubscribe = null;
-    subscribed();
-  };
-  const registration: LifecycleRegistration = {
-    async cancel() {
-      release();
-      await archiveTask;
-    },
-  };
-  unsubscribe = input.agentManager.subscribe(
-    (event) => {
-      if (event.type !== "agent_stream") return;
-      if (
-        event.event.type !== "turn_completed" &&
-        event.event.type !== "turn_failed" &&
-        event.event.type !== "turn_canceled"
-      ) {
-        return;
-      }
-      release();
-      archiveTask = input.archive();
-    },
-    { agentId: input.agentId, replayState: false },
-  );
-  return registration;
+  return inactiveRegistration;
 }
 
 function toAutoArchiveTarget(

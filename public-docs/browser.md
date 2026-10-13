@@ -133,6 +133,8 @@ The same System One setup also gives every supported coding agent the general `s
 
 `browser_test` is the tool agents use for every UI or end-to-end check. The daemon runs the steps itself and returns only the verdict: pass or fail, the checks, console and network error counts, and an evidence reference for the screenshots. The page never enters the agent's context, so a test costs a small fraction of the tokens of driving `browser_*` tools by hand.
 
+A failed run keeps its tab open and returns `browserId` so the agent can inspect it and continue. A passing run closes only a tab created for that verification after saving its screenshot and evidence. Reused tabs stay open. See [tab lifecycle](../docs/agent-lifecycle.md#archive) for the session and preview rules.
+
 Save recurring flows as recipes in the workspace's `paseo.json`:
 
 ```json

@@ -25,12 +25,16 @@ For web pages, use the Paseo browser: it is already signed in where the user sig
 
 When you delegate work, prefer Paseo's \`create_agent\` so quota-aware routing applies. Native subagents inherit your current model and thinking: keep them at the same level or cheaper, and never escalate a simple follow-up to the strongest model with maximum thinking unless the subtask truly needs it.`;
 
-export const BROWSER_TAKEOVER_INSTRUCTION = `When \`browser_goal\` or \`browser_test\` ends with anything other than passed (uncertain, blocked, failed), the task is not over and the result is not your answer. Take over yourself: call \`browser_snapshot\` on the same \`browserId\` and finish the steps with the \`browser_*\` tools, using the visible controls the result lists. Do not end your turn with a failed run and an open tab. Finish the task, or close the tab you opened and ask the user one concrete question.`;
+export const TAB_LIFECYCLE_INSTRUCTION = `Keep agent sessions and their tabs open when work finishes, including your own session and subagents. Completion is a visible result in the session, never a reason to close, kill, archive, or hide it. State clearly in the final response when the requested goal is complete and include the verification result. Close or archive an agent only when the user explicitly requests that action.
+
+Keep browser tabs open by default, including previews and useful pages opened during work. You may close a tab you opened solely for verification or screenshots only after that task is finished and its evidence is saved. You may also close a confirmed unusable page, such as a not-found page, failed navigation, or a local-only URL that the user cannot use. A working localhost or 127.0.0.1 preview stays open. Preserve user-opened tabs and tabs used by another ongoing task. For all other browser tabs, close only at the user's explicit request. Ending an agent turn or archiving its owner never authorizes closing its browser tabs.`;
+
+export const BROWSER_TAKEOVER_INSTRUCTION = `When \`browser_goal\` or \`browser_test\` ends with anything other than passed (uncertain, blocked, failed), the task is not over and the result is not your answer. Take over yourself: call \`browser_snapshot\` on the same \`browserId\` and finish the steps with the \`browser_*\` tools, using the visible controls the result lists. If a concrete blocker needs user input, ask one question and keep the tab open for continuation. Close it only when the tab lifecycle rules allow it.`;
 
 export const TIME_ENTRY_INSTRUCTION = `Never book, submit, or correct time entries (HOURS, Zoho, or any time tracking) on your own, whatever earlier authorization, ledger, or estimate exists. When work for a day needs booking, ask the user first: how many hours to enter for that date. Enter exactly the duration they answer, then read it back. Without an answer nothing is booked.`;
 
 export function composeDaemonAppendSystemPrompt(userPrompt: string): string {
   const trimmed = userPrompt.trim();
-  const base = `${TESTING_ENGINE_INSTRUCTION}\n\n${CODE_COMMENT_INSTRUCTION}\n\n${WRITING_BLOCK_INSTRUCTION}\n\n${QUESTION_LIFECYCLE_INSTRUCTION}\n\n${SYSTEM_ONE_INSTRUCTION}\n\n${BROWSER_TAKEOVER_INSTRUCTION}\n\n${TIME_ENTRY_INSTRUCTION}`;
+  const base = `${TESTING_ENGINE_INSTRUCTION}\n\n${CODE_COMMENT_INSTRUCTION}\n\n${WRITING_BLOCK_INSTRUCTION}\n\n${QUESTION_LIFECYCLE_INSTRUCTION}\n\n${SYSTEM_ONE_INSTRUCTION}\n\n${TAB_LIFECYCLE_INSTRUCTION}\n\n${BROWSER_TAKEOVER_INSTRUCTION}\n\n${TIME_ENTRY_INSTRUCTION}`;
   return trimmed ? `${base}\n\n${trimmed}` : base;
 }

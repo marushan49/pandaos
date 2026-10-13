@@ -42,7 +42,6 @@ export interface RegisterBrowserToolsOptions {
   broker: Pick<BrowserToolsBroker, "execute">;
   goalRunner?: Pick<JevBrowserGoalRunner, "run">;
   verify?: Pick<VerifySession, "runForAgent">;
-  /** Present only for a calling agent that can receive the follow-up. */
   handoff?: {
     hub: Pick<BrowserActivityHub, "activeHandoff" | "refuseHandedOff" | "startHandoff">;
     onEnd: (handoff: BrowserHandoff) => void;
@@ -918,7 +917,7 @@ export function registerBrowserTools(options: RegisterBrowserToolsOptions): void
     {
       title: "Close browser tab",
       description:
-        "Close a Paseo browser tab, remove its resident webview, and unregister it from the browser automation host. Use browserId from browser_new_tab or browser_list_tabs.",
+        "Close a Paseo browser tab only at the user's explicit request, after its dedicated verification/screenshot task is finished and evidence is saved, or after confirming the page is unusable. Keep useful pages, working local previews, user-opened tabs, and tabs needed by ongoing tasks open. Agent completion does not authorize closing. Use browserId from browser_new_tab or browser_list_tabs.",
       inputSchema: {
         browserId: BrowserAutomationBrowserIdSchema,
       },

@@ -131,7 +131,9 @@ Delete removes the record but first writes a tombstone to `agent-tombstones/`, s
 Archive sets `archivedAt`, invokes the provider's native archive hook, and cascades to managed
 children.
 
-`create_agent_request` can opt an agent into `autoArchive`. In that mode the daemon archives the agent after the first terminal turn event (`turn_completed`, `turn_failed`, or `turn_canceled`). When the agent owns an isolated workspace, auto-archive archives that workspace too; the managed worktree is removed when its final workspace reference is gone.
+Agent completion keeps the session, its tabs, workspace, and worktree open. The legacy `create_agent_request.autoArchive` field remains accepted for older clients but no longer archives on terminal turn events. Use an explicit archive action when you want to remove the session. The existing finished indicator and final response show completion without closing the tab.
+
+Browser tabs also survive their owner's completion and archive. Agents close only their own dedicated verification or screenshot tabs after the task ends and evidence is saved, or confirmed unusable pages. Useful pages and working local previews stay open. Other tabs require an explicit user request to close.
 
 Archiving runs through `AgentManager.archiveAgent` (`packages/server/src/server/agent/agent-manager.ts`):
 
