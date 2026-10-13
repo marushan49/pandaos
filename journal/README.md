@@ -10,3 +10,8 @@
 - [2026-10-12 media viewer](2026-10-12-media-viewer.md)
 
 - [2026-10-13 Mac IDE menu](2026-10-13-mac-ide-menu.md)
+
+- [2026-10-14 main integration](2026-10-14-main-integration.md)
+- [2026-10-13 Scan chat](2026-10-13-scan-chat-prs.md)
+- [2026-10-08 provider account identity](2026-10-08-codex-provider-identity.md)
+- [2026-10-14 content blocks](2026-10-14-content-blocks.md)

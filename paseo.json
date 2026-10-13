@@ -871,7 +871,7 @@
           },
           {
             "action": "goal",
-            "goal": "Pr\u00fcfe, dass im Chat au\u00dfer der Fortsetzungsnachricht und der Antwort eine eigene kompakte Plugin-Markierung 'Automatisch fortgesetzt' mit Uhrzeit und Grund 'Codex app-server exited with code null and signal SIGKILL' sichtbar ist. Lies die Zeile. Die Antwort 'Automatisch fortgesetzt, Test erfolgreich.' allein reicht nicht.",
+            "goal": "Prüfe, dass im Chat außer der Fortsetzungsnachricht und der Antwort eine eigene kompakte Plugin-Markierung 'Automatisch fortgesetzt' mit Uhrzeit und Grund 'Codex app-server exited with code null and signal SIGKILL' sichtbar ist. Lies die Zeile. Die Antwort 'Automatisch fortgesetzt, Test erfolgreich.' allein reicht nicht.",
             "verify": [
               {
                 "text": "Automatisch fortgesetzt"
@@ -1480,6 +1480,168 @@
           {
             "action": "screenshot",
             "name": "visible-source-other-workspace-1517"
+          }
+        ]
+      },
+      "main-integration-chat-smoke": {
+        "params": ["sessionUrl"],
+        "steps": [
+          {
+            "url": "{{sessionUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Main integration fixture.",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "assert-text",
+            "text": "Integration check"
+          },
+          {
+            "action": "assert-text",
+            "text": "integration-report.csv"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Download file: Integration CSV"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "combined-main-content-file-card"
+          }
+        ]
+      },
+      "main-integration-visible-chat-scan-result": {
+        "params": ["sessionUrl"],
+        "steps": [
+          {
+            "url": "{{sessionUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "assert-text",
+            "text": "#1517 DCAI-2185"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Attach 1"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "combined-main-cross-workspace-scan"
+          }
+        ]
+      },
+      "main-integration-provider-identity-result": {
+        "params": ["providerUrl"],
+        "steps": [
+          {
+            "url": "{{providerUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "assert-text",
+            "text": "Account color"
+          },
+          {
+            "action": "assert-visible",
+            "role": "radio",
+            "name": "Sky"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "combined-main-provider-identity"
+          }
+        ]
+      },
+      "main-integration-compact-fullscreen-result": {
+        "params": ["sessionUrl"],
+        "steps": [
+          {
+            "url": "{{sessionUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Exit fullscreen"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "combined-main-compact-fullscreen"
+          }
+        ]
+      },
+      "main-integration-vision-read-only-result": {
+        "params": ["sessionUrl"],
+        "steps": [
+          {
+            "url": "{{sessionUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Workspace vision and milestones",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "assert-text",
+            "text": "Project goal (all workspaces of this project)"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "combined-main-vision-read-only"
+          }
+        ]
+      },
+      "main-integration-provider-color-fixed-result": {
+        "params": ["providerUrl"],
+        "steps": [
+          {
+            "url": "{{providerUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Account color",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "assert-visible",
+            "role": "radio",
+            "name": "Sky"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "provider-color-roundtrip-fixed"
           }
         ]
       }
