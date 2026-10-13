@@ -65,8 +65,6 @@ const CLOSED_PARENT: ManagedAgent = {
 };
 const TEST_REFRESH_TIMEOUT_MS = 120_000;
 
-// Builds an AgentClient that can be injected via the public extraClients option.
-// extraClients is the only injection surface the manager exposes for tests.
 function createExtraClient(
   provider: AgentProvider,
   overrides: Partial<AgentClient> = {},
@@ -556,7 +554,6 @@ describe("ProviderSnapshotManager public surface", () => {
   });
 
   test("refreshTimeoutMs option overrides the default and yields a timeout error", async () => {
-    // never-resolving isAvailable forces the timeout path
     const isAvailable = vi.fn(waitUntilAborted);
     const manager = new ProviderSnapshotManager({
       logger: createTestLogger(),
@@ -854,7 +851,7 @@ describe("ProviderSnapshotManager public surface", () => {
         wait: true,
       });
       expect(entry.status).toBe("error");
-      // explicit option (5) wins over env var (1)
+
       expect(entry.error).toMatch(/after 5ms/);
     } finally {
       manager.destroy();
@@ -1578,8 +1575,6 @@ describe("ProviderSnapshotManager applyMutableProviderConfig", () => {
       const listener = vi.fn();
       manager.on("change", listener);
 
-      // Prime two distinct cwd snapshots. resolve() makes the keys platform-
-      // native so Windows ("D:\\tmp\\...") matches the assertion below.
       const cwdA = resolve("/tmp/project-a");
       const cwdB = resolve("/tmp/project-b");
       manager.getSnapshot(cwdA);
@@ -1592,6 +1587,81 @@ describe("ProviderSnapshotManager applyMutableProviderConfig", () => {
 
       const cwds = [...new Set(listener.mock.calls.map((call) => call[0].current.cwd))].sort();
       expect(cwds).toEqual([cwdA, cwdB].sort());
+    } finally {
+      manager.destroy();
+    }
+  });
+
+  test("changing an account color updates snapshots while preserving its client", async () => {
+    const config = {
+      claude: { enabled: false },
+      codex: { enabled: false },
+      copilot: { enabled: false },
+      opencode: { enabled: false },
+      pi: { enabled: false },
+      omp: { enabled: false },
+      first: { extends: "codex", label: "Account", enabled: true, color: "sky" as const },
+    };
+    const client = createExtraClient("first", {
+      isAvailable: async () => true,
+      fetchCatalog: async () => ({
+        models: [{ provider: "first", id: "model", label: "Model" }],
+        modes: [],
+      }),
+    });
+    const manager = new ProviderSnapshotManager({
+      logger: createTestLogger(),
+      providerOverrides: config,
+      extraClients: { first: client },
+    });
+    const cwds = [resolveSnapshotCwd("/account-a"), resolveSnapshotCwd("/account-b")];
+    try {
+      for (const cwd of cwds) {
+        await expect(
+          manager.getProvider({ provider: "first", cwd, wait: true }),
+        ).resolves.toMatchObject({ color: "sky" });
+      }
+      for (const color of ["violet", null, "sky"] as const) {
+        const state = manager.applyMutableProviderConfig(
+          { ...config, first: { ...config.first, color } },
+          { replace: true },
+        );
+        expect(state.clients.first).toBe(client);
+        for (const cwd of cwds) {
+          const entry = await manager.getProvider({ provider: "first", cwd, wait: true });
+          expect(entry.color).toBe(color ?? undefined);
+          expect(entry.models?.[0]?.id).toBe("model");
+        }
+      }
+    } finally {
+      manager.destroy();
+    }
+  });
+
+  test("account color changes retain the configured runtime client", () => {
+    const config = {
+      claude: { enabled: false },
+      codex: { enabled: false },
+      copilot: { enabled: false },
+      opencode: { enabled: false },
+      pi: { enabled: false },
+      omp: { enabled: false },
+      first: { extends: "codex", label: "Account", enabled: true, color: "sky" as const },
+    };
+    const manager = new ProviderSnapshotManager({
+      logger: createTestLogger(),
+      providerOverrides: config,
+    });
+    try {
+      const client = manager.getAgentManagerProviderState().clients.first;
+      expect(client).toBeDefined();
+      for (const color of ["violet", null, "sky"] as const) {
+        const state = manager.applyMutableProviderConfig(
+          { ...config, first: { ...config.first, color } },
+          { replace: true },
+        );
+        expect(state.clients.first).toBe(client);
+      }
     } finally {
       manager.destroy();
     }
@@ -2257,7 +2327,6 @@ describe("ProviderSnapshotManager cwd routing", () => {
         },
       });
       try {
-        // Register after workspace views exist, as happens when reloading a plugin.
         for (const cwd of [
           resolveSnapshotCwd("/tmp/plugin-a"),
           resolveSnapshotCwd("/tmp/plugin-b"),
@@ -2774,7 +2843,7 @@ test("bounds each provider across workspaces without blocking another provider",
     await Promise.all(requests);
     expect(started.size).toBe(cwds.length + 1);
     expect(peak).toBe(4);
-    // Other sessions receive refreshed views without initiating a scoped read.
+
     expect(cwds.every((cwd) => updated.has(cwd))).toBe(true);
   } finally {
     release();
@@ -2834,7 +2903,7 @@ test.each(["configuration", "shutdown", "destroy"])(
           pi: { enabled: true, label: "Updated" },
         });
         await expect.poll(() => queuedSettled).toBe(true);
-        // Replacing configuration must not reset the budget for still-active probes.
+
         expect(calls).toEqual(cwds.slice(0, 4));
         release();
         await manager.warmUpSnapshotForCwd({ cwd: cwds[4], providers: ["pi"] });

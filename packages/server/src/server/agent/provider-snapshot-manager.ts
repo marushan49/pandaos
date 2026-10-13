@@ -93,7 +93,6 @@ function omitProviderOverrides(
   return Object.keys(nextOverrides).length > 0 ? nextOverrides : undefined;
 }
 
-/** Published values are shared read-only; provider-owned data is detached at publication. */
 export interface ProviderSnapshotRecord {
   readonly entry: ProviderSnapshotEntry;
   readonly contentHash: string;
@@ -201,7 +200,7 @@ interface ProviderLoadOptions {
 interface CatalogBinding {
   key?: string;
   failure?: ProviderSnapshotRecord;
-  /** Refresh intent survives reads that supersede an unfinished key lookup. */
+
   force: boolean;
   promise: Promise<void>;
 }
@@ -289,7 +288,6 @@ export class ProviderSnapshotManager {
   }
 
   getCachedSnapshot(cwd?: string): ProviderSnapshot {
-    // Routing must not start another account's runtime merely to inspect its catalog.
     return this.getOrCreateTarget(resolveProviderSnapshotTarget(cwd).snapshotCwd).snapshot;
   }
 
@@ -316,8 +314,7 @@ export class ProviderSnapshotManager {
         if (catalog) catalogs.set(provider, { result: catalog.result, stale: true });
       }
     }
-    // Refresh each known target: provider keys coalesce reads, while target-scoped
-    // providers must discover again in their own execution context.
+
     await this.refreshProviders(target, providersToRefresh);
     await Promise.all(
       [...this.targets.keys()]
@@ -373,8 +370,7 @@ export class ProviderSnapshotManager {
         derivedFromProviderId: definition.derivedFromProviderId,
         applyToolPolicy: definition.applyToolPolicy,
       };
-      // Disabling a provider only stops new sessions; its existing sessions still need
-      // the client to load, or they vanish from the app.
+
       clients[provider] = this.ensureClient(provider, definition, providerClients);
     }
     for (const [provider, client] of Object.entries(this.extraClients)) {
@@ -385,7 +381,6 @@ export class ProviderSnapshotManager {
     return { providerDefinitions, clients };
   }
 
-  /** Called after built-in and configured plugin startup has completed, including disabled plugins. */
   settlePluginProviders(): void {
     if (this.pluginProvidersSettled) return;
     this.pluginProvidersSettled = true;
@@ -411,7 +406,7 @@ export class ProviderSnapshotManager {
     }
     const previousPlugins = this.pluginProviders.definitions();
     const clients = { ...this.providerClients };
-    // Materialize fallible installed clients before retiring any plugin runtime.
+
     this.createAgentManagerState(this.generation.definitions, clients);
     this.pluginProviders.replace(registrations);
     const plugins = this.pluginProviders.definitions();
@@ -625,6 +620,8 @@ export class ProviderSnapshotManager {
       if (!before || !after || !isDeepStrictEqual(before.configuration, after.configuration)) {
         changed.add(provider);
         delete clients[provider];
+      } else if (before.identityColor !== after.identityColor) {
+        changed.add(provider);
       } else {
         definitions[provider] = before;
       }
@@ -690,9 +687,7 @@ export class ProviderSnapshotManager {
   async shutdown(): Promise<void> {
     this.destroyed = true;
     for (const state of this.generation.providerStates.values()) state.discoveryLimit.clearQueue();
-    // Materialize a client per enabled provider so provider-owned resources
-    // (background processes, sockets, etc.) get a chance to release even when
-    // a given provider hasn't been touched yet during this daemon's lifetime.
+
     this.getAgentManagerProviderState();
     await shutdownAgentClients(this.ownedClients, this.logger);
   }
@@ -891,7 +886,7 @@ export class ProviderSnapshotManager {
 
   private resolveProvidersToWarm(cwd: string, providers?: AgentProvider[]): AgentProvider[] {
     this.getOrCreateTarget(cwd);
-    // Identity is provider-owned and may change without a daemon config reload.
+
     return providers ?? this.getProviderIds();
   }
 
@@ -951,7 +946,7 @@ export class ProviderSnapshotManager {
       this.publishTargets([snapshotCwd]);
       return;
     }
-    // Only the latest key resolution for this target may bind it to a catalogue.
+
     if (currentBinding() !== binding) return currentBinding()?.promise;
     binding.force = false;
     binding.key = key;
