@@ -91,10 +91,14 @@ export function WorkspaceOpenInEditorButton({
   const isConnected = useHostRuntimeIsConnected(serverId);
   const isLocalDaemon = useIsLocalDaemon(serverId);
   const { preferredEditorId, updatePreferredEditor } = usePreferredEditor();
-  const { targets: desktopOpenTargets, isAvailable: isDesktopOpenAvailable } =
-    useDesktopOpenTargets({
-      isLocalExecution: isLocalDaemon,
-    });
+  const {
+    targets: desktopOpenTargets,
+    isAvailable: isDesktopOpenAvailable,
+    remoteSshHost,
+  } = useDesktopOpenTargets({
+    isLocalExecution: isLocalDaemon,
+    serverId,
+  });
 
   const resolvedFile = useMemo(
     () =>
@@ -127,6 +131,7 @@ export function WorkspaceOpenInEditorButton({
         desktopTargets: desktopOpenTargets,
         canUseDesktopBridge: isDesktopOpenAvailable,
         isLocalExecution: isLocalDaemon,
+        remoteSshHost,
         checkoutStatus,
         forge: resolvedForge,
       }).map((target) => {
@@ -157,6 +162,7 @@ export function WorkspaceOpenInEditorButton({
       isDesktopOpenAvailable,
       isLocalDaemon,
       resolvedFile,
+      remoteSshHost,
     ],
   );
 

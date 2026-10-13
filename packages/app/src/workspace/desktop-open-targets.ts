@@ -1,3 +1,4 @@
+import { useHosts, useHostRuntimeSnapshot } from "@/runtime/host-runtime";
 import { useQuery } from "@tanstack/react-query";
 import { getDesktopHost, type DesktopEditorBridge } from "@/desktop/host";
 
@@ -16,6 +17,7 @@ export interface DesktopOpenTarget {
 export interface OpenDesktopTargetInput {
   editorId: string;
   workspacePath: string;
+  remoteSshHost?: string;
   filePath?: string;
   line?: number;
   column?: number;
@@ -72,9 +74,24 @@ export async function openDesktopTarget(input: OpenDesktopTargetInput): Promise<
   await bridge.openTarget(input);
 }
 
-export function useDesktopOpenTargets(input: { isLocalExecution: boolean }) {
+export function useDesktopOpenTargets(input: { isLocalExecution: boolean; serverId?: string }) {
   const hasBridge = hasDesktopOpenTargetsBridge();
-  const canListTargets = hasBridge && input.isLocalExecution;
+  const hosts = useHosts();
+  const snapshot = useHostRuntimeSnapshot(input.serverId ?? "");
+  const host = hosts.find((candidate) => candidate.serverId === input.serverId);
+  const sshConnections =
+    host?.connections.filter((connection) => connection.type === "remoteSsh") ?? [];
+  const sshConnection =
+    sshConnections.find((connection) => connection.id === snapshot?.activeConnectionId) ??
+    sshConnections.find((connection) => connection.id === host?.preferredConnectionId) ??
+    sshConnections[0];
+  const remoteSshHost =
+    !input.isLocalExecution &&
+    sshConnection &&
+    (!sshConnection.sshPort || sshConnection.sshPort === 22)
+      ? sshConnection.host
+      : undefined;
+  const canListTargets = hasBridge && (input.isLocalExecution || Boolean(remoteSshHost));
   const query = useQuery({
     queryKey: ["desktop-open-targets"],
     enabled: canListTargets,
@@ -88,7 +105,8 @@ export function useDesktopOpenTargets(input: { isLocalExecution: boolean }) {
   });
 
   return {
-    targets,
+    targets: remoteSshHost ? targets.filter((target) => target.id === "vscode") : targets,
+    remoteSshHost,
     isAvailable: canListTargets,
   };
 }

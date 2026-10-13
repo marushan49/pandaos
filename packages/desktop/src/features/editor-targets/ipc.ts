@@ -12,6 +12,7 @@ interface IpcHandlerRegistry {
 const EditorTargetLaunchInputSchema = z.object({
   editorId: z.string().trim().min(1),
   workspacePath: z.string().trim().min(1),
+  remoteSshHost: z.string().trim().min(1).optional(),
   filePath: z.string().trim().min(1).optional(),
   line: z.number().int().positive().optional(),
   column: z.number().int().positive().optional(),

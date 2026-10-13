@@ -1,3 +1,5 @@
+import { validateSshHost } from "@getpaseo/protocol/ssh-transport";
+import { posix } from "node:path";
 import type {
   EditorTarget,
   EditorTargetDescriptor,
@@ -81,17 +83,26 @@ export async function openEditorTarget(
   runtime: EditorTargetRuntime,
   targets: readonly EditorTarget[] = EDITOR_TARGETS,
 ): Promise<void> {
-  if (!runtime.isAbsolutePath(input.workspacePath)) {
+  const isRemote = input.remoteSshHost !== undefined;
+  if (isRemote) {
+    validateSshHost(input.remoteSshHost!);
+    if (input.editorId !== "vscode") throw new Error("Remote SSH opening is available in VS Code");
+  }
+  if (
+    !(isRemote
+      ? posix.isAbsolute(input.workspacePath)
+      : runtime.isAbsolutePath(input.workspacePath))
+  ) {
     throw new Error("Editor target workspace path must be an absolute local path");
   }
-  if (!runtime.pathExists(input.workspacePath)) {
+  if (!isRemote && !runtime.pathExists(input.workspacePath)) {
     throw new Error(`Path does not exist: ${input.workspacePath}`);
   }
   if (input.filePath) {
-    if (!runtime.isAbsolutePath(input.filePath)) {
+    if (!(isRemote ? posix.isAbsolute(input.filePath) : runtime.isAbsolutePath(input.filePath))) {
       throw new Error("Editor target file path must be an absolute local path");
     }
-    if (!runtime.pathExists(input.filePath)) {
+    if (!isRemote && !runtime.pathExists(input.filePath)) {
       throw new Error(`Path does not exist: ${input.filePath}`);
     }
   }

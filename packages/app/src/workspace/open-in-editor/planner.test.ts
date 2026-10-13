@@ -233,4 +233,25 @@ describe("planWorkspaceOpenTargets", () => {
 
     expect(targets.map((target) => target.id)).toEqual(["github"]);
   });
+  it("offers VS Code and GitHub for a configured remote SSH workspace", () => {
+    const targets = planWorkspaceOpenTargets({
+      workspaceDirectory: "/home/admin/repo",
+      activeFile: { path: "src/app.ts", lineStart: 12 },
+      desktopTargets,
+      canUseDesktopBridge: true,
+      isLocalExecution: false,
+      remoteSshHost: "zotac",
+      checkoutStatus,
+    });
+    expect(targets.map((target) => target.id)).toEqual(["vscode", "github"]);
+    expect(targets[0]).toMatchObject({
+      openInput: {
+        editorId: "vscode",
+        workspacePath: "/home/admin/repo",
+        filePath: "/home/admin/repo/src/app.ts",
+        line: 12,
+        remoteSshHost: "zotac",
+      },
+    });
+  });
 });

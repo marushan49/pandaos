@@ -94,6 +94,7 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
     openTarget: (input: {
       editorId: string;
       workspacePath: string;
+      remoteSshHost?: string;
       filePath?: string;
       line?: number;
       column?: number;

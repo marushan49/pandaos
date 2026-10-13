@@ -13,6 +13,7 @@ export interface EditorTargetDescriptor {
 
 export interface EditorTargetLaunchInput {
   workspacePath: string;
+  remoteSshHost?: string;
   filePath?: string;
   line?: number;
   column?: number;

@@ -78,6 +78,7 @@ export interface DesktopEditorTargetDescriptor {
 export interface DesktopEditorOpenTargetInput {
   editorId: string;
   workspacePath: string;
+  remoteSshHost?: string;
   filePath?: string;
   line?: number;
   column?: number;

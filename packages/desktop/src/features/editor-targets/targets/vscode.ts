@@ -53,9 +53,15 @@ export const vscodeTarget: EditorTarget = {
   async launch(input, runtime) {
     const command = runtime.resolveCommand(commands(runtime));
     if (command) {
-      await runtime.spawnDetached({ command, args: launchArgs(input) });
+      await runtime.spawnDetached({
+        command,
+        args: input.remoteSshHost
+          ? ["--remote", `ssh-remote+${input.remoteSshHost}`, ...launchArgs(input)]
+          : launchArgs(input),
+      });
       return;
     }
+    if (input.remoteSshHost) throw new Error("VS Code command is unavailable for Remote SSH");
     if (runtime.hasMacApplication("Visual Studio Code")) {
       await runtime.openMacApplication({
         applicationName: "Visual Studio Code",

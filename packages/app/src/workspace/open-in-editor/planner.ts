@@ -39,6 +39,7 @@ export interface PlanWorkspaceOpenTargetsInput {
   desktopTargets: readonly DesktopOpenTarget[];
   canUseDesktopBridge: boolean;
   isLocalExecution: boolean;
+  remoteSshHost?: string;
   checkoutStatus?: CheckoutStatusForOpenTarget | null;
   forge?: Forge | null;
 }
@@ -68,8 +69,9 @@ function planDesktopOpenTargets(input: {
   desktopTargets: readonly DesktopOpenTarget[];
   canUseDesktopBridge: boolean;
   isLocalExecution: boolean;
+  remoteSshHost?: string;
 }): PlannedDesktopOpenTarget[] {
-  if (!input.canUseDesktopBridge || !input.isLocalExecution) {
+  if (!input.canUseDesktopBridge || (!input.isLocalExecution && !input.remoteSshHost)) {
     return [];
   }
 
@@ -87,7 +89,12 @@ function planDesktopOpenTargets(input: {
   }
   const workspacePath = resolvedDirectory?.absolutePath ?? input.workspaceDirectory;
 
-  return input.desktopTargets.map((target) => {
+  const desktopTargets = input.isLocalExecution
+    ? input.desktopTargets
+    : input.desktopTargets.filter((target) => target.id === "vscode");
+  const remoteInput =
+    !input.isLocalExecution && input.remoteSshHost ? { remoteSshHost: input.remoteSshHost } : {};
+  return desktopTargets.map((target) => {
     if (!input.resolvedFile) {
       return {
         source: "desktop",
@@ -95,7 +102,7 @@ function planDesktopOpenTargets(input: {
         label: target.label,
         editorId: target.id,
         icon: target.icon,
-        openInput: { editorId: target.id, workspacePath },
+        openInput: { editorId: target.id, workspacePath, ...remoteInput },
       };
     }
     return {
@@ -107,6 +114,7 @@ function planDesktopOpenTargets(input: {
       openInput: {
         editorId: target.id,
         workspacePath,
+        ...remoteInput,
         filePath: input.resolvedFile.absolutePath,
         ...(input.activeFile?.lineStart ? { line: input.activeFile.lineStart } : {}),
       },

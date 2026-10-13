@@ -324,4 +324,60 @@ describe("editor target registry", () => {
     expect(macTargets.map((target) => target.id)).toEqual(["finder"]);
     expect(windowsTargets.map((target) => target.id)).toEqual(["explorer"]);
   });
+  it("opens remote files in VS Code without requiring paths on the Mac", async () => {
+    const runtime = new FakeEditorTargets("darwin");
+    runtime.installCommand("code");
+    await openEditorTarget(
+      {
+        editorId: "vscode",
+        workspacePath: "/home/admin/repo",
+        filePath: "/home/admin/repo/src/app.ts",
+        line: 12,
+        remoteSshHost: "zotac",
+      },
+      runtime,
+    );
+    expect(runtime.launches).toEqual([
+      {
+        command: "/bin/code",
+        args: [
+          "--remote",
+          "ssh-remote+zotac",
+          "/home/admin/repo",
+          "--goto",
+          "/home/admin/repo/src/app.ts:12",
+        ],
+      },
+    ]);
+  });
+
+  it("rejects invalid SSH hosts and unsupported remote editors", async () => {
+    const runtime = new FakeEditorTargets("darwin");
+    await expect(
+      openEditorTarget(
+        { editorId: "vscode", workspacePath: "/repo", remoteSshHost: "-oProxyCommand=evil" },
+        runtime,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      openEditorTarget(
+        { editorId: "finder", workspacePath: "/repo", remoteSshHost: "zotac" },
+        runtime,
+      ),
+    ).rejects.toThrow("Remote SSH opening");
+    await expect(
+      openEditorTarget(
+        { editorId: "vscode", workspacePath: "relative", remoteSshHost: "zotac" },
+        runtime,
+      ),
+    ).rejects.toThrow("absolute");
+  });
+
+  it("still requires local workspace paths to exist", async () => {
+    const runtime = new FakeEditorTargets("darwin");
+    runtime.installCommand("code");
+    await expect(
+      openEditorTarget({ editorId: "vscode", workspacePath: "/missing" }, runtime),
+    ).rejects.toThrow("Path does not exist");
+  });
 });

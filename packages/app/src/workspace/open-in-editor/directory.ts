@@ -24,7 +24,10 @@ export function useOpenDirectoryInEditor({
   const toast = useToast();
   const isLocalExecution = useIsLocalDaemon(serverId);
   const { preferredEditorId } = usePreferredEditor();
-  const { targets, isAvailable } = useDesktopOpenTargets({ isLocalExecution });
+  const { targets, isAvailable, remoteSshHost } = useDesktopOpenTargets({
+    isLocalExecution,
+    serverId,
+  });
   const editorTargets = useMemo(
     () => targets.filter((target) => target.kind === "editor"),
     [targets],
@@ -48,6 +51,7 @@ export function useOpenDirectoryInEditor({
         desktopTargets: [preferredTarget],
         canUseDesktopBridge: isAvailable,
         isLocalExecution,
+        remoteSshHost,
       }).find((candidate) => candidate.source === "desktop");
       if (!target) {
         return;
@@ -58,7 +62,7 @@ export function useOpenDirectoryInEditor({
         );
       });
     },
-    [isAvailable, isLocalExecution, preferredTarget, t, toast, workspaceDirectory],
+    [isAvailable, isLocalExecution, preferredTarget, remoteSshHost, t, toast, workspaceDirectory],
   );
 
   return useMemo(
