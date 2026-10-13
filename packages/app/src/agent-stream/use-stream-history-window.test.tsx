@@ -135,6 +135,44 @@ describe("useStreamHistoryWindow", () => {
     expect(result.current.start).toBe(4);
   });
 
+  it("keeps revealed history when only the boundary item is replaced", async () => {
+    Object.defineProperty(globalThis, "__PASEO_E2E_WEB_MOUNTED_RECENT_STREAM_ITEMS", {
+      value: 2,
+      configurable: true,
+    });
+    const items = [
+      message("u0", "user_message"),
+      message("a0", "assistant_message"),
+      message("u1", "user_message"),
+      message("a1", "assistant_message"),
+      message("u2", "user_message"),
+      message("a2", "assistant_message"),
+    ];
+    const { result, rerender } = renderHook(
+      ({ history }) =>
+        useStreamHistoryWindow({ agentId: "agent-1", items: history, loadRemoteOlder: vi.fn() }),
+      { initialProps: { history: items } },
+    );
+
+    expect(result.current.start).toBe(4);
+    await act(async () => result.current.loadOlder());
+    expect(result.current.start).toBe(2);
+
+    rerender({
+      history: [
+        message("older-u", "user_message"),
+        message("older-a", "assistant_message"),
+        message("u0", "user_message"),
+        message("a0", "assistant_message"),
+        message("u1-merged", "user_message"),
+        message("a1", "assistant_message"),
+        message("u2", "user_message"),
+        message("a2", "assistant_message"),
+      ],
+    });
+    expect(result.current.start).toBe(4);
+  });
+
   it("does not claim to reveal a missing or already-visible item", () => {
     Object.defineProperty(globalThis, "__PASEO_E2E_WEB_MOUNTED_RECENT_STREAM_ITEMS", {
       value: 2,

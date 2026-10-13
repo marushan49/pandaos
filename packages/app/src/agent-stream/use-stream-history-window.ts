@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StreamItem } from "@/types/stream";
 import { findMountedWindowStart, getMountedRecentStreamItems } from "./history-window";
 import { getStreamItemMessageId } from "./presentation";
 
-// Callers reveal a message, not a row: an assistant message is several block rows and
-// the window has to open at the first of them.
 function findMessageRowIndex(items: StreamItem[], messageId: string): number {
   return items.findIndex((item) => getStreamItemMessageId(item) === messageId);
 }
@@ -26,6 +24,30 @@ function findEarlierHistoryWindowStart(input: {
     items: input.items.slice(0, targetStart + 1),
     minMountedCount: 1,
   });
+}
+
+function findSurvivingBoundaryItemId(input: {
+  previousItems: StreamItem[];
+  items: StreamItem[];
+  boundaryItemId: string;
+}): string | null {
+  const { previousItems, items, boundaryItemId } = input;
+  const previousStart = previousItems.findIndex((item) => item.id === boundaryItemId);
+  if (previousStart < 0) {
+    return null;
+  }
+  const indexById = new Map(items.map((item, index) => [item.id, index]));
+  for (const previous of previousItems.slice(previousStart)) {
+    const index = indexById.get(previous.id);
+    if (index !== undefined) {
+      const start = findMountedWindowStart({
+        items: items.slice(0, index + 1),
+        minMountedCount: 1,
+      });
+      return items[start]?.id ?? null;
+    }
+  }
+  return null;
 }
 
 interface HistoryWindowBoundary {
@@ -70,10 +92,24 @@ export function useStreamHistoryWindow(input: {
     boundaryItemId: initialBoundaryItemId,
     initialized: items.length > 0,
   }));
+  const committedItemsRef = useRef(items);
+  useEffect(() => {
+    committedItemsRef.current = items;
+  }, [items]);
   const boundaryIndex =
     window.agentId === agentId && window.boundaryItemId !== null
       ? items.findIndex((item) => item.id === window.boundaryItemId)
       : -1;
+  if (window.agentId === agentId && window.boundaryItemId !== null && boundaryIndex < 0) {
+    const survivingBoundaryItemId = findSurvivingBoundaryItemId({
+      previousItems: committedItemsRef.current,
+      items,
+      boundaryItemId: window.boundaryItemId,
+    });
+    if (survivingBoundaryItemId !== null) {
+      setWindow({ ...window, boundaryItemId: survivingBoundaryItemId });
+    }
+  }
   let start = initialStart;
   if (window.agentId === agentId && window.initialized) {
     if (window.boundaryItemId === null) {
