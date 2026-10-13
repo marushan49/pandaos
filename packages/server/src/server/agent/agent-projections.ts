@@ -142,6 +142,7 @@ export function toAgentPayload(
     persistence: projectPersistenceHandleForWire(agent.persistence),
     title: options?.title ?? null,
     labels: agent.labels,
+    ...(agent.internal ? { internal: true } : {}),
   };
 
   const usage = sanitizeUsage(agent.lastUsage);
@@ -235,7 +236,7 @@ export function buildStoredAgentPayload(
     ...(record.workspaceId ? { workspaceId: record.workspaceId } : {}),
     model: record.config?.model ?? null,
     thinkingOptionId: record.config?.thinkingOptionId ?? null,
-    ...(record.config?.routingNotice ? { routingNotice: record.config.routingNotice } : {}),
+    ...buildStoredAgentOptionalFields(record),
     effectiveThinkingOptionId: resolveEffectiveThinkingOptionId({
       runtimeInfo,
       configuredThinkingOptionId: record.config?.thinkingOptionId ?? null,
@@ -257,6 +258,16 @@ export function buildStoredAgentPayload(
     archivedAt: record.archivedAt ?? null,
     labels: normalizeLabels(record.labels),
     ...(providerAvailable ? {} : { providerUnavailable: true }),
+  };
+}
+
+function buildStoredAgentOptionalFields(
+  record: StoredAgentRecord,
+): Pick<AgentSnapshotPayload, "routingNotice" | "internal" | "lastError"> {
+  return {
+    ...(record.config?.routingNotice ? { routingNotice: record.config.routingNotice } : {}),
+    ...(record.internal ? { internal: true } : {}),
+    ...(typeof record.lastError === "string" ? { lastError: record.lastError } : {}),
   };
 }
 

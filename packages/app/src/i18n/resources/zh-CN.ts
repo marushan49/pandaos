@@ -38,6 +38,7 @@ export const zhCN: TranslationResources = {
     back: "返回",
     loading: "加载中...",
     actions: {
+      save: "保存",
       back: "返回",
       cancel: "取消",
       close: "关闭",
@@ -131,6 +132,8 @@ export const zhCN: TranslationResources = {
     input: {
       accessibilityLabel: "给 Agent 发消息...",
       terminalAccessibilityLabel: "Terminal prompt",
+      fullscreen: "全屏",
+      exitFullscreen: "退出全屏",
       focusHint: "{{shortcut}} 聚焦",
       addAttachment: "添加附件",
       interruptAgent: "中断 Agent",
@@ -394,8 +397,26 @@ export const zhCN: TranslationResources = {
       openFile: "打开文件",
       copied: "已复制",
     },
-    writingBlock: {
-      untitled: "文本",
+    contentBlock: {
+      text: "文本",
+      email: "邮件",
+      document: "文档",
+      prompt: "提示词",
+      edit: "编辑",
+      done: "完成编辑",
+      edited: "已编辑",
+      reset: "重置",
+      copy: "复制",
+      copied: "已复制",
+      copyOptions: "复制选项",
+      copyFormatted: "带格式复制",
+      copyPlain: "复制为文本",
+      copyMarkdown: "复制为 Markdown",
+      copySubject: "复制主题",
+      bold: "粗体",
+      italic: "斜体",
+      heading: "标题",
+      editorLabel: "编辑内容",
     },
     attachments: {
       dismissImage: "关闭图片",
@@ -736,6 +757,9 @@ export const zhCN: TranslationResources = {
       hostDisconnected: "Host 未连接",
       updateHost: "请更新主机以使用原生终端渲染器。",
       unableToSubscribe: "无法订阅 Terminal",
+    },
+    sheet: {
+      openAsTab: "作为标签页打开",
     },
     tabs: {
       loading: "正在加载...",
@@ -1363,6 +1387,7 @@ export const zhCN: TranslationResources = {
       done: "已完成",
     },
     display: {
+      showBackground: "显示后台工作区",
       trigger: "显示偏好",
       heading: "显示",
       grouping: {
@@ -2302,6 +2327,17 @@ export const zhCN: TranslationResources = {
     accessibility: "上下文窗口已使用 {{percentage}}%",
   },
   review: {
+    feedback: {
+      send: "发送反馈 ({{count}})",
+      sending: "正在发送反馈 ({{count}})",
+      chooseAgent: "选择智能体",
+      sent: "已向 {{recipient}} 发送反馈",
+      "no-agents": "请在此工作区打开智能体标签页以发送反馈。",
+      disconnected: "请连接到主机以发送反馈。",
+      "no-context": "保存的评论不再匹配此差异。",
+      failed: "发送反馈失败。请重试。",
+      prompt: "请处理此代码审查。",
+    },
     comment: {
       add: "添加 review 评论",
       edit: "编辑 review 评论",

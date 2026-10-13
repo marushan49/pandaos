@@ -1,3 +1,5 @@
+import type { AgentMessage } from "@getpaseo/protocol/agent-message";
+import { buildAgentMessageDisplay } from "@getpaseo/protocol/agent-message-display";
 import type { PlanOutcome } from "@/components/plan-card";
 import type { ComponentType } from "react";
 import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
@@ -14,6 +16,7 @@ type ToolCallStatus = "executing" | "running" | "completed" | "failed" | "cancel
 export type ToolCallPresentationIcon = ComponentType<{ size?: number; color?: string }>;
 
 interface BuildToolCallPresentationInput {
+  agentMessage?: AgentMessage;
   toolName: string;
   status: ToolCallStatus;
   error: unknown;
@@ -24,6 +27,7 @@ interface BuildToolCallPresentationInput {
 }
 
 export interface ToolCallPresentation {
+  detail: ToolCallDetail | undefined;
   displayName: string;
   summary?: string;
   errorText?: string;
@@ -53,10 +57,14 @@ function displayDetail(detail: ToolCallDetail | undefined): ToolCallDetail {
 export function buildToolCallPresentation(
   input: BuildToolCallPresentationInput,
 ): ToolCallPresentation {
-  const detailForDisplay = displayDetail(input.detail);
+  const detail = input.agentMessage
+    ? buildAgentMessageDisplay(input.agentMessage).detail
+    : input.detail;
+  const detailForDisplay = displayDetail(detail);
   const origin = resolveToolCallOrigin(input.toolName, input.metadata);
   const displayModel = buildToolCallDisplayModel({
     name: input.toolName,
+    agentMessage: input.agentMessage,
     status: displayStatus(input.status),
     error: input.error ?? null,
     detail: detailForDisplay,
@@ -64,21 +72,22 @@ export function buildToolCallPresentation(
     cwd: input.cwd,
   });
   const isLoadingDetails = isPendingToolCallDetail({
-    detail: input.detail,
+    detail,
     status: input.status,
     error: input.error,
   });
-  const hasDetails = Boolean(input.error) || hasMeaningfulToolCallDetail(input.detail);
+  const hasDetails = Boolean(input.error) || hasMeaningfulToolCallDetail(detail);
 
   return {
+    detail,
     displayName: displayModel.displayName,
     summary: displayModel.summary,
     errorText: displayModel.errorText,
-    icon: input.resolveIcon(input.toolName, input.detail),
+    icon: input.resolveIcon(input.toolName, detail),
     isLoadingDetails,
     hasDetails,
     canOpenDetails: hasDetails || isLoadingDetails,
-    openFilePath: extractToolCallFilePath(input.detail),
+    openFilePath: extractToolCallFilePath(detail),
     isPlan: input.detail?.type === "plan",
     planOutcome: input.detail?.type === "plan" ? resolvePlanOutcome(input) : undefined,
     ...(origin ? { origin } : {}),

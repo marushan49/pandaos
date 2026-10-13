@@ -326,7 +326,7 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
   const isConnected = useHostRuntimeIsConnected(serverId);
   const supportsProviderRemoval = useHostFeature(serverId, "providerRemoval");
   const { entries, isLoading, refresh } = useProvidersSnapshot(serverId);
-  const { patchConfig } = useDaemonConfig(serverId);
+  const { config, patchConfig } = useDaemonConfig(serverId);
   const openProviderSettings = useProviderSettingsStore((state) => state.open);
   const [pendingProviderId, setPendingProviderId] = useState<string | null>(null);
   const [removingProviderId, setRemovingProviderId] = useState<string | null>(null);
@@ -337,6 +337,11 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
 
   const providerDefinitions = useMemo(() => buildProviderDefinitions(entries), [entries]);
   const hasServer = serverId.length > 0;
+
+  const isConfigOwnedProvider = useCallback(
+    (providerId: string) => Boolean(config?.providers?.[providerId]?.extends),
+    [config],
+  );
 
   const handleOpenProviderSettings = useCallback(
     (providerId: string) => {
@@ -381,20 +386,23 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
     }
   }, [entries, refresh, t, toast]);
 
-  const refreshButton =
-    hasServer && isConnected ? (
-      <Button
-        variant="ghost"
-        size="sm"
-        onPress={handleRefreshEnabled}
-        disabled={isRefreshingAll || isLoading}
-        testID="host-page-providers-refresh"
-      >
-        {isRefreshingAll
-          ? t("settings.providers.refreshing")
-          : t("settings.providers.refreshModels")}
-      </Button>
-    ) : undefined;
+  const refreshButton = useMemo(
+    () =>
+      hasServer && isConnected ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={handleRefreshEnabled}
+          disabled={isRefreshingAll || isLoading}
+          testID="host-page-providers-refresh"
+        >
+          {isRefreshingAll
+            ? t("settings.providers.refreshing")
+            : t("settings.providers.refreshModels")}
+        </Button>
+      ) : undefined,
+    [hasServer, isConnected, handleRefreshEnabled, isRefreshingAll, isLoading, t],
+  );
 
   const handleRemoveProvider = useCallback(
     async (providerId: string, providerLabel: string) => {
@@ -479,7 +487,11 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
                   enabled={entry.enabled ?? true}
                   isToggling={pendingProviderId === def.id}
                   isRemoving={removingProviderId === def.id}
-                  canRemove={supportsProviderRemoval && entry.source === "custom"}
+                  canRemove={
+                    supportsProviderRemoval &&
+                    entry.source === "custom" &&
+                    isConfigOwnedProvider(def.id)
+                  }
                   isFirst={index === 0}
                   onPress={handleOpenProviderSettings}
                   onToggleEnabled={handleToggleEnabled}

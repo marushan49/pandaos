@@ -50,7 +50,7 @@ import { useToast } from "@/contexts/toast-context";
 import { toErrorMessage } from "@/utils/error-messages";
 import { showProviderNoticeToast } from "@/utils/provider-notice-toast";
 import { applyCheckoutStatusUpdateFromEvent } from "@/git/checkout-status-cache";
-import { useProviderSubagentStore } from "@/subagents/provider-store";
+import { resyncProviderSubagents, useProviderSubagentStore } from "@/subagents/provider-store";
 import { useBrowserActivityStore } from "@/desktop/browser/activity";
 import { applyBrowserTabClose, useBrowserTabCloseStore } from "@/desktop/browser/tab-close";
 import { publishBrowserMirror } from "@/desktop/browser/mirror";
@@ -536,9 +536,14 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
       }
     });
 
-    const unsubProviderSubagentUpdate = onFeed("agent.provider_subagents.update", (message) => {
-      if (message.type !== "agent.provider_subagents.update") return;
-      useProviderSubagentStore.getState().applyUpdate(serverId, message.payload);
+    const unsubProviderSubagentUpdate = feeds.subscribe({
+      snapshot: () => {
+        void resyncProviderSubagents(client, serverId);
+      },
+      update: (message) => {
+        if (message.type !== "agent.provider_subagents.update") return;
+        useProviderSubagentStore.getState().applyUpdate(serverId, message.payload);
+      },
     });
 
     const unsubCheckoutStatusUpdate = onFeed("checkout_status_update", (message) => {

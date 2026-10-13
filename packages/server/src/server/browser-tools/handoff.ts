@@ -3,7 +3,8 @@ import type { BrowserHandoff } from "@getpaseo/protocol/browser-activity/rpc-sch
 import type { AgentManager } from "../agent/agent-manager.js";
 import type { AgentStorage } from "../agent/agent-storage.js";
 import { ensureAgentLoaded } from "../agent/agent-loading.js";
-import { formatSystemNotificationPrompt, sendPromptToAgent } from "../agent/agent-prompt.js";
+import { formatSystemNotificationPrompt } from "../agent/agent-messages/index.js";
+import { sendPromptToAgent } from "../agent/agent-prompt.js";
 import type { BrowserActivityHub } from "./browser-activity.js";
 import type { BrowserToolsBroker, BrowserToolsExecuteInput } from "./broker.js";
 import type { RegisterBrowserToolsOptions } from "./tools.js";

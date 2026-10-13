@@ -39,6 +39,7 @@ export const es: TranslationResources = {
     back: "Atrás",
     loading: "Cargando...",
     actions: {
+      save: "Guardar",
       back: "Atrás",
       cancel: "Cancelar",
       close: "Cerrar",
@@ -132,6 +133,8 @@ export const es: TranslationResources = {
     input: {
       accessibilityLabel: "Agente de mensajes...",
       terminalAccessibilityLabel: "Terminal prompt",
+      fullscreen: "Pantalla completa",
+      exitFullscreen: "Salir de pantalla completa",
       focusHint: "{{shortcut}}para enfocar",
       addAttachment: "Agregar archivo adjunto",
       interruptAgent: "agente de interrupción",
@@ -399,8 +402,26 @@ export const es: TranslationResources = {
       openFile: "Abrir archivo",
       copied: "Copiado",
     },
-    writingBlock: {
-      untitled: "Texto",
+    contentBlock: {
+      text: "Texto",
+      email: "Correo",
+      document: "Documento",
+      prompt: "Prompt",
+      edit: "Editar",
+      done: "Terminar edición",
+      edited: "Editado",
+      reset: "Restablecer",
+      copy: "Copiar",
+      copied: "Copiado",
+      copyOptions: "Opciones de copia",
+      copyFormatted: "Copiar con formato",
+      copyPlain: "Copiar como texto",
+      copyMarkdown: "Copiar como Markdown",
+      copySubject: "Copiar asunto",
+      bold: "Negrita",
+      italic: "Cursiva",
+      heading: "Encabezado",
+      editorLabel: "Editar contenido",
     },
     attachments: {
       dismissImage: "Descartar imagen",
@@ -743,6 +764,9 @@ export const es: TranslationResources = {
       hostDisconnected: "Hostno está conectado",
       updateHost: "Actualiza el host para usar el renderizador de terminal nativo.",
       unableToSubscribe: "No se puede suscribir al terminal",
+    },
+    sheet: {
+      openAsTab: "Abrir como pestaña",
     },
     tabs: {
       loading: "Cargando...",
@@ -1412,6 +1436,7 @@ export const es: TranslationResources = {
       done: "Terminado",
     },
     display: {
+      showBackground: "Mostrar espacios en segundo plano",
       trigger: "Preferencias de visualización",
       heading: "Visualización",
       grouping: {
@@ -2378,6 +2403,17 @@ export const es: TranslationResources = {
     accessibility: "Ventana de contexto{{percentage}}% utilizada",
   },
   review: {
+    feedback: {
+      send: "Enviar comentarios ({{count}})",
+      sending: "Enviando comentarios ({{count}})",
+      chooseAgent: "Elegir un agente",
+      sent: "Comentarios enviados a {{recipient}}",
+      "no-agents": "Abre una pestaña de agente en este espacio de trabajo para enviar comentarios.",
+      disconnected: "Conéctate al host para enviar comentarios.",
+      "no-context": "Los comentarios guardados ya no coinciden con este diff.",
+      failed: "No se pudieron enviar los comentarios. Inténtalo de nuevo.",
+      prompt: "Por favor, atiende esta revisión de código.",
+    },
     comment: {
       add: "Agregar comentario de revisión",
       edit: "Editar comentario de revisión",

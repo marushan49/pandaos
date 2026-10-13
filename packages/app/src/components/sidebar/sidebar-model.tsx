@@ -85,6 +85,7 @@ export function SidebarModelProvider({
 }) {
   const { t } = useTranslation();
   const list = useSidebarWorkspacesList({ enabled: active });
+  const showBackground = useSidebarViewStore((state) => state.showBackground);
   const groupMode = useSidebarViewStore((state) => state.groupMode);
   const labelFilter = useSidebarViewStore((state) => state.labelFilter);
   const projectFilters = useSidebarViewStore((state) => state.projectFilters);
@@ -143,7 +144,10 @@ export function SidebarModelProvider({
       projectFilters: resolvedProjectFilters,
     });
     return partitionSetAsideWorkspaces({
-      entries: filterWorkspacesByLabels({ workspaces: byProject, ...labelFilter }),
+      entries: filterWorkspacesByLabels({
+        workspaces: byProject.filter((workspace) => showBackground || !workspace.background),
+        ...labelFilter,
+      }),
       snoozedWorkspaceUntil,
       now,
       needsYouOnly,
@@ -153,6 +157,7 @@ export function SidebarModelProvider({
     needsYouOnly,
     now,
     resolvedProjectFilters,
+    showBackground,
     snoozedWorkspaceUntil,
     workspaceEntriesByKey,
   ]);
@@ -183,16 +188,19 @@ export function SidebarModelProvider({
           : { ...project, workspaces };
       });
     }
-    if (hasActiveLabelFilter || needsYouOnly) {
+    if (hasActiveLabelFilter || needsYouOnly || !showBackground) {
       projects = projects.flatMap((project) => {
         const workspaces = project.workspaces.filter((workspace) =>
           visibleWorkspaceKeys.has(workspace.workspaceKey),
         );
-        return workspaces.length > 0 ? [{ ...project, workspaces }] : [];
+        return workspaces.length > 0 || (!hasActiveLabelFilter && project.workspaces.length === 0)
+          ? [{ ...project, workspaces }]
+          : [];
       });
     }
     return projects;
   }, [
+    showBackground,
     hasActiveLabelFilter,
     hasActiveProjectFilter,
     needsYouOnly,

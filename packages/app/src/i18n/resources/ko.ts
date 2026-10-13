@@ -38,6 +38,7 @@ export const ko: TranslationResources = {
     back: "뒤로",
     loading: "불러오는 중...",
     actions: {
+      save: "저장",
       back: "뒤로",
       cancel: "취소",
       close: "닫기",
@@ -131,6 +132,8 @@ export const ko: TranslationResources = {
     input: {
       accessibilityLabel: "에이전트에게 메시지...",
       terminalAccessibilityLabel: "Terminal prompt",
+      fullscreen: "전체 화면",
+      exitFullscreen: "전체 화면 종료",
       focusHint: "{{shortcut}}로 포커스",
       addAttachment: "첨부 추가",
       interruptAgent: "에이전트 중단",
@@ -395,8 +398,26 @@ export const ko: TranslationResources = {
       openFile: "파일 열기",
       copied: "복사됨",
     },
-    writingBlock: {
-      untitled: "텍스트",
+    contentBlock: {
+      text: "텍스트",
+      email: "이메일",
+      document: "문서",
+      prompt: "프롬프트",
+      edit: "편집",
+      done: "편집 완료",
+      edited: "편집됨",
+      reset: "초기화",
+      copy: "복사",
+      copied: "복사됨",
+      copyOptions: "복사 옵션",
+      copyFormatted: "서식 포함 복사",
+      copyPlain: "텍스트로 복사",
+      copyMarkdown: "Markdown으로 복사",
+      copySubject: "제목 복사",
+      bold: "굵게",
+      italic: "기울임꼴",
+      heading: "제목",
+      editorLabel: "내용 편집",
     },
     attachments: {
       dismissImage: "이미지 닫기",
@@ -738,6 +759,9 @@ export const ko: TranslationResources = {
       hostDisconnected: "호스트가 연결되어 있지 않습니다",
       updateHost: "기본 터미널 렌더러를 사용하도록 호스트를 업데이트합니다.",
       unableToSubscribe: "터미널을 구독할 수 없습니다",
+    },
+    sheet: {
+      openAsTab: "탭으로 열기",
     },
     tabs: {
       loading: "불러오는 중...",
@@ -1382,6 +1406,7 @@ export const ko: TranslationResources = {
       done: "완료",
     },
     display: {
+      showBackground: "백그라운드 표시",
       trigger: "표시 설정",
       heading: "표시",
       grouping: {
@@ -2339,6 +2364,17 @@ export const ko: TranslationResources = {
     accessibility: "컨텍스트 윈도우 {{percentage}}% 사용됨",
   },
   review: {
+    feedback: {
+      send: "피드백 보내기 ({{count}})",
+      sending: "피드백 전송 중 ({{count}})",
+      chooseAgent: "에이전트 선택",
+      sent: "{{recipient}}에게 피드백을 보냈습니다",
+      "no-agents": "피드백을 보내려면 이 작업 공간에서 에이전트 탭을 여세요.",
+      disconnected: "피드백을 보내려면 호스트에 연결하세요.",
+      "no-context": "저장된 댓글이 더 이상 이 변경 사항과 일치하지 않습니다.",
+      failed: "피드백 전송에 실패했습니다. 다시 시도하세요.",
+      prompt: "이 코드 리뷰를 반영해 주세요.",
+    },
     comment: {
       add: "리뷰 댓글 추가",
       edit: "리뷰 댓글 편집",

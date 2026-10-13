@@ -39,6 +39,7 @@ export const ja: TranslationResources = {
     back: "戻る",
     loading: "読み込み中...",
     actions: {
+      save: "保存",
       back: "戻る",
       cancel: "キャンセル",
       close: "閉じる",
@@ -132,6 +133,8 @@ export const ja: TranslationResources = {
     input: {
       accessibilityLabel: "エージェントにメッセージ...",
       terminalAccessibilityLabel: "Terminal prompt",
+      fullscreen: "全画面表示",
+      exitFullscreen: "全画面表示を終了",
       focusHint: "{{shortcut}}でフォーカス",
       addAttachment: "添付ファイルを追加",
       interruptAgent: "エージェントを中断",
@@ -399,8 +402,26 @@ export const ja: TranslationResources = {
       openFile: "ファイルを開く",
       copied: "コピーしました",
     },
-    writingBlock: {
-      untitled: "テキスト",
+    contentBlock: {
+      text: "テキスト",
+      email: "メール",
+      document: "ドキュメント",
+      prompt: "プロンプト",
+      edit: "編集",
+      done: "編集を終了",
+      edited: "編集済み",
+      reset: "リセット",
+      copy: "コピー",
+      copied: "コピーしました",
+      copyOptions: "コピーオプション",
+      copyFormatted: "書式付きでコピー",
+      copyPlain: "テキストとしてコピー",
+      copyMarkdown: "Markdown としてコピー",
+      copySubject: "件名をコピー",
+      bold: "太字",
+      italic: "斜体",
+      heading: "見出し",
+      editorLabel: "内容を編集",
     },
     attachments: {
       dismissImage: "画像を閉じる",
@@ -743,6 +764,9 @@ export const ja: TranslationResources = {
       hostDisconnected: "ホストが接続されていません",
       updateHost: "ネイティブターミナルを使用するにはホストを更新してください。",
       unableToSubscribe: "ターミナルに接続できません",
+    },
+    sheet: {
+      openAsTab: "タブで開く",
     },
     tabs: {
       loading: "読み込み中...",
@@ -1389,6 +1413,7 @@ export const ja: TranslationResources = {
       done: "完了",
     },
     display: {
+      showBackground: "バックグラウンドを表示",
       trigger: "表示設定",
       heading: "表示",
       grouping: {
@@ -2349,6 +2374,18 @@ export const ja: TranslationResources = {
     accessibility: "コンテキストウィンドウ{{percentage}}%使用",
   },
   review: {
+    feedback: {
+      send: "フィードバックを送信 ({{count}})",
+      sending: "フィードバックを送信中 ({{count}})",
+      chooseAgent: "エージェントを選択",
+      sent: "{{recipient}} にフィードバックを送信しました",
+      "no-agents":
+        "フィードバックを送信するには、このワークスペースでエージェントタブを開いてください。",
+      disconnected: "フィードバックを送信するにはホストに接続してください。",
+      "no-context": "保存したコメントはこの差分と一致しなくなりました。",
+      failed: "フィードバックを送信できませんでした。もう一度お試しください。",
+      prompt: "このコードレビューに対応してください。",
+    },
     comment: {
       add: "レビューコメントを追加",
       edit: "レビューコメントを編集",

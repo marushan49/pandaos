@@ -1,6 +1,6 @@
 import type { AgentTimelineItem } from "./agent-sdk-types.js";
 import { curateAgentActivity } from "./activity-curator.js";
-import { isSystemInjectedEnvelope } from "./agent-prompt.js";
+import { isSystemInjectedEnvelope } from "./agent-messages/index.js";
 
 /**
  * What a new provider session needs to keep working on something it did not

@@ -1,3 +1,4 @@
+import type { AgentMessage } from "@getpaseo/protocol/agent-message";
 import {
   ASSISTANT_IMAGE_DEFAULT_ASPECT_RATIO,
   ASSISTANT_IMAGE_PREVIEW_MAX_HEIGHT,
@@ -118,6 +119,7 @@ import {
 import { getCompactionMarkerLabel } from "./message-compaction-label";
 import { useAssistantImage } from "@/assistant-image/use-assistant-image";
 import { AssistantMarkdownVideo } from "@/components/assistant-markdown-video";
+import { AssistantMarkdownFile } from "@/components/assistant-markdown-file";
 import {
   AttachmentFrame,
   AttachmentLabel,
@@ -1881,6 +1883,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           key={node.key}
           code={node.content}
           info={node.sourceInfo}
+          blockKey={`${occurrenceKey}:${node.key}`}
           phase={phase}
           inheritedStyles={inheritedStyles}
           textStyle={styles.fence}
@@ -2033,7 +2036,9 @@ export const AssistantMessage = memo(function AssistantMessage({
           key={node.key}
           paragraphStyle={styles.paragraph}
           containsImage={
-            markdownNodeContainsType(node, "image") || markdownNodeContainsType(node, "video")
+            markdownNodeContainsType(node, "image") ||
+            markdownNodeContainsType(node, "video") ||
+            markdownNodeContainsType(node, "file_card")
           }
         >
           {children}
@@ -2054,6 +2059,14 @@ export const AssistantMessage = memo(function AssistantMessage({
           label={typeof node.attributes?.alt === "string" ? node.attributes.alt : undefined}
           client={client}
           workspaceRoot={workspaceRoot}
+          serverId={serverId}
+        />
+      ),
+      file_card: (node: ASTNode) => (
+        <AssistantMarkdownFile
+          key={node.key}
+          source={String(node.attributes?.src ?? "")}
+          label={typeof node.attributes?.alt === "string" ? node.attributes.alt : undefined}
           serverId={serverId}
         />
       ),
@@ -3253,6 +3266,7 @@ function areExpandableBadgePropsEqual(previous: ExpandableBadgeProps, next: Expa
 }
 
 interface ToolCallProps {
+  agentMessage?: AgentMessage;
   toolName: string;
   args?: unknown;
   result?: unknown;
@@ -3273,6 +3287,7 @@ interface ToolCallProps {
 }
 
 export const ToolCall = memo(function ToolCall({
+  agentMessage,
   toolName,
   args,
   result,
@@ -3319,6 +3334,7 @@ export const ToolCall = memo(function ToolCall({
   const presentation = useMemo(
     () =>
       buildToolCallPresentation({
+        agentMessage,
         toolName,
         status,
         error: error ?? null,
@@ -3327,7 +3343,7 @@ export const ToolCall = memo(function ToolCall({
         cwd,
         resolveIcon: resolveToolCallIcon,
       }),
-    [toolName, status, error, effectiveDetail, metadata, cwd],
+    [toolName, status, error, effectiveDetail, metadata, cwd, agentMessage],
   );
   const originTags = useMemo(
     () => (presentation.origin ? [presentation.origin] : undefined),
@@ -3347,7 +3363,7 @@ export const ToolCall = memo(function ToolCall({
         toolName,
         displayName: presentation.displayName,
         summary: presentation.summary,
-        detail: effectiveDetail,
+        detail: presentation.detail,
         errorText: presentation.errorText,
         icon: presentation.icon,
         showLoadingSkeleton: presentation.isLoadingDetails,
@@ -3360,12 +3376,12 @@ export const ToolCall = memo(function ToolCall({
     shouldRenderInline,
     openToolCall,
     toolName,
+    presentation.detail,
     presentation.displayName,
     presentation.summary,
     presentation.errorText,
     presentation.icon,
     presentation.isLoadingDetails,
-    effectiveDetail,
     screenshot,
   ]);
 
@@ -3401,7 +3417,7 @@ export const ToolCall = memo(function ToolCall({
     return (
       <ToolCallDetailsContent
         toolName={toolName}
-        detail={effectiveDetail}
+        detail={presentation.detail}
         errorText={presentation.errorText}
         maxHeight={maxDetailHeight}
         showLoadingSkeleton={presentation.isLoadingDetails}
@@ -3411,7 +3427,7 @@ export const ToolCall = memo(function ToolCall({
   }, [
     shouldRenderInline,
     toolName,
-    effectiveDetail,
+    presentation.detail,
     presentation.errorText,
     presentation.isLoadingDetails,
     maxDetailHeight,

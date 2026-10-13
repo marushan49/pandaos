@@ -60,34 +60,39 @@ export const EditingTextInput = forwardRef<EditingTextInputHandle, EditingTextIn
       onChangeTextRef.current?.(nextText);
     }, []);
 
-    useImperativeHandle(ref, () => ({
-      focus: () => {
-        if (document.activeElement !== inputRef.current) userFocus.beforeProgrammaticFocus();
-        inputRef.current?.focus();
-      },
-      blur: () => inputRef.current?.blur(),
-      isFocused: () => document.activeElement === inputRef.current,
-      getText: () => {
-        const input = inputRef.current as WebTextInputElement | null;
-        const nextText = input?.value ?? textRef.current;
-        textRef.current = nextText;
-        return nextText;
-      },
-      replaceText: (nextText, selection) => {
-        textRef.current = nextText;
-        const input = inputRef.current as WebTextInputElement | null;
-        if (input && "value" in input) input.value = nextText;
-        if (selection && typeof input?.setSelectionRange === "function") {
-          input.setSelectionRange(selection.start, selection.end);
-        }
-      },
-      reset: () => {
-        textRef.current = "";
-        const input = inputRef.current as WebTextInputElement | null;
-        if (input && "value" in input) input.value = "";
-      },
-      getNativeRef: () => inputRef.current,
-    }));
+    const { beforeProgrammaticFocus } = userFocus;
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => {
+          if (document.activeElement !== inputRef.current) beforeProgrammaticFocus();
+          inputRef.current?.focus();
+        },
+        blur: () => inputRef.current?.blur(),
+        isFocused: () => document.activeElement === inputRef.current,
+        getText: () => {
+          const input = inputRef.current as WebTextInputElement | null;
+          const nextText = input?.value ?? textRef.current;
+          textRef.current = nextText;
+          return nextText;
+        },
+        replaceText: (nextText, selection) => {
+          textRef.current = nextText;
+          const input = inputRef.current as WebTextInputElement | null;
+          if (input && "value" in input) input.value = nextText;
+          if (selection && typeof input?.setSelectionRange === "function") {
+            input.setSelectionRange(selection.start, selection.end);
+          }
+        },
+        reset: () => {
+          textRef.current = "";
+          const input = inputRef.current as WebTextInputElement | null;
+          if (input && "value" in input) input.value = "";
+        },
+        getNativeRef: () => inputRef.current,
+      }),
+      [beforeProgrammaticFocus],
+    );
 
     return (
       <TextInput

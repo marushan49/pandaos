@@ -1,3 +1,4 @@
+import type { AgentMessage } from "./agent-message.js";
 import type { AgentAttachment, AgentRoutingPolicy } from "./messages.js";
 import type { ProviderIdentityColor } from "./provider-config.js";
 
@@ -316,6 +317,7 @@ export type ToolCallDetail =
     };
 
 interface ToolCallBase {
+  agentMessage?: AgentMessage;
   [key: string]: unknown;
   type: "tool_call";
   callId: string;

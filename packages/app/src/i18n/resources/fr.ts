@@ -37,6 +37,7 @@ export const fr: TranslationResources = {
     back: "Retour",
     loading: "Chargement…",
     actions: {
+      save: "Enregistrer",
       back: "Retour",
       cancel: "Annuler",
       close: "Fermer",
@@ -132,6 +133,8 @@ export const fr: TranslationResources = {
     input: {
       accessibilityLabel: "Écrire à l’agent…",
       terminalAccessibilityLabel: "Prompt du terminal",
+      fullscreen: "Plein écran",
+      exitFullscreen: "Quitter le plein écran",
       focusHint: "{{shortcut}} pour saisir",
       addAttachment: "Ajouter une pièce jointe",
       interruptAgent: "Interrompre l’agent",
@@ -397,8 +400,26 @@ export const fr: TranslationResources = {
       openFile: "Ouvrir le fichier",
       copied: "Copié",
     },
-    writingBlock: {
-      untitled: "Texte",
+    contentBlock: {
+      text: "Texte",
+      email: "E-mail",
+      document: "Document",
+      prompt: "Prompt",
+      edit: "Modifier",
+      done: "Terminer la modification",
+      edited: "Modifié",
+      reset: "Réinitialiser",
+      copy: "Copier",
+      copied: "Copié",
+      copyOptions: "Options de copie",
+      copyFormatted: "Copier avec la mise en forme",
+      copyPlain: "Copier en texte brut",
+      copyMarkdown: "Copier en Markdown",
+      copySubject: "Copier l'objet",
+      bold: "Gras",
+      italic: "Italique",
+      heading: "Titre",
+      editorLabel: "Modifier le contenu",
     },
     attachments: {
       dismissImage: "Ignorer l’image",
@@ -740,6 +761,9 @@ export const fr: TranslationResources = {
       hostDisconnected: "L’hôte n’est pas connecté",
       updateHost: "Mettez à jour l’hôte pour utiliser le rendu natif du terminal.",
       unableToSubscribe: "Impossible de s’abonner au terminal",
+    },
+    sheet: {
+      openAsTab: "Ouvrir dans un onglet",
     },
     tabs: {
       loading: "Chargement…",
@@ -1396,6 +1420,7 @@ export const fr: TranslationResources = {
       done: "En attente",
     },
     display: {
+      showBackground: "Afficher les espaces en arrière-plan",
       trigger: "Préférences d’affichage",
       heading: "Affichage",
       grouping: {
@@ -2377,6 +2402,18 @@ export const fr: TranslationResources = {
     accessibilityNoData: "Fenêtre de contexte : aucune donnée de contexte",
   },
   review: {
+    feedback: {
+      send: "Envoyer les commentaires ({{count}})",
+      sending: "Envoi des commentaires ({{count}})",
+      chooseAgent: "Choisir un agent",
+      sent: "Commentaires envoyés à {{recipient}}",
+      "no-agents":
+        "Ouvrez un onglet d’agent dans cet espace de travail pour envoyer les commentaires.",
+      disconnected: "Connectez-vous à l’hôte pour envoyer les commentaires.",
+      "no-context": "Les commentaires enregistrés ne correspondent plus à ce diff.",
+      failed: "Échec de l’envoi des commentaires. Réessayez.",
+      prompt: "Veuillez traiter cette revue de code.",
+    },
     comment: {
       add: "Ajouter un commentaire de revue",
       edit: "Modifier le commentaire de revue",

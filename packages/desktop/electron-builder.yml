@@ -74,6 +74,8 @@ linux:
   extraResources:
     - from: bin/pandaos
       to: bin/pandaos
+    - from: assets/icon.png
+      to: icon.png
   target:
     - AppImage
     - deb

@@ -1,6 +1,6 @@
 {
   "name": "@getpaseo/app",
-  "version": "0.11.0",
+  "version": "0.11.2",
   "private": true,
   "description": "PandaOS mobile and web client",
   "main": "index.ts",
