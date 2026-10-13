@@ -1506,6 +1506,10 @@ export const en = {
           'Remove "{{projectName}}" from the sidebar?\n\nFiles on disk will not be changed.',
         removeConfirm: "Remove",
         cancel: "Cancel",
+        moveSessionsTitle: "Move sessions?",
+        moveSessionsMessage:
+          "{{count}} sessions move from {{source}} to {{workspace}}. Sessions that change folder restart there.",
+        moveSessionsConfirm: "Move",
       },
       toasts: {
         hostDisconnected: "Host is not connected",

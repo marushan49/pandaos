@@ -1507,6 +1507,10 @@ export const ja: TranslationResources = {
           '"{{projectName}}"をサイドバーから削除しますか？\n\nディスク上のファイルは変更されません。',
         removeConfirm: "削除",
         cancel: "キャンセル",
+        moveSessionsTitle: "セッションを移動しますか？",
+        moveSessionsMessage:
+          "{{count}} 件のセッションを {{source}} から {{workspace}} へ移動します。フォルダが変わるセッションは移動先で再起動します。",
+        moveSessionsConfirm: "移動",
       },
       toasts: {
         hostDisconnected: "ホストが接続されていません",

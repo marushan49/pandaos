@@ -13,11 +13,12 @@ export interface MoveWorkspaceSessionsResult {
   moved: number;
 }
 
-/**
- * Moves every open session of one workspace into another, like dragging it across, and
- * shows them there. The source is never archived here: the app's session list can be
- * incomplete, and archiving a workspace archives whatever it still holds.
- */
+export interface WorkspaceMovePlan {
+  sessions: number;
+  source: string;
+  target: string;
+}
+
 export async function moveWorkspaceSessions(input: {
   serverId: string;
   sourceWorkspaceId: string;
@@ -26,10 +27,7 @@ export async function moveWorkspaceSessions(input: {
   const { serverId, sourceWorkspaceId, targetWorkspaceId } = input;
   const client = getHostRuntimeStore().getClient(serverId);
   if (!client) throw new Error("The host is not connected");
-  const session = useSessionStore.getState().sessions[serverId];
-  const agentIds = [...(session?.agents.values() ?? [])]
-    .filter((agent) => agent.workspaceId === sourceWorkspaceId && !agent.archivedAt)
-    .map((agent) => agent.id);
+  const agentIds = openAgentIds(serverId, sourceWorkspaceId);
   for (const agentId of agentIds.toReversed()) {
     await moveSessionToWorkspace({ serverId, agentId, targetWorkspaceId, navigate: false });
   }
@@ -42,7 +40,6 @@ export async function moveWorkspaceSessions(input: {
   return { moved: agentIds.length };
 }
 
-/** One session, dragged from its tab onto another workspace, opened where it landed. */
 export async function moveSessionToWorkspace(input: {
   serverId: string;
   agentId: string;
@@ -99,7 +96,6 @@ export async function moveSessionToWorkspace(input: {
   });
 }
 
-/** What a toast calls a session and a workspace, falling back to their ids. */
 export function describeMove(input: {
   serverId: string;
   agentId: string | null;
@@ -107,11 +103,35 @@ export function describeMove(input: {
 }): { session: string; workspace: string } {
   const session = useSessionStore.getState().sessions[input.serverId];
   const agent = input.agentId ? session?.agents.get(input.agentId) : undefined;
-  const workspace = [...(session?.workspaces.values() ?? [])].find(
-    (candidate) => candidate.id === input.targetWorkspaceId,
-  );
   return {
     session: agent?.title ?? input.agentId?.slice(0, 8) ?? "",
-    workspace: workspace?.title ?? workspace?.name ?? input.targetWorkspaceId,
+    workspace: workspaceTitle(input.serverId, input.targetWorkspaceId),
   };
+}
+
+export function describeWorkspaceMove(input: {
+  serverId: string;
+  sourceWorkspaceId: string;
+  targetWorkspaceId: string;
+}): WorkspaceMovePlan {
+  return {
+    sessions: openAgentIds(input.serverId, input.sourceWorkspaceId).length,
+    source: workspaceTitle(input.serverId, input.sourceWorkspaceId),
+    target: workspaceTitle(input.serverId, input.targetWorkspaceId),
+  };
+}
+
+function openAgentIds(serverId: string, workspaceId: string): string[] {
+  const session = useSessionStore.getState().sessions[serverId];
+  return [...(session?.agents.values() ?? [])]
+    .filter((agent) => agent.workspaceId === workspaceId && !agent.archivedAt)
+    .map((agent) => agent.id);
+}
+
+function workspaceTitle(serverId: string, workspaceId: string): string {
+  const session = useSessionStore.getState().sessions[serverId];
+  const workspace = [...(session?.workspaces.values() ?? [])].find(
+    (candidate) => candidate.id === workspaceId,
+  );
+  return workspace?.title ?? workspace?.name ?? workspaceId;
 }

@@ -1530,6 +1530,10 @@ export const es: TranslationResources = {
           '¿Quitar "{{projectName}}" de la barra lateral?\n\nLos archivos en el disco no se cambiarán.',
         removeConfirm: "Eliminar",
         cancel: "Cancelar",
+        moveSessionsTitle: "¿Mover sesiones?",
+        moveSessionsMessage:
+          "{{count}} sesiones pasan de {{source}} a {{workspace}}. Las sesiones que cambian de carpeta se reinician allí.",
+        moveSessionsConfirm: "Mover",
       },
       toasts: {
         hostDisconnected: "Hostno está conectado",

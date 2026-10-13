@@ -1519,6 +1519,10 @@ export const ptBR: TranslationResources = {
           'Remover "{{projectName}}" da barra lateral?\n\nOs arquivos no disco não serão alterados.',
         removeConfirm: "Remover",
         cancel: "Cancelar",
+        moveSessionsTitle: "Mover sessões?",
+        moveSessionsMessage:
+          "{{count}} sessões passam de {{source}} para {{workspace}}. Sessões que mudam de pasta reiniciam lá.",
+        moveSessionsConfirm: "Mover",
       },
       toasts: {
         hostDisconnected: "Host não está conectado",

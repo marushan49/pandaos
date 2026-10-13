@@ -1511,6 +1511,10 @@ export const ru: TranslationResources = {
           "Удалить проект «{{projectName}}» с боковой панели?\n\nФайлы на диске не будут изменены.",
         removeConfirm: "Удалить",
         cancel: "Отмена",
+        moveSessionsTitle: "Переместить сессии?",
+        moveSessionsMessage:
+          "Сессии ({{count}}) переносятся из {{source}} в {{workspace}}. Сессии, которые меняют папку, перезапускаются там.",
+        moveSessionsConfirm: "Переместить",
       },
       toasts: {
         hostDisconnected: "Хост не подключён",

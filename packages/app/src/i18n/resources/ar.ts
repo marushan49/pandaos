@@ -1488,6 +1488,10 @@ export const ar: TranslationResources = {
           'هل تريد إزالة "{{projectName}}" من الشريط الجانبي؟\n\n لن يتم تغيير الملفات الموجودة على القرص.',
         removeConfirm: "يزيل",
         cancel: "يلغي",
+        moveSessionsTitle: "نقل الجلسات؟",
+        moveSessionsMessage:
+          "{{count}} جلسات تنتقل من {{source}} إلى {{workspace}}. الجلسات التي تغيّر مجلدها تُعاد تشغيلها هناك.",
+        moveSessionsConfirm: "نقل",
       },
       toasts: {
         hostDisconnected: "Host غير متصل",

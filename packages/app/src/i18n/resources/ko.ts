@@ -1499,6 +1499,10 @@ export const ko: TranslationResources = {
           '"{{projectName}}"을(를) 사이드바에서 제거할까요?\n\n디스크의 파일은 변경되지 않습니다.',
         removeConfirm: "제거",
         cancel: "취소",
+        moveSessionsTitle: "세션을 옮길까요?",
+        moveSessionsMessage:
+          "세션 {{count}}개를 {{source}}에서 {{workspace}}(으)로 옮깁니다. 폴더가 바뀌는 세션은 거기서 다시 시작됩니다.",
+        moveSessionsConfirm: "옮기기",
       },
       toasts: {
         hostDisconnected: "호스트가 연결되어 있지 않습니다",

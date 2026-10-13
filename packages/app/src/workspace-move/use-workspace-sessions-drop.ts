@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/contexts/toast-context";
+import { confirmDialog } from "@/utils/confirm-dialog";
 import { flashLandedWorkspace, type WorkspaceDropTarget } from "./drop-target";
-import { describeMove, moveWorkspaceSessions } from "./move-sessions";
+import { describeWorkspaceMove, moveWorkspaceSessions } from "./move-sessions";
 
-/** Dragging a workspace onto another project's workspace moves its sessions there. */
 export function useWorkspaceSessionsDrop(ownWorkspaceIds: readonly string[] = []) {
   const { t } = useTranslation();
   const toast = useToast();
@@ -17,26 +17,42 @@ export function useWorkspaceSessionsDrop(ownWorkspaceIds: readonly string[] = []
         toast.error(t("sidebar.project.toasts.moveAcrossHosts"));
         return true;
       }
-      const names = describeMove({
-        serverId: item.serverId,
-        agentId: null,
-        targetWorkspaceId: target.workspaceId,
-      });
-      void moveWorkspaceSessions({
+      const plan = describeWorkspaceMove({
         serverId: item.serverId,
         sourceWorkspaceId: item.workspaceId,
         targetWorkspaceId: target.workspaceId,
-      })
-        .then((result) => {
+      });
+      void (async () => {
+        try {
+          if (plan.sessions > 0) {
+            const confirmed = await confirmDialog({
+              title: t("sidebar.project.confirmations.moveSessionsTitle"),
+              message: t("sidebar.project.confirmations.moveSessionsMessage", {
+                count: plan.sessions,
+                source: plan.source,
+                workspace: plan.target,
+              }),
+              confirmLabel: t("sidebar.project.confirmations.moveSessionsConfirm"),
+              cancelLabel: t("sidebar.project.confirmations.cancel"),
+            });
+            if (!confirmed) return;
+          }
+          const result = await moveWorkspaceSessions({
+            serverId: item.serverId,
+            sourceWorkspaceId: item.workspaceId,
+            targetWorkspaceId: target.workspaceId,
+          });
           flashLandedWorkspace(target);
-          return toast.show(
+          toast.show(
             t("sidebar.project.toasts.sessionsMovedTo", {
               count: result.moved,
-              workspace: names.workspace,
+              workspace: plan.target,
             }),
           );
-        })
-        .catch(() => toast.error(t("sidebar.project.toasts.moveSessionsFailed")));
+        } catch {
+          toast.error(t("sidebar.project.toasts.moveSessionsFailed"));
+        }
+      })();
       return true;
     },
     [ownWorkspaceIds, t, toast],

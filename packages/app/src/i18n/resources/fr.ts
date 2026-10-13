@@ -1512,6 +1512,10 @@ export const fr: TranslationResources = {
           "Retirer « {{projectName}} » de la barre latérale ?\n\nLes fichiers sur le disque ne seront pas modifiés.",
         removeConfirm: "Retirer",
         cancel: "Annuler",
+        moveSessionsTitle: "Déplacer les sessions ?",
+        moveSessionsMessage:
+          "{{count}} sessions passent de {{source}} à {{workspace}}. Les sessions qui changent de dossier redémarrent là-bas.",
+        moveSessionsConfirm: "Déplacer",
       },
       toasts: {
         hostDisconnected: "L’hôte n’est pas connecté",

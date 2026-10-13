@@ -1478,6 +1478,10 @@ export const zhCN: TranslationResources = {
         removeMessage: "从侧边栏移除「{{projectName}}」？\n\n磁盘上的文件不会被更改。",
         removeConfirm: "移除",
         cancel: "取消",
+        moveSessionsTitle: "移动会话？",
+        moveSessionsMessage:
+          "将 {{count}} 个会话从 {{source}} 移动到 {{workspace}}。更换文件夹的会话会在那里重新启动。",
+        moveSessionsConfirm: "移动",
       },
       toasts: {
         hostDisconnected: "Host 未连接",
