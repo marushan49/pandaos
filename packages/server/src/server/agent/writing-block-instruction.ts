@@ -8,7 +8,11 @@ thank you, that worked.
 
 Paseo renders that block set apart from your prose, with a copy button. Use four backticks so text containing its own code fences survives.
 
-Use \`writing\` only when the content is meant to be taken verbatim. Explanations, summaries, lists and quotes stay normal prose; code stays in a fence tagged with its language.`;
+Use \`writing\` only when the content is meant to be taken verbatim. Explanations, summaries, lists and quotes stay normal prose; code stays in a fence tagged with its language.
+
+When the text needs formatting that must survive pasting, such as an email with a table, bold text or links, tag the fence \`writing-rich\` instead and write the body as Markdown. Paseo renders it formatted and copies it as rich text, so a Markdown table pastes into Outlook or Gmail as a table.
+
+Show the finished text in the chat even when you also save it to a file or create a draft somewhere else. Never deliver only a summary of it. When you produce a file for the user, such as an .eml, .pdf, .docx, .xlsx or .zip, save it on the host you run on and link it with its absolute path, for example [Nachtrag.eml](</home/user/out/Nachtrag.eml>). Paseo shows a card with a Download button that saves the file on the user's device. A path on another device, or one starting with ~, cannot be opened from the chat.`;
 
 export const TESTING_ENGINE_INSTRUCTION = `For testing, whenever \`browser_test\` is available it is the required first step for any UI, end-to-end, or "does it work" check, in every project: list the saved recipes, run a matching one, or send ad-hoc steps with \`goal\` steps for the parts you cannot script. It runs inside the daemon and returns only the verdict, which costs a fraction of the tokens of driving \`browser_*\` tools yourself. Use the \`browser_*\` tools only to debug a failed run, and pass \`saveAs\` with a new flow so a passing run becomes a recipe that runs fully scripted next time.`;
 

@@ -8,6 +8,8 @@ import { isNative, isWeb } from "@/constants/platform";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { markdownCopyDataSet, TRAILING_CODE_LINE_BREAKS } from "@/assistant-selection-copy/markup";
 import type { MarkdownFenceRendererProps } from "../fence/types";
+import { MarkdownRenderer } from "../renderer";
+import { richWritingHtml } from "./html";
 import { parseWritingFenceInfo } from "./info";
 
 interface WritingFenceProps extends MarkdownFenceRendererProps {
@@ -17,12 +19,6 @@ interface WritingFenceProps extends MarkdownFenceRendererProps {
 const COPIED_RESET_MS = 1500;
 const WEB_SELECTABLE: TextStyle = isWeb ? ({ userSelect: "text" } as TextStyle) : {};
 
-/**
- * The body is rendered verbatim rather than re-parsed as markdown. A writing
- * block is text the user pastes somewhere else unchanged, so `**fett**` in a
- * WhatsApp draft has to survive as asterisks — and what is on screen stays
- * exactly what the copy button puts on the clipboard.
- */
 export function WritingFence({ code, info, inheritedStyles }: WritingFenceProps) {
   const { t } = useTranslation();
   const parsed = parseWritingFenceInfo(info);
@@ -33,10 +29,8 @@ export function WritingFence({ code, info, inheritedStyles }: WritingFenceProps)
   const controlsVisible = isHovered || isNative || isCompact;
 
   const body = useMemo(() => code.replace(TRAILING_CODE_LINE_BREAKS, ""), [code]);
+  const rich = parsed?.rich ?? false;
   const getBody = useCallback(() => body, [body]);
-
-  // Drop the monospace family the fence style carries; keep the size and colour
-  // of the surrounding prose so the card reads as text, not as code.
   const bodyStyle = useMemo(() => {
     const { fontFamily: _fontFamily, ...prose } = inheritedStyles;
     const fontSize = prose.fontSize;
@@ -58,19 +52,20 @@ export function WritingFence({ code, info, inheritedStyles }: WritingFenceProps)
         <Text style={styles.title} numberOfLines={1}>
           {parsed?.title ?? t("message.writingBlock.untitled")}
         </Text>
-        <CopyButton getBody={getBody} visible={controlsVisible} />
+        <CopyButton getBody={getBody} rich={rich} visible={controlsVisible} />
       </View>
-      <Text style={bodyStyle}>{body}</Text>
+      {rich ? <MarkdownRenderer text={body} compact /> : <Text style={bodyStyle}>{body}</Text>}
     </View>
   );
 }
 
 interface CopyButtonProps {
   getBody: () => string;
+  rich: boolean;
   visible: boolean;
 }
 
-const CopyButton = React.memo(function CopyButton({ getBody, visible }: CopyButtonProps) {
+const CopyButton = React.memo(function CopyButton({ getBody, rich, visible }: CopyButtonProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const resetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,14 +80,20 @@ const CopyButton = React.memo(function CopyButton({ getBody, visible }: CopyButt
   const handlePress = useCallback(async () => {
     const content = getBody();
     if (!content) return;
-    await Clipboard.setStringAsync(content);
+    if (rich) {
+      await Clipboard.setStringAsync(richWritingHtml(content), {
+        inputFormat: Clipboard.StringFormat.HTML,
+      });
+    } else {
+      await Clipboard.setStringAsync(content);
+    }
     setCopied(true);
     if (resetRef.current) clearTimeout(resetRef.current);
     resetRef.current = setTimeout(() => {
       setCopied(false);
       resetRef.current = null;
     }, COPIED_RESET_MS);
-  }, [getBody]);
+  }, [getBody, rich]);
 
   const wrapperStyle = useMemo(
     () => [styles.copyButton, visible ? styles.copyButtonVisible : styles.copyButtonHidden],
