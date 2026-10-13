@@ -46,7 +46,6 @@ export function useDictationAudioSource(config: DictationAudioSourceConfig): Dic
 
   const start = useCallback(async () => {
     const engine = getOrCreateEngine();
-    await engine.initialize();
     await engine.startCapture();
   }, [getOrCreateEngine]);
 

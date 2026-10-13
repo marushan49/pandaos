@@ -6,6 +6,7 @@ import { getHostRuntimeStore } from "@/runtime/host-runtime";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   View,
+  ScrollView,
   Pressable,
   Text,
   StyleSheet as RNStyleSheet,
@@ -337,7 +338,14 @@ function renderAttachmentTray(args: RenderAttachmentTrayArgs): ReactElement | nu
   } = args;
   if (selectedAttachments.length === 0 && pendingFiles.length === 0) return null;
   return (
-    <View style={styles.attachmentTray} testID="composer-attachment-tray">
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      style={styles.attachmentScroll}
+      contentContainerStyle={styles.attachmentTray}
+      testID="composer-attachment-tray"
+    >
       {selectedAttachments.map((attachment, index) =>
         renderComposerAttachmentPill({
           attachment,
@@ -357,7 +365,7 @@ function renderAttachmentTray(args: RenderAttachmentTrayArgs): ReactElement | nu
           />
         </AttachmentFrame>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -2528,10 +2536,14 @@ const styles = StyleSheet.create((theme: Theme) => ({
   iconButtonHovered: {
     backgroundColor: theme.colors.surface2,
   },
+  attachmentScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   attachmentTray: {
     flexDirection: "row",
     gap: theme.spacing[2],
-    flexWrap: "wrap",
+    padding: theme.spacing[2],
   },
   tooltipRow: {
     flexDirection: "row",

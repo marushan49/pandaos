@@ -51,7 +51,7 @@ import { formatShortcut, type ShortcutKey } from "@/utils/format-shortcut";
 import { getShortcutOs } from "@/utils/shortcut-platform";
 import type { MessageInputKeyboardActionKind } from "@/keyboard/actions";
 import { isImeComposingKeyboardEvent } from "@/utils/keyboard-ime";
-import { isWeb } from "@/constants/platform";
+import { isNative, isWeb } from "@/constants/platform";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { useComposerKeyboardScope } from "@/composer/keyboard-scope";
 import { RenderProfile } from "@/utils/render-profiler";
@@ -85,6 +85,7 @@ import {
 
 const DEFAULT_SEND_KEYS: ShortcutKey[][] = [["Enter"]];
 const COMPOSER_INPUT_DATASET = { composerInput: "" } as const;
+const COMPOSER_ACTION_SIZE = isNative ? 44 : 28;
 
 export interface AttachmentMenuItem {
   id: string;
@@ -946,8 +947,13 @@ function computeIsDictationStartEnabled(
   isReadyForDictation: boolean | undefined,
   isConnected: boolean,
   disabled: boolean,
+  unavailableMessage: string | null,
 ): boolean {
-  return (isReadyForDictation ?? isConnected) && !disabled;
+  return (
+    isConnected &&
+    !disabled &&
+    ((isReadyForDictation ?? isConnected) || Boolean(unavailableMessage))
+  );
 }
 
 function resolveMaxInputHeight(windowHeight: number): number {
@@ -1106,6 +1112,18 @@ function extractErrorMessage(error: unknown): string | null {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   return null;
+}
+
+function renderAttachmentSlot(
+  slot: React.ReactNode,
+  pointerEvents: React.ComponentProps<typeof View>["pointerEvents"],
+): React.ReactNode {
+  if (!slot) return null;
+  return (
+    <View pointerEvents={pointerEvents} style={styles.attachmentsContainer}>
+      {slot}
+    </View>
+  );
 }
 
 export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
@@ -1330,6 +1348,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       isReadyForDictation,
       isConnected,
       disabled,
+      dictationUnavailableMessage,
     );
 
     const {
@@ -1759,113 +1778,117 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
           textInputRef={textInputRef}
         />
 
-        <View
-          ref={inputWrapperRef}
-          style={inputWrapperCombinedStyle}
-          pointerEvents={surfacePresentation.input.pointerEvents}
-        >
-          {attachmentSlot}
+        {renderAttachmentSlot(attachmentSlot, surfacePresentation.input.pointerEvents)}
 
-          <RenderProfile id="ComposerTextSurface">
-            <ComposerTextSurface
-              readOnly={readOnly}
-              value={value}
-              textInputRef={textInputRef}
-              textInputStyle={textInputStyle}
-              readOnlyTextStyle={readOnlyTextStyle}
-              placeholder={placeholder ?? t("composer.placeholders.fallback")}
-              accessibilityLabel={t(mode.accessibilityLabelKey)}
-              onChangeText={handleInputChange}
-              onFocus={handleInputFocus}
-              onUserFocus={handleUserInputFocus}
-              onBlur={handleInputBlur}
-              editable={!isDictating && !isRealtimeVoiceForCurrentAgent && !disabled}
-              scrollEnabled={isComposerScrollEnabled}
-              autoFocus={false}
-              onKeyPress={shouldHandleWebKeyPress ? handleDesktopKeyPress : undefined}
-              onSelectionChange={handleSelectionChange}
-              onPasteImages={onPasteImages}
-              onPasteError={handlePasteError}
-              focusHintVisible={isWeb && !isInputFocused && !value}
-              focusInputKeys={focusInputKeys}
-              focusHintLabel={t("composer.input.focusHint", {
-                shortcut: focusInputKeys ? formatShortcut(focusInputKeys[0], getShortcutOs()) : "",
-              })}
-            />
-          </RenderProfile>
+        <View style={styles.inputShell}>
+          <View
+            ref={inputWrapperRef}
+            style={inputWrapperCombinedStyle}
+            pointerEvents={surfacePresentation.input.pointerEvents}
+          >
+            <RenderProfile id="ComposerTextSurface">
+              <ComposerTextSurface
+                readOnly={readOnly}
+                value={value}
+                textInputRef={textInputRef}
+                textInputStyle={textInputStyle}
+                readOnlyTextStyle={readOnlyTextStyle}
+                placeholder={placeholder ?? t("composer.placeholders.fallback")}
+                accessibilityLabel={t(mode.accessibilityLabelKey)}
+                onChangeText={handleInputChange}
+                onFocus={handleInputFocus}
+                onUserFocus={handleUserInputFocus}
+                onBlur={handleInputBlur}
+                editable={!isDictating && !isRealtimeVoiceForCurrentAgent && !disabled}
+                scrollEnabled={isComposerScrollEnabled}
+                autoFocus={false}
+                onKeyPress={shouldHandleWebKeyPress ? handleDesktopKeyPress : undefined}
+                onSelectionChange={handleSelectionChange}
+                onPasteImages={onPasteImages}
+                onPasteError={handlePasteError}
+                focusHintVisible={isWeb && !isInputFocused && !value}
+                focusInputKeys={focusInputKeys}
+                focusHintLabel={t("composer.input.focusHint", {
+                  shortcut: focusInputKeys
+                    ? formatShortcut(focusInputKeys[0], getShortcutOs())
+                    : "",
+                })}
+              />
+            </RenderProfile>
 
-          <View style={styles.buttonRow}>
-            <View style={styles.leftButtonGroup}>
-              <AttachmentDropdown
-                visible={mode.showAttachments}
-                isConnected={isConnected}
-                disabled={disabled}
-                attachButtonStyle={attachButtonStyle}
-                renderAttachButtonIcon={renderAttachButtonIcon}
-                attachmentMenuItems={attachmentMenuItems}
-                addAttachmentLabel={t("composer.input.addAttachment")}
-              />
-              {leftContent}
-            </View>
+            <View style={styles.buttonRow}>
+              <View style={styles.leftButtonGroup}>
+                <AttachmentDropdown
+                  visible={mode.showAttachments}
+                  isConnected={isConnected}
+                  disabled={disabled}
+                  attachButtonStyle={attachButtonStyle}
+                  renderAttachButtonIcon={renderAttachButtonIcon}
+                  attachmentMenuItems={attachmentMenuItems}
+                  addAttachmentLabel={t("composer.input.addAttachment")}
+                />
+                {leftContent}
+              </View>
 
-            <View style={styles.rightButtonGroup}>
-              {beforeVoiceContent}
-              <VoiceButtonTooltip
-                visible={mode.showVoice}
-                onVoicePress={handleVoicePress}
-                isDictationStartEnabled={isDictationStartEnabled}
-                voiceButtonAccessibilityLabel={voiceButtonAccessibilityLabel}
-                voiceButtonStyle={voiceButtonStyle}
-                renderVoiceButtonIcon={renderVoiceButtonIcon}
-                voiceTooltipText={voiceTooltipText}
-                isRealtimeVoiceForCurrentAgent={isRealtimeVoiceForCurrentAgent}
-                voiceMuteToggleKeys={voiceMuteToggleKeys}
-                dictationToggleKeys={dictationToggleKeys}
-              />
-              {rightContent}
-              <PrimaryAction
-                kind={primaryActionKind}
-                activeActionContent={activeActionContent}
-                shouldShow
-                canPressLoadingButton={canPressLoadingButton}
-                onSubmitLoadingPress={onSubmitLoadingPress}
-                onDefaultSendAction={handleDefaultSendAction}
-                isSendButtonDisabled={isSendButtonDisabled}
-                submitAccessibilityLabel={submitAccessibilityLabel}
-                sendButtonCombinedStyle={sendButtonCombinedStyle}
-                isSubmitLoading={isSubmitLoading}
-                submitIcon={submitIcon}
-                submitLabel={submitLabel}
-                submitButtonTestID={submitButtonTestID}
-                buttonIconSize={buttonIconSize}
-                sendKeys={DEFAULT_SEND_KEYS}
-                sendTooltipLabel={sendTooltipLabel}
-              />
+              <View style={styles.rightButtonGroup}>
+                {beforeVoiceContent}
+                <VoiceButtonTooltip
+                  visible={mode.showVoice}
+                  onVoicePress={handleVoicePress}
+                  isDictationStartEnabled={isDictationStartEnabled}
+                  voiceButtonAccessibilityLabel={voiceButtonAccessibilityLabel}
+                  voiceButtonStyle={voiceButtonStyle}
+                  renderVoiceButtonIcon={renderVoiceButtonIcon}
+                  voiceTooltipText={voiceTooltipText}
+                  isRealtimeVoiceForCurrentAgent={isRealtimeVoiceForCurrentAgent}
+                  voiceMuteToggleKeys={voiceMuteToggleKeys}
+                  dictationToggleKeys={dictationToggleKeys}
+                />
+                {rightContent}
+                <PrimaryAction
+                  kind={primaryActionKind}
+                  activeActionContent={activeActionContent}
+                  shouldShow
+                  canPressLoadingButton={canPressLoadingButton}
+                  onSubmitLoadingPress={onSubmitLoadingPress}
+                  onDefaultSendAction={handleDefaultSendAction}
+                  isSendButtonDisabled={isSendButtonDisabled}
+                  submitAccessibilityLabel={submitAccessibilityLabel}
+                  sendButtonCombinedStyle={sendButtonCombinedStyle}
+                  isSubmitLoading={isSubmitLoading}
+                  submitIcon={submitIcon}
+                  submitLabel={submitLabel}
+                  submitButtonTestID={submitButtonTestID}
+                  buttonIconSize={buttonIconSize}
+                  sendKeys={DEFAULT_SEND_KEYS}
+                  sendTooltipLabel={sendTooltipLabel}
+                />
+              </View>
             </View>
           </View>
-        </View>
 
-        <View
-          style={overlayContainerStyle}
-          pointerEvents={surfacePresentation.overlay.pointerEvents}
-        >
-          <MessageInputOverlay
-            showDictationOverlay={showDictationOverlay}
-            showRealtimeOverlay={showRealtimeOverlay}
-            voice={voice}
-            dictationVolume={dictationVolume}
-            dictationDuration={dictationDuration}
-            isDictating={isDictating}
-            isDictationProcessing={isDictationProcessing}
-            dictationStatus={dictationStatus}
-            dictationError={dictationError}
-            onCancelRecording={handleCancelRecording}
-            onAcceptRecording={handleAcceptRecording}
-            onAcceptAndSendRecording={handleAcceptAndSendRecording}
-            onRetryFailedRecording={handleRetryFailedRecording}
-            onDiscardFailedRecording={handleDiscardFailedRecording}
-            onRealtimeVoiceStop={handleRealtimeVoiceStop}
-          />
+          <View
+            style={overlayContainerStyle}
+            pointerEvents={surfacePresentation.overlay.pointerEvents}
+          >
+            <MessageInputOverlay
+              showDictationOverlay={showDictationOverlay}
+              showRealtimeOverlay={showRealtimeOverlay}
+              voice={voice}
+              dictationVolume={dictationVolume}
+              dictationDuration={dictationDuration}
+              isDictating={isDictating}
+              isDictationProcessing={isDictationProcessing}
+              dictationStatus={dictationStatus}
+              dictationError={dictationError}
+              onCancelRecording={handleCancelRecording}
+              onAcceptRecording={handleAcceptRecording}
+              onAcceptAndSendRecording={handleAcceptAndSendRecording}
+              onRetryFailedRecording={handleRetryFailedRecording}
+              onDiscardFailedRecording={handleDiscardFailedRecording}
+              onRealtimeVoiceStop={handleRealtimeVoiceStop}
+            />
+          </View>
         </View>
       </View>
     );
@@ -1874,6 +1897,13 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
 
 const styles = StyleSheet.create((theme: Theme) => ({
   container: {
+    flexShrink: 1,
+    gap: theme.spacing[2],
+  },
+  attachmentsContainer: {
+    flexShrink: 0,
+  },
+  inputShell: {
     flexShrink: 1,
     position: "relative",
     padding: theme.spacing[1],
@@ -1967,8 +1997,8 @@ const styles = StyleSheet.create((theme: Theme) => ({
     gap: theme.spacing[1],
   },
   attachButton: {
-    width: 28,
-    height: 28,
+    width: COMPOSER_ACTION_SIZE,
+    height: COMPOSER_ACTION_SIZE,
     borderRadius: theme.borderRadius.full,
     alignItems: "center",
     justifyContent: "center",
@@ -1980,8 +2010,8 @@ const styles = StyleSheet.create((theme: Theme) => ({
     justifyContent: "center",
   },
   voiceButton: {
-    width: 28,
-    height: 28,
+    width: COMPOSER_ACTION_SIZE,
+    height: COMPOSER_ACTION_SIZE,
     borderRadius: theme.borderRadius.full,
     alignItems: "center",
     justifyContent: "center",
@@ -1990,8 +2020,8 @@ const styles = StyleSheet.create((theme: Theme) => ({
     backgroundColor: theme.colors.destructive,
   },
   sendButton: {
-    width: 28,
-    height: 28,
+    width: COMPOSER_ACTION_SIZE,
+    height: COMPOSER_ACTION_SIZE,
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.accent,
     alignItems: "center",
