@@ -15,18 +15,22 @@ import { queueEnvironment, readQueueEnvironment } from "./server/queue-environme
 const TOOLING_POLICY =
   "Host reliability: submit complete Android build/tooling commands through pandaos-android-queue -- COMMAND, including Expo/Node and native compilation. Reuse existing emulators: a standalone foreground emulator occupies the single queue slot until it exits. The host injects guarded JAVA_HOME and ANDROID_HOME; preserve them. Use pandaos-android-queue -- COMMAND for explicit tool paths or scripts that replace this environment. Do not bypass queue limits, start persistent Gradle/Kotlin daemons, or run heavy tooling inside the agent/daemon cgroup. A queued or resource-limited build may take longer or fail; report its job ID and failure rather than raising host limits. Session Recovery records interrupted turns and may continue them automatically when enabled; respect explicit stops, archived sessions and bounded retries. Read the saved task checkpoint and existing processes before continuing to avoid duplicate jobs.";
 
+const RESTART_POLICY =
+  'PandaOS daemon restarts: never run systemctl restart on the PandaOS daemon or wait for idle to restart it. With the user\'s permission use pandaos-planned-restart (see the pandaos-daemon-restart skill). When you receive the message "Geplanter Neustart des PandaOS-Daemons", finish only your current step, start nothing new, reply with STATUS: working | watching | done and CHECKPOINT: (include background jobs, queue job IDs, heartbeats and browser tabs), then end your turn. After the restart your checkpoint comes back; continue from there.';
+
 export default function contribute(server: PluginServerContext) {
   if (!server.dataDirectory)
     throw new Error("Aktualisiere den Host für dauerhafte Plugin-Speicherung.");
   const service = new RecoveryService(new RecoveryStore(server.dataDirectory), daemonEpoch());
   const removers = [
     server.before("agent.create", async ({ request }) => {
-      if (!(await readQueueEnvironment())) return request;
+      const policies = [RESTART_POLICY];
+      if (await readQueueEnvironment()) policies.unshift(TOOLING_POLICY);
       return {
         ...request,
         config: {
           ...request.config,
-          systemPrompt: [request.config.systemPrompt, TOOLING_POLICY].filter(Boolean).join("\n\n"),
+          systemPrompt: [request.config.systemPrompt, ...policies].filter(Boolean).join("\n\n"),
         },
       };
     }),
