@@ -2,7 +2,10 @@ import type { PluginServerContext } from "@getpaseo/plugin/server";
 import {
   dismissRecovery,
   listRecovery,
+  prepareRestart,
   resumeRecovery,
+  restartStatus,
+  resumeRestart,
   setAutomaticRecovery,
 } from "./shared/contracts";
 import { daemonEpoch, RecoveryService } from "./server/recovery";
@@ -64,6 +67,9 @@ export default function contribute(server: PluginServerContext) {
   server.handle(resumeRecovery, ({ agentId, revision }, { paseo }) =>
     service.resume(agentId, revision, paseo),
   );
+  server.handle(prepareRestart, (input, { paseo }) => service.prepareRestart(input, paseo));
+  server.handle(restartStatus, ({ runId }) => service.restartStatus(runId));
+  server.handle(resumeRestart, ({ runId }, { paseo }) => service.resumeRestart(runId, paseo));
   server.handle(dismissRecovery, ({ agentId, revision }) => service.dismiss(agentId, revision));
   return async () => {
     for (const remove of removers) remove();

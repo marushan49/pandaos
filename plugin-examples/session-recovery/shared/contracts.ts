@@ -1,6 +1,18 @@
 import { defineRpc } from "@getpaseo/plugin";
 import { z } from "zod";
 
+export const PlannedRestartStatusSchema = z.enum(["working", "watching", "done"]);
+
+export const PlannedRestartSchema = z.object({
+  runId: z.string(),
+  status: PlannedRestartStatusSchema,
+  checkpoint: z.string(),
+  recordedAt: z.string(),
+  resumeMessageId: z.string().nullable().default(null),
+  resumedAt: z.string().nullable().default(null),
+});
+export type PlannedRestart = z.infer<typeof PlannedRestartSchema>;
+
 export const RecoveryRecordSchema = z.object({
   agentId: z.string(),
   workspaceId: z.string().nullable(),
@@ -19,6 +31,7 @@ export const RecoveryRecordSchema = z.object({
   autoEligible: z.boolean().default(false),
   autoAttempts: z.number().int().nonnegative().default(0),
   lastAutoAt: z.string().nullable().default(null),
+  planned: PlannedRestartSchema.nullable().default(null),
 });
 export type RecoveryRecord = z.infer<typeof RecoveryRecordSchema>;
 
@@ -76,4 +89,50 @@ export const dismissRecovery = defineRpc({
   name: "session-recovery.dismiss",
   input: Selection,
   output: z.object({ dismissed: z.boolean() }),
+});
+
+const PlannedRestartEntrySchema = z.object({
+  agentId: z.string(),
+  title: z.string().nullable(),
+  result: z.enum([
+    "pending",
+    "working",
+    "watching",
+    "done",
+    "no-answer",
+    "skipped",
+    "resumed",
+    "failed",
+  ]),
+  detail: z.string(),
+});
+
+const PlannedRestartRunSchema = z.object({
+  runId: z.string(),
+  done: z.boolean(),
+  entries: z.array(PlannedRestartEntrySchema),
+});
+export type PlannedRestartRun = z.infer<typeof PlannedRestartRunSchema>;
+
+export const prepareRestart = defineRpc({
+  name: "session-recovery.restart.prepare",
+  input: z.object({
+    runId: z.string().min(1),
+    timeoutMs: z.number().int().positive().max(900_000).default(180_000),
+    activeWithinMinutes: z.number().int().nonnegative().max(1440).default(15),
+    dryRun: z.boolean().default(false),
+  }),
+  output: PlannedRestartRunSchema,
+});
+
+export const restartStatus = defineRpc({
+  name: "session-recovery.restart.status",
+  input: z.object({ runId: z.string().min(1) }),
+  output: PlannedRestartRunSchema,
+});
+
+export const resumeRestart = defineRpc({
+  name: "session-recovery.restart.resume",
+  input: z.object({ runId: z.string().min(1) }),
+  output: PlannedRestartRunSchema,
 });

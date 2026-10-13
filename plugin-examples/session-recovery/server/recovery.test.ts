@@ -518,4 +518,46 @@ describe("session recovery", () => {
       lastAutoAt: null,
     });
   });
+
+  it("hands a planned restart checkpoint back exactly once and keeps it out of automatic recovery", async () => {
+    const { directory, store } = await storage();
+    const before = new RecoveryService(store, "boot-one", { autoSchedule: false });
+    await before.started(hook, "turn-one");
+    const { paseo: beforePaseo, handle: beforeHandle } = connection(agent({ status: "running" }));
+    const run = vi.fn(async (_text: string, _options?: unknown) => ({
+      status: "idle" as const,
+      final: null,
+      error: null,
+      lastMessage: "STATUS: working\nCHECKPOINT: Schritt 3 von 5, Queue-Job #42 prüfen",
+    }));
+    Object.assign(beforeHandle, { run });
+    const started = await before.prepareRestart(
+      { runId: "run-1", timeoutMs: 1000, activeWithinMinutes: 15 },
+      beforePaseo,
+    );
+    expect(started.entries.map((entry) => entry.result)).toEqual(["pending"]);
+    await vi.waitFor(() => expect(before.restartStatus("run-1").done).toBe(true));
+    expect(before.restartStatus("run-1").entries[0].result).toBe("working");
+    expect(run.mock.calls[0][1]).toEqual({ activeTurnBehavior: "steer", timeoutMs: 1000 });
+    await before.started(hook, "turn-two");
+    await before.close();
+
+    const afterStore = new RecoveryStore(directory);
+    await afterStore.setAutomatic(true);
+    const after = new RecoveryService(afterStore, "boot-two", { autoSchedule: false });
+    const { paseo, send } = connection(agent());
+    const listed = await after.list(paseo);
+    expect(listed.candidates[0].autoEligible).toBe(false);
+    await after.runAutomatic(paseo);
+    expect(send).not.toHaveBeenCalled();
+
+    const resumed = await after.resumeRestart("run-1", paseo);
+    expect(resumed.entries.map((entry) => entry.result)).toEqual(["resumed"]);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toContain("Schritt 3 von 5, Queue-Job #42 prüfen");
+    expect((await after.resumeRestart("run-1", paseo)).entries).toEqual([]);
+    expect((await after.list(paseo)).candidates).toEqual([]);
+    await after.runAutomatic(paseo);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
 });

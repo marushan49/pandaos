@@ -5,7 +5,13 @@ import type {
 } from "@getpaseo/plugin/server";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import type { RecoveryCandidate, RecoveryRecord, RecoveryEvent } from "../shared/contracts";
+import type {
+  PlannedRestart,
+  PlannedRestartRun,
+  RecoveryCandidate,
+  RecoveryRecord,
+  RecoveryEvent,
+} from "../shared/contracts";
 import { RecoveryStore } from "./store";
 
 type PaseoApi = PluginHandlerContext["paseo"];
@@ -17,6 +23,50 @@ export const MAX_AUTOMATIC_ATTEMPTS = 3;
 
 export const CONTINUE_PROMPT =
   "Setze den durch einen Absturz oder Fehler unterbrochenen Auftrag fort. Lies zuerst den gespeicherten Arbeitsstand und prüfe bereits laufende Prozesse und erledigte Schritte. Arbeite am bestehenden Ziel weiter, ohne Jobs doppelt zu starten. Halte bei einem echten Blocker an und benenne ihn konkret.";
+
+export const PLANNED_RESTART_PROMPT = [
+  "Geplanter Neustart des PandaOS-Daemons in Kürze (Session Recovery).",
+  "Schließe nur den aktuellen Schritt ab, starte keine neuen Tool-Aufrufe, Jobs oder Wartezeiten und beende danach deinen Zug.",
+  "Antworte knapp in genau diesem Format:",
+  "STATUS: working | watching | done",
+  "CHECKPOINT: wo du stehst, was als Nächstes kommt und welche Hintergrundprozesse, Queue-Jobs, Heartbeats oder Browser-Tabs du danach prüfen musst.",
+  "working = Auftrag läuft noch, watching = du wartest oder beobachtest etwas, done = nichts mehr offen.",
+  "Nach dem Neustart bekommst du deinen Checkpoint automatisch zurück und arbeitest dort weiter.",
+].join("\n");
+
+const PLANNED_CHECKPOINT_LIMIT = 4000;
+const PLANNED_OWNERSHIP_MS = 24 * 60 * 60 * 1000;
+
+export function parsePlannedReply(reply: string | null): {
+  status: PlannedRestart["status"];
+  checkpoint: string;
+} {
+  const text = (reply ?? "").trim();
+  const match = /STATUS:\s*\**\s*(working|watching|done)\b/i.exec(text);
+  return {
+    status: (match?.[1]?.toLowerCase() as PlannedRestart["status"] | undefined) ?? "working",
+    checkpoint: text.slice(0, PLANNED_CHECKPOINT_LIMIT),
+  };
+}
+
+export function plannedResumePrompt(planned: PlannedRestart): string {
+  return [
+    `Der PandaOS-Daemon wurde geplant neu gestartet (Session Recovery, Lauf ${planned.runId}).`,
+    "Dein Checkpoint von vorher:",
+    "",
+    planned.checkpoint || "(kein Checkpoint übermittelt)",
+    "",
+    "Arbeite dort weiter. Prüfe zuerst, ob die genannten Hintergrundprozesse, Jobs und Heartbeats noch laufen oder neu gestartet werden müssen, und starte nichts doppelt.",
+  ].join("\n");
+}
+
+function ownsPlannedRestart(record: RecoveryRecord) {
+  return (
+    record.planned !== null &&
+    record.planned.resumedAt === null &&
+    Date.now() - Date.parse(record.planned.recordedAt) < PLANNED_OWNERSHIP_MS
+  );
+}
 
 export function daemonEpoch(): string {
   if (process.env.INVOCATION_ID) return `systemd:${process.env.INVOCATION_ID}`;
@@ -69,6 +119,7 @@ export class RecoveryService {
   private automaticAgentId: string | null = null;
   private automaticWork: Promise<void> | null = null;
   private disposed = false;
+  private readonly plannedRuns = new Map<string, PlannedRestartRun>();
 
   constructor(
     readonly store: RecoveryStore,
@@ -168,6 +219,7 @@ export class RecoveryService {
       autoEligible: true,
       autoAttempts: previous?.autoAttempts ?? 0,
       lastAutoAt: previous?.lastAutoAt ?? null,
+      planned: previous?.planned ?? null,
     };
   }
 
@@ -325,7 +377,7 @@ export class RecoveryService {
           return {
             ...latest,
             phase: "interrupted",
-            autoEligible: true,
+            autoEligible: !ownsPlannedRestart(latest),
             reason: "Der Host wurde neu gestartet; für diesen Arbeitslauf fehlt ein Abschluss.",
             updatedAt: new Date().toISOString(),
           };
@@ -639,5 +691,163 @@ export class RecoveryService {
       await this.failedResume(event, revision, error, paseo);
       throw error;
     }
+  }
+
+  async prepareRestart(
+    input: { runId: string; timeoutMs: number; activeWithinMinutes: number; dryRun?: boolean },
+    paseo: PaseoApi,
+  ): Promise<PlannedRestartRun> {
+    const existing = this.plannedRuns.get(input.runId);
+    if (existing) return structuredClone(existing);
+    await this.observe(paseo);
+    const recentSince = Date.now() - input.activeWithinMinutes * 60_000;
+    const selected = [...this.agents.values()].filter(
+      (agent) =>
+        !agent.archivedAt &&
+        (agent.status === "running" ||
+          agent.status === "initializing" ||
+          agent.activeTurn ||
+          Date.parse(agent.updatedAt) >= recentSince),
+    );
+    const run: PlannedRestartRun = {
+      runId: input.runId,
+      done: input.dryRun === true,
+      entries: selected.map((agent) => ({
+        agentId: agent.id,
+        title: agent.title,
+        result: "pending",
+        detail: "",
+      })),
+    };
+    if (input.dryRun) return run;
+    this.plannedRuns.set(input.runId, run);
+    void Promise.all(
+      selected.map(async (agent, index) => {
+        run.entries[index] = {
+          ...run.entries[index],
+          ...(await this.collectCheckpoint(agent, input, paseo)),
+        };
+      }),
+    ).finally(() => {
+      run.done = true;
+    });
+    return structuredClone(run);
+  }
+
+  restartStatus(runId: string): PlannedRestartRun {
+    const run = this.plannedRuns.get(runId);
+    if (!run) throw new Error(`Unbekannter Neustart-Lauf ${runId}.`);
+    return structuredClone(run);
+  }
+
+  private async collectCheckpoint(
+    agent: PaseoAgent,
+    input: { runId: string; timeoutMs: number },
+    paseo: PaseoApi,
+  ): Promise<Pick<PlannedRestartRun["entries"][number], "result" | "detail">> {
+    if (agent.pendingPermissions.length)
+      return { result: "skipped", detail: "Wartet auf eine Freigabe." };
+    try {
+      const result = await paseo.agents.ref(agent.id).run(PLANNED_RESTART_PROMPT, {
+        activeTurnBehavior: "steer",
+        timeoutMs: input.timeoutMs,
+      });
+      if (result.status !== "idle")
+        return { result: "no-answer", detail: result.error ?? `Status ${result.status}` };
+      const { status, checkpoint } = parsePlannedReply(result.lastMessage);
+      const planned: PlannedRestart = {
+        runId: input.runId,
+        status,
+        checkpoint,
+        recordedAt: new Date().toISOString(),
+        resumeMessageId: null,
+        resumedAt: null,
+      };
+      await this.store.change(agent.id, (current) => ({
+        ...(current ?? this.record(agent, "resolved", null, null)),
+        ...metadata(agent),
+        phase: "resolved",
+        planned,
+        updatedAt: new Date().toISOString(),
+      }));
+      return { result: status, detail: checkpoint.split("\n", 1)[0].slice(0, 200) };
+    } catch (error) {
+      return {
+        result: "no-answer",
+        detail: error instanceof Error ? errorSummary(error.message) : "Keine Antwort",
+      };
+    }
+  }
+
+  async resumeRestart(runId: string, paseo: PaseoApi): Promise<PlannedRestartRun> {
+    const entries: PlannedRestartRun["entries"] = [];
+    for (const record of await this.store.all()) {
+      const planned = record.planned;
+      if (!planned || planned.runId !== runId || planned.resumedAt) continue;
+      const base = { agentId: record.agentId, title: record.title };
+      if (planned.status === "done") {
+        await this.consumePlanned(record.agentId, runId, null);
+        entries.push({ ...base, result: "done" as const, detail: "Nichts offen." });
+        continue;
+      }
+      const messageId = planned.resumeMessageId ?? randomUUID();
+      const retry = planned.resumeMessageId !== null;
+      const event: RecoveryEvent = {
+        id: messageId,
+        agentId: record.agentId,
+        title: record.title,
+        provider: record.provider,
+        at: new Date().toISOString(),
+        mode: "automatic",
+        status: "pending",
+        reason: "Geplanter Daemon-Neustart",
+        error: null,
+        messageId,
+      };
+      try {
+        await this.store.change(record.agentId, (current) =>
+          current?.planned?.runId === runId
+            ? { ...current, planned: { ...current.planned, resumeMessageId: messageId } }
+            : undefined,
+        );
+        const handle = paseo.agents.ref(record.agentId);
+        const agent = (await handle.refresh())?.agent;
+        if (!agent) throw new Error("Die Session existiert nicht mehr.");
+        if (agent.archivedAt) throw new Error("Die Session ist archiviert.");
+        if (agent.pendingPermissions.length)
+          throw new Error("Die Session wartet auf eine Freigabe.");
+        const alreadyAccepted =
+          retry && (await this.previouslyAccepted(record.agentId, messageId, paseo));
+        if (!alreadyAccepted)
+          await handle.send(plannedResumePrompt(planned), {
+            messageId,
+            activeTurnBehavior: "steer",
+          });
+        await this.consumePlanned(record.agentId, runId, messageId);
+        await this.publishEvent({ ...event, status: "resumed" }, paseo);
+        entries.push({ ...base, result: "resumed" as const, detail: planned.status });
+      } catch (error) {
+        const failure =
+          error instanceof Error ? errorSummary(error.message) : "Fortsetzung fehlgeschlagen";
+        await this.publishEvent({ ...event, status: "failed", error: failure }, paseo).catch(
+          () => undefined,
+        );
+        entries.push({ ...base, result: "failed" as const, detail: failure });
+      }
+    }
+    return { runId, done: true, entries };
+  }
+
+  private async consumePlanned(agentId: string, runId: string, messageId: string | null) {
+    await this.store.change(agentId, (current) => {
+      if (current?.planned?.runId !== runId) return undefined;
+      const now = new Date().toISOString();
+      return {
+        ...current,
+        phase: ["interrupted", "resuming"].includes(current.phase) ? "resolved" : current.phase,
+        planned: { ...current.planned, resumeMessageId: messageId, resumedAt: now },
+        updatedAt: now,
+      };
+    });
   }
 }

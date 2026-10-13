@@ -29,9 +29,19 @@ A fresh snapshot and checkpoint check prevent continuing active, archived, stopp
 
 The original chat shows a labeled continuation request and a compact recovery row with its time, reason and result. **Verlauf** keeps the latest 200 attempts across reloads and daemon restarts. “Fortgesetzt” means the continuation was accepted, not that the original task completed.
 
-Turn start, accepted-message and completion hooks track future work. Client plugin activation bootstraps recovery when a host connects; opening a provider session and lifecycle events also trigger reconciliation. After a daemon restart, automatic recovery needs one of those triggers. A headless host with no connected client or session activity does not immediately start recovery. The first reconciliation enrolls existing active sessions and stored provider errors. A crash that predates installation cannot be reconstructed from an ordinary idle session. The optional accepted-message hook covers requests that crash before their turn starts on hosts supporting that hook.
+Turn start, accepted-message and completion hooks track future work. For a restart you control, use the [planned daemon restart](#planned-daemon-restart). Client plugin activation bootstraps recovery when a host connects; opening a provider session and lifecycle events also trigger reconciliation. After a daemon restart, automatic recovery needs one of those triggers. A headless host with no connected client or session activity does not immediately start recovery. The first reconciliation enrolls existing active sessions and stored provider errors. A crash that predates installation cannot be reconstructed from an ordinary idle session. The optional accepted-message hook covers requests that crash before their turn starts on hosts supporting that hook.
 
-The ledger lives in the plugin's host-owned data directory. Checkpoints contain metadata and error summaries, not prompts or transcripts. Writes are atomic and fsynced. Damaged storage produces an error instead of an empty list. Plugin reload within the same daemon invocation does not count as a crash. Keep the data directory when changing the installed source.
+The ledger lives in the plugin's host-owned data directory. Checkpoints contain metadata and error summaries, not prompts or transcripts. A planned restart also stores each session's status reply, capped at 4,000 characters, until it is handed back. Writes are atomic and fsynced. Damaged storage produces an error instead of an empty list. Plugin reload within the same daemon invocation does not count as a crash. Keep the data directory when changing the installed source.
+
+## Planned daemon restart
+
+Restart the daemon through `plugin-examples/session-recovery/bin/planned-restart.mjs` (installed on the Zotac as `pandaos-planned-restart`) instead of `systemctl restart` or waiting for idle. Agents get the `pandaos-daemon-restart` skill for this.
+
+The script runs as its own systemd unit, because the restart ends the invoking agent. It calls `session-recovery.restart.prepare`: every running session and every session active in the last 15 minutes receives a steered request to finish its step and answer with `STATUS: working | watching | done` and a checkpoint. Requests run concurrently and wait at most `--timeout-sec` (180). An answered session is stored with its checkpoint and leaves automatic recovery, so it is continued once. Sessions that wait for a permission or do not answer stay on the ordinary interrupted path.
+
+Then the script restarts the service, optionally switching `~/projects/pandaos-live` to `--release` first. It accepts the restart when the service is active, reports the same server ID and serves the release's web bundle; otherwise it switches back. Afterwards `session-recovery.restart.resume` sends each `working` or `watching` session its checkpoint. `--dry-run` lists the sessions that would be asked and sends nothing. Logs go to `~/.pandaos/planned-restart/`.
+
+The heads-up starts a provider turn in every selected idle session. Background work a provider keeps outside a turn is only as visible as the session's own checkpoint.
 
 ## Add the Linux Android queue
 

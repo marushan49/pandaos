@@ -4,6 +4,8 @@ Find interrupted sessions under **Unterbrochene Sessions** in the sidebar or Com
 
 Automatic recovery is opt-in. Explicit stops, archived sessions, permission requests and historical imported errors are excluded. You can also select **Weiterarbeiten** manually or **Ausblenden** to clear an entry without changing its agent.
 
+For a planned daemon restart, `bin/planned-restart.mjs` asks active sessions for a checkpoint, restarts the daemon and hands each checkpoint back afterwards.
+
 Requires PandaOS or Paseo 0.11.0 or newer with plugins enabled:
 
 ```sh
