@@ -662,6 +662,826 @@
             "name": "codex-original-thread-restored"
           }
         ]
+      },
+      "assistant-image-preview": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://localhost:8081/h/srv_Oev_gbmqBdBP/agent/6938c938-759a-48a8-b607-ea1bb17e4fd0",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Expand image",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Expand image"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Expand image"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Collapse image"
+          },
+          {
+            "action": "screenshot",
+            "name": "expanded"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Collapse image"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Expand image"
+          },
+          {
+            "action": "screenshot",
+            "name": "collapsed"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open image attachment"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Close image"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Close image"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Expand image"
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "lightbox-closed"
+          }
+        ]
+      },
+      "session-recovery-status": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4007/h/srv_RtppvtlARpFR/plugin/session-recovery/surface/recovery",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Keine unterbrochenen Sessions erkannt.",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Recovery-Liste aktualisieren"
+          },
+          {
+            "action": "screenshot",
+            "name": "recovery-clean"
+          }
+        ]
+      },
+      "session-recovery-continuation-result": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4007/h/srv_RtppvtlARpFR/agent/1d2aef7d-98f2-4abe-b048-14f439777a26",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Recovery-Test fortgesetzt",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-text",
+            "text": "Setze den durch einen Absturz oder Fehler unterbrochenen Auftrag fort."
+          },
+          {
+            "action": "screenshot",
+            "name": "continuation-result"
+          }
+        ]
+      },
+      "session-recovery-automatic-panel": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4007/h/srv_RtppvtlARpFR/plugin/session-recovery/surface/recovery",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Automatisch fortsetzen",
+            "timeoutMs": 25000
+          },
+          {
+            "action": "assert-text",
+            "text": "Verlauf"
+          },
+          {
+            "action": "screenshot",
+            "name": "recovery-automatic-panel"
+          }
+        ]
+      },
+      "session-recovery-automatic-continuation": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4007/h/srv_RtppvtlARpFR/agent/3debe26b-8c6a-4e12-9c55-d4d9598907a2",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Automatisch fortgesetzt, Test erfolgreich.",
+            "timeoutMs": 45000
+          },
+          {
+            "action": "assert-text",
+            "text": "Automatische Fortsetzung durch Session Recovery am"
+          },
+          {
+            "action": "assert-text",
+            "text": "Automatisch fortgesetzt"
+          },
+          {
+            "action": "screenshot",
+            "name": "automatic-recovery-chat-history"
+          }
+        ]
+      },
+      "session-recovery-automatic-history": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4007/h/srv_RtppvtlARpFR/plugin/session-recovery/surface/recovery",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Verlauf",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-text",
+            "text": "Automatisch fortgesetzt"
+          },
+          {
+            "action": "assert-text",
+            "text": "Recovery-Automatik Ausfalltest"
+          },
+          {
+            "action": "screenshot",
+            "name": "automatic-recovery-plugin-history"
+          }
+        ]
+      },
+      "session-recovery-automatic-chat-marker": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4007/h/srv_RtppvtlARpFR/agent/3debe26b-8c6a-4e12-9c55-d4d9598907a2",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Automatisch fortgesetzt",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "goal",
+            "goal": "Pr\u00fcfe, dass im Chat au\u00dfer der Fortsetzungsnachricht und der Antwort eine eigene kompakte Plugin-Markierung 'Automatisch fortgesetzt' mit Uhrzeit und Grund 'Codex app-server exited with code null and signal SIGKILL' sichtbar ist. Lies die Zeile. Die Antwort 'Automatisch fortgesetzt, Test erfolgreich.' allein reicht nicht.",
+            "verify": [
+              {
+                "text": "Automatisch fortgesetzt"
+              }
+            ],
+            "maxSteps": 4
+          },
+          {
+            "action": "screenshot",
+            "name": "automatic-recovery-distinct-marker"
+          }
+        ]
+      },
+      "finished-session-remains-open": {
+        "params": ["sessionUrl", "sessionTitle"],
+        "steps": [
+          {
+            "url": "{{sessionUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Turn finished",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "{{sessionTitle}}"
+          },
+          {
+            "action": "screenshot",
+            "name": "finished-session-remains-open"
+          }
+        ]
+      },
+      "android-composer-attachments-visible": {
+        "params": ["composerUrl"],
+        "steps": [
+          {
+            "url": "{{composerUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Turn finished",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Open image attachment"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Start dictation"
+          },
+          {
+            "action": "screenshot",
+            "name": "six-attachments-stable-composer"
+          }
+        ]
+      },
+      "media-viewer-own-tab": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:37015/h/srv_1CLv0GamZHy5/workspace/wks_ed5fa883ab7103e7",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "clip.mp4",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "New Agent"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Media viewer"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Download media"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download media"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download started on this device.",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "screenshot",
+            "name": "media-own-tab-next-to-chat"
+          }
+        ]
+      },
+      "media-viewer-own-tab-regression": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:37015/h/srv_1CLv0GamZHy5/workspace/wks_ed5fa883ab7103e7",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Media viewer",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Media path",
+            "value": "/home/admin/projects/pandaos/.dev/media-viewer-qa/picture.png"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open media file"
+          },
+          {
+            "action": "wait-text",
+            "text": "picture.png"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zoom in"
+          },
+          {
+            "action": "wait-text",
+            "text": "150%"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Reset image zoom"
+          },
+          {
+            "action": "wait-text",
+            "text": "100%"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Back to media folder"
+          },
+          {
+            "action": "wait-text",
+            "text": "packages"
+          },
+          {
+            "action": "assert-text",
+            "text": "plugins"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Media path",
+            "value": "/home/admin/projects/pandaos/.dev/media-viewer-qa/picture.png"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open media file"
+          },
+          {
+            "action": "wait-text",
+            "text": "picture.png"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "New Agent"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Media viewer"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download media"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download started"
+          },
+          {
+            "action": "screenshot",
+            "name": "media-tab-picture-next-to-chat"
+          }
+        ]
+      },
+      "media-viewer-production": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_705dcec3d6071dcb",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Media viewer",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Media path",
+            "value": "/home/admin/projects/pandaos/.dev/media-viewer-qa/picture.png"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open media file"
+          },
+          {
+            "action": "wait-text",
+            "text": "picture.png"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zoom in"
+          },
+          {
+            "action": "wait-text",
+            "text": "150%"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Reset image zoom"
+          },
+          {
+            "action": "wait-text",
+            "text": "100%"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Add video and picture viewer plugin"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download media"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download started"
+          },
+          {
+            "action": "screenshot",
+            "name": "media-viewer-live-main"
+          }
+        ]
+      },
+      "media-viewer-production-video": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_705dcec3d6071dcb",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Media viewer",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Media path",
+            "value": "/home/admin/projects/pandaos/.dev/media-viewer-qa/clip.mp4"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open media file"
+          },
+          {
+            "action": "wait-text",
+            "text": "clip.mp4"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Download media"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download media"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download started"
+          },
+          {
+            "action": "screenshot",
+            "name": "media-viewer-live-video"
+          }
+        ]
+      },
+      "inline-video-chat-download-errors": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:32865/h/srv_2XuznM-V2pgJ/workspace/wks_3162c6b397b48128",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "CCA Claim Intake",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Download video: CCA Claim Intake"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download video: CCA Claim Intake"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download started on this device.",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "screenshot",
+            "name": "inline-video-master-download"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Load video: Missing clip"
+          },
+          {
+            "action": "wait-text",
+            "text": "ENOENT",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "screenshot",
+            "name": "inline-video-error"
+          }
+        ]
+      },
+      "inline-video-chat-image-preserved": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:32865/h/srv_2XuznM-V2pgJ/workspace/wks_3162c6b397b48128",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "CCA Claim Intake",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Expand image"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Expand image"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Collapse image"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Collapse image"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Download video: CCA Claim Intake"
+          },
+          {
+            "action": "screenshot",
+            "name": "inline-video-image-preserved"
+          }
+        ]
+      },
+      "inline-video-live-v3": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_705dcec3d6071dcb",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Film v3 Seraphina",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Download video: Film v3 Seraphina"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download video: Film v3 Seraphina"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download started on this device.",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "screenshot",
+            "name": "inline-video-live-v3"
+          }
+        ]
+      },
+      "mac-ide-remote-ssh-menu": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:45923/h/srv_0MGZdn-FmrzM/workspace/wks_05146432ccc0790a",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Commit",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Open workspace in VS Code"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Choose editor"
+          },
+          {
+            "action": "assert-text",
+            "text": "VS Code"
+          },
+          {
+            "action": "assert-text",
+            "text": "GitHub"
+          },
+          {
+            "action": "screenshot",
+            "name": "mac-ide-dropdown"
+          }
+        ]
+      },
+      "mac-ide-remote-ssh-open": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:45923/h/srv_0MGZdn-FmrzM/workspace/wks_05146432ccc0790a",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Commit",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Open workspace in VS Code"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open workspace in VS Code"
+          },
+          {
+            "action": "wait-text",
+            "text": "VS Code Remote SSH: zotac /home/admin/projects/pandaos",
+            "timeoutMs": 5000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Choose editor"
+          },
+          {
+            "action": "assert-text",
+            "text": "VS Code"
+          },
+          {
+            "action": "assert-text",
+            "text": "GitHub"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "mac-ide-remote-menu-and-open"
+          }
+        ]
+      },
+      "mac-ide-final-candidate": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://localhost:45923/h/srv_0MGZdn-FmrzM/workspace/wks_05146432ccc0790a?ide-build=b82bff9407fd470d5622a60eb4c04699-final",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Commit",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Open workspace in VS Code"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open workspace in VS Code"
+          },
+          {
+            "action": "wait-text",
+            "text": "VS Code Remote SSH: zotac /home/admin/projects/pandaos",
+            "timeoutMs": 5000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Choose editor"
+          },
+          {
+            "action": "assert-text",
+            "text": "VS Code"
+          },
+          {
+            "action": "assert-text",
+            "text": "GitHub"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 2
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "mac-ide-final-candidate"
+          }
+        ]
+      },
+      "scan-visible-chat-pr-1517-result": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:43677/h/srv_RtppvtlARpFR/workspace/wks_c8a497912523ebf4",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Pull requests in this chat",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-text",
+            "text": "DCAI-2185: HAP Phase 3 | Improve CCA reads and customer supplement routing"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Attach 1"
+          },
+          {
+            "action": "screenshot",
+            "name": "visible-source-other-workspace-1517"
+          }
+        ]
       }
     }
   }
