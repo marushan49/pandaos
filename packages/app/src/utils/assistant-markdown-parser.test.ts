@@ -16,6 +16,21 @@ describe("createAssistantMarkdownParser", () => {
     expect(video?.block).toBe(true);
   });
 
+  it("renders absolute links to documents as a file card", () => {
+    const childTypes = (source: string) =>
+      createAssistantMarkdownParser()
+        .parse(source, {})
+        .flatMap((token) => token.children || [])
+        .map((token) => token.type);
+    expect(childTypes("[Nachtrag](</home/admin/out/Nachtrag an Thomas.eml>)")).toContain(
+      "file_card",
+    );
+    expect(childTypes("[Bericht](file:///tmp/bericht.pdf)")).toContain("file_card");
+    expect(childTypes("[Code](/home/admin/x.ts:12)")).not.toContain("file_card");
+    expect(childTypes("[Mail](~/Downloads/a.eml)")).not.toContain("file_card");
+    expect(childTypes("[Mail](out/a.eml)")).not.toContain("file_card");
+  });
+
   it("keeps image links, code and partial video destinations unchanged", () => {
     const parser = createAssistantMarkdownParser({ streaming: true });
     const sources = [

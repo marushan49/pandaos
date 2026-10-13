@@ -2,6 +2,7 @@ import type MarkdownIt from "markdown-it";
 import { createMarkdownParser } from "@/utils/markdown-parser";
 import { enableStreamingMarkdown } from "@/utils/streaming-markdown";
 import { videoMimeType } from "@/assistant-video/source";
+import { assistantFileCardPath } from "@/assistant-file-card/source";
 
 export function createAssistantMarkdownParser({ streaming = false } = {}): MarkdownIt {
   const parser = createMarkdownParser({ linkify: true });
@@ -28,22 +29,26 @@ export function createAssistantMarkdownParser({ streaming = false } = {}): Markd
           continue;
         }
         const source = token.type === "link_open" ? token.attrGet("href") : null;
-        if (!source || !videoMimeType(source)) continue;
+        if (!source) continue;
+        let type: "video" | "file_card" | null = null;
+        if (videoMimeType(source)) type = "video";
+        else if (assistantFileCardPath(source)) type = "file_card";
+        if (!type) continue;
         const end = children.findIndex(
           (child, childIndex) => childIndex > index && child.type === "link_close",
         );
         if (end < 0) continue;
-        const video = new state.Token("video", "video", 0);
-        video.block = true;
-        video.attrSet("src", source);
-        video.attrSet(
+        const card = new state.Token(type, type, 0);
+        card.block = true;
+        card.attrSet("src", source);
+        card.attrSet(
           "alt",
           children
             .slice(index + 1, end)
             .map((child) => child.content)
             .join(""),
         );
-        children.splice(index, end - index + 1, video);
+        children.splice(index, end - index + 1, card);
       }
     }
   });
