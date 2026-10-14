@@ -1132,11 +1132,13 @@ export interface GitWorktreeEntry {
   isBare?: boolean;
 }
 
-/** Check whether a path is under Paseo's worktree root. */
 export function isPaseoWorktreePath(
   p: string,
   options?: { paseoHome?: string; worktreesRoot?: string },
 ): boolean {
+  if (/[/\\]\.worktrees[/\\]/.test(p)) {
+    return true;
+  }
   if (options?.worktreesRoot || options?.paseoHome) {
     return isDescendantPath(p, resolvePaseoWorktreesBaseRoot(options));
   }
@@ -1243,8 +1245,7 @@ async function getPaseoWorktreeForCwd(
   cwd: string,
   options: PaseoWorktreeLookupOptions = {},
 ): Promise<PaseoWorktreeForCwd> {
-  // Fast-path reject: non-worktree paths do not need expensive ownership checks.
-  if (!/[\\/]worktrees[\\/]/.test(cwd)) {
+  if (!/[\\/]\.?worktrees[\\/]/.test(cwd)) {
     return { isPaseoOwnedWorktree: false };
   }
 

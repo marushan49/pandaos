@@ -113,7 +113,6 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
     });
 
     it("creates a worktree for the current branch (main)", async () => {
-      const projectHash = await deriveWorktreeProjectHash(repoDir);
       const result = await createLegacyWorktreeForTest({
         branchName: "main",
         cwd: repoDir,
@@ -122,7 +121,7 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
         paseoHome,
       });
 
-      expect(result.worktreePath).toBe(join(paseoHome, "worktrees", projectHash, "hello-world"));
+      expect(result.worktreePath).toBe(join(repoDir, ".worktrees", "hello-world"));
       expect(existsSync(result.worktreePath)).toBe(true);
       expect(existsSync(join(result.worktreePath, "file.txt"))).toBe(true);
       const metadataPath = getPaseoWorktreeMetadataPath(result.worktreePath);
@@ -165,6 +164,54 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
         worktreesBaseRoot: worktreesRoot,
       });
       expect(existsSync(result.worktreePath)).toBe(false);
+    });
+
+    it("keeps owning, listing and deleting worktrees in the legacy paseo-home layout", async () => {
+      const legacyRoot = join(paseoHome, "worktrees");
+      const projectHash = await deriveWorktreeProjectHash(repoDir);
+      const legacy = await createLegacyWorktreeForTest({
+        branchName: "legacy",
+        cwd: repoDir,
+        baseBranch: "main",
+        worktreeSlug: "legacy",
+        paseoHome,
+        worktreesRoot: legacyRoot,
+      });
+      const current = await createLegacyWorktreeForTest({
+        branchName: "current",
+        cwd: repoDir,
+        baseBranch: "main",
+        worktreeSlug: "current",
+        paseoHome,
+      });
+
+      expect(legacy.worktreePath).toBe(join(legacyRoot, projectHash, "legacy"));
+      expect(current.worktreePath).toBe(join(repoDir, ".worktrees", "current"));
+      await expect(isPaseoOwnedWorktreeCwd(legacy.worktreePath, { paseoHome })).resolves.toEqual({
+        allowed: true,
+        repoRoot: repoDir,
+        worktreeRoot: join(legacyRoot, projectHash),
+        worktreePath: legacy.worktreePath,
+      });
+      await expect(
+        isPaseoOwnedWorktreeCwd(join(current.worktreePath, "nested"), { paseoHome }),
+      ).resolves.toEqual({
+        allowed: true,
+        repoRoot: repoDir,
+        worktreeRoot: join(repoDir, ".worktrees"),
+        worktreePath: current.worktreePath,
+      });
+
+      const listed = await listPaseoWorktrees({ cwd: repoDir, paseoHome });
+      expect(listed.map((entry) => entry.path).sort()).toEqual(
+        [current.worktreePath, legacy.worktreePath].sort(),
+      );
+
+      await deletePaseoWorktree({ cwd: repoDir, worktreeSlug: "legacy", paseoHome });
+      await deletePaseoWorktree({ cwd: repoDir, worktreeSlug: "current", paseoHome });
+      expect(existsSync(legacy.worktreePath)).toBe(false);
+      expect(existsSync(current.worktreePath)).toBe(false);
+      expect(await listPaseoWorktrees({ cwd: repoDir, paseoHome })).toEqual([]);
     });
 
     it.skip("detects paseo-owned worktrees across realpath differences (macOS /var vs /private/var)", async () => {
@@ -234,7 +281,6 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
     });
 
     it("creates a worktree with a new branch", async () => {
-      const projectHash = await deriveWorktreeProjectHash(repoDir);
       const result = await createLegacyWorktreeForTest({
         cwd: repoDir,
         worktreeSlug: "my-feature",
@@ -243,7 +289,7 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
         paseoHome,
       });
 
-      expect(result.worktreePath).toBe(join(paseoHome, "worktrees", projectHash, "my-feature"));
+      expect(result.worktreePath).toBe(join(repoDir, ".worktrees", "my-feature"));
       expect(existsSync(result.worktreePath)).toBe(true);
 
       const currentBranch = execFileSync("git", ["branch", "--show-current"], {
@@ -785,7 +831,6 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
     });
 
     it("handles branch name collision by adding suffix", async () => {
-      const projectHash = await deriveWorktreeProjectHash(repoDir);
       // Create a branch named "hello" first
       execFileSync("git", ["branch", "hello"], { cwd: repoDir });
 
@@ -798,7 +843,7 @@ describe.skipIf(isPlatform("win32"))("worktree POSIX-only", () => {
       });
 
       // Should create branch "hello-1" since "hello" exists
-      expect(result.worktreePath).toBe(join(paseoHome, "worktrees", projectHash, "hello"));
+      expect(result.worktreePath).toBe(join(repoDir, ".worktrees", "hello"));
       expect(existsSync(result.worktreePath)).toBe(true);
 
       const branches = execFileSync("git", ["branch"], { cwd: repoDir }).toString();
