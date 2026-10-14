@@ -1,6 +1,4 @@
-import { join } from "node:path";
-
-import { getPaseoWorktreesRoot, isPaseoOwnedWorktreeCwd } from "../../utils/worktree.js";
+import { isPaseoOwnedWorktreeCwd, resolvePaseoWorktreeSlugPath } from "../../utils/worktree.js";
 import {
   archiveByScope,
   resolveWorkspaceIdAtPath,
@@ -211,10 +209,10 @@ async function resolveWorktreeSlugPath(
   repoRoot: string,
   worktreeSlug: string,
 ): Promise<string> {
-  const worktreesRoot = await getPaseoWorktreesRoot(
+  return resolvePaseoWorktreeSlugPath(
     repoRoot,
+    worktreeSlug,
     dependencies.paseoHome,
     dependencies.paseoWorktreesBaseRoot,
   );
-  return join(worktreesRoot, worktreeSlug);
 }
