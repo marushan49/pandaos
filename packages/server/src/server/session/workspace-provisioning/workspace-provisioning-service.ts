@@ -201,8 +201,13 @@ export function createWorkspaceProvisioningService(deps: {
   }
 
   async function findOrCreateProjectForDirectory(cwd: string): Promise<PersistedProjectRecord> {
-    const rootPath = resolve(cwd);
-    const checkout = await workspaceGitService.getCheckout(rootPath);
+    const checkout = await workspaceGitService.getCheckout(resolve(cwd));
+    const isLinkedWorktree =
+      checkout.mainRepoRoot !== null &&
+      checkout.worktreeRoot !== null &&
+      !areEquivalentPaths(checkout.mainRepoRoot, checkout.worktreeRoot);
+    const rootPath =
+      isLinkedWorktree && checkout.mainRepoRoot ? resolve(checkout.mainRepoRoot) : resolve(cwd);
     const timestamp = new Date().toISOString();
     return projectRegistry.getOrCreateActiveByRoot({
       rootPath,

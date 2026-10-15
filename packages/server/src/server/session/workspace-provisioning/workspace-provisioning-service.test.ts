@@ -45,6 +45,7 @@ async function isDirectory(target: string): Promise<boolean> {
 let tmpDir: string;
 let gitRoots: Set<string>;
 let gitBranches: Map<string, string | null>;
+let linkedWorktreeMainRoots: Map<string, string>;
 let checkoutFailure: Error | null;
 let restoredMergedChangeRequestUrl: string | null;
 let workspaceRegistry: FileBackedWorkspaceRegistry;
@@ -91,7 +92,7 @@ function gitService() {
         remoteUrl: null,
         worktreeRoot,
         isPaseoOwnedWorktree: false,
-        mainRepoRoot: null,
+        mainRepoRoot: worktreeRoot ? (linkedWorktreeMainRoots.get(worktreeRoot) ?? null) : null,
       };
     },
   });
@@ -101,6 +102,7 @@ beforeEach(async () => {
   tmpDir = mkdtempSync(path.join(os.tmpdir(), "workspace-provisioning-"));
   gitRoots = new Set();
   gitBranches = new Map();
+  linkedWorktreeMainRoots = new Map();
   checkoutFailure = null;
   restoredMergedChangeRequestUrl = null;
   workspaceRegistry = new FileBackedWorkspaceRegistry(
@@ -667,6 +669,22 @@ test("findOrCreateProjectForDirectory keeps nested selected roots independent", 
   expect(first.rootPath).toBe(repo);
   expect(second.rootPath).toBe(path.join(repo, "sub"));
   expect(await projectRegistry.list()).toHaveLength(2);
+});
+
+test("a local workspace in a linked worktree joins the main repository project", async () => {
+  const repo = path.join(tmpDir, "repo");
+  const worktree = path.join(repo, ".worktrees", "feature");
+  mkdirSync(worktree, { recursive: true });
+  gitRoots.add(repo);
+  gitRoots.add(worktree);
+  linkedWorktreeMainRoots.set(worktree, repo);
+
+  const mainProject = await provisioning.findOrCreateProjectForDirectory(repo);
+  const workspace = await provisioning.createWorkspaceForDirectory(worktree);
+
+  expect(workspace.projectId).toBe(mainProject.projectId);
+  expect(workspace.cwd).toBe(worktree);
+  expect(await projectRegistry.list()).toHaveLength(1);
 });
 
 test("runInImportWorkspace uses an active requested workspace without creating another", async () => {
