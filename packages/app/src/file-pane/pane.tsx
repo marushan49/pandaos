@@ -29,6 +29,7 @@ import { useFilePreview } from "./preview-lifecycle/hook";
 import { resolveFilePreviewLifecycle } from "./preview-lifecycle/model";
 import { FilePanelBar } from "./bar";
 import { FileHtmlPreview } from "./html-preview";
+import { FilePdfPreview } from "./pdf-preview";
 import { FileMarkdownPreview } from "./markdown-preview";
 import { FileEditorModel, getFileConflictCallout, type FileConflictCallout } from "./editor/model";
 import { createFileObservationSource } from "./editor/observation-source";
@@ -53,7 +54,7 @@ interface FilePreviewBodyProps {
   isMobile: boolean;
   location: WorkspaceFileLocation;
   navigationRevision: number;
-  imagePreviewUri: string | null;
+  previewUri: string | null;
   workspaceRoot: string;
   client: DaemonClient | null;
   serverId: string;
@@ -137,15 +138,13 @@ function FilePreviewBody({
   isMobile: _isMobile,
   location,
   navigationRevision,
-  imagePreviewUri,
+  previewUri,
   workspaceRoot,
   client,
   serverId,
 }: FilePreviewBodyProps) {
   const { t } = useTranslation();
   const filePath = location.path;
-  // A line target means the caller wants to land on that line, so fall back to
-  // the highlighted source view even for renderable files.
   const renderKind =
     preview?.kind === "text" && !location.lineStart && mode !== "source"
       ? filePreviewRenderKind(filePath)
@@ -172,7 +171,6 @@ function FilePreviewBody({
 
   if (preview.kind === "text") {
     if (renderKind === "html") {
-      // The HTML document owns its own scrolling, so no ScrollView wrapper here.
       return (
         <View style={styles.previewScrollContainer}>
           <FileHtmlPreview html={preview.content ?? ""} testID="file-html-preview" />
@@ -211,7 +209,7 @@ function FilePreviewBody({
   }
 
   if (preview.kind === "image") {
-    if (!imagePreviewUri) {
+    if (!previewUri) {
       return (
         <View style={styles.centerState}>
           <ThemedLoadingSpinner size="small" uniProps={foregroundMutedColorMapping} />
@@ -220,7 +218,15 @@ function FilePreviewBody({
       );
     }
 
-    return <ZoomableImage uri={imagePreviewUri} testID="image-file-preview" />;
+    return <ZoomableImage uri={previewUri} testID="image-file-preview" />;
+  }
+
+  if (previewUri) {
+    return (
+      <View style={styles.previewScrollContainer}>
+        <FilePdfPreview uri={previewUri} testID="file-pdf-preview" />
+      </View>
+    );
   }
 
   return (
@@ -290,8 +296,8 @@ export function FilePane({
 
   useEffect(() => setPreviewMode("preview"), [targetKey]);
 
-  const { file: preview, imageAttachment } = resolveFilePreviewLifecycle(previewLifecycle);
-  const imagePreviewUri = useAttachmentPreviewUrl(imageAttachment);
+  const { file: preview, previewAttachment } = resolveFilePreviewLifecycle(previewLifecycle);
+  const previewUri = useAttachmentPreviewUrl(previewAttachment);
   const isRenderable = isRenderablePreview(preview, location.path);
   const editable = isEditableTextFile({
     preview,
@@ -328,7 +334,7 @@ export function FilePane({
       isMobile={isMobile}
       location={location}
       navigationRevision={navigationRevision}
-      imagePreviewUri={imagePreviewUri}
+      previewUri={previewUri}
     />
   );
 }
@@ -370,7 +376,7 @@ function FilePanePresentation({
   isMobile,
   location,
   navigationRevision,
-  imagePreviewUri,
+  previewUri,
 }: {
   serverId: string;
   workspaceRoot: string;
@@ -392,7 +398,7 @@ function FilePanePresentation({
   isMobile: boolean;
   location: WorkspaceFileLocation;
   navigationRevision: number;
-  imagePreviewUri: string | null;
+  previewUri: string | null;
 }) {
   if (!client && readTarget) {
     return (
@@ -465,7 +471,7 @@ function FilePanePresentation({
         isMobile={isMobile}
         location={location}
         navigationRevision={navigationRevision}
-        imagePreviewUri={imagePreviewUri}
+        previewUri={previewUri}
         workspaceRoot={workspaceRoot}
         client={client}
         serverId={serverId}
@@ -645,7 +651,7 @@ function EditableFilePane({
           isMobile={isMobile}
           location={location}
           navigationRevision={navigationRevision}
-          imagePreviewUri={null}
+          previewUri={null}
           workspaceRoot={workspaceRoot}
           client={client}
           serverId={serverId}
