@@ -2007,23 +2007,21 @@ export const AssistantMessage = memo(function AssistantMessage({
         );
       },
       th: (node: ASTNode, children: ReactNode[], _parent: ASTNode[], styles: MarkdownStyles) => (
-        <MarkdownTableCellText key={node.key}>
-          <View
-            style={styles._VIEW_SAFE_th}
-            dataSet={markdownCopyTableCellDataSet("th", node.attributes?.style)}
-          >
-            {children}
-          </View>
+        <MarkdownTableCellText
+          key={node.key}
+          style={styles._VIEW_SAFE_th}
+          dataSet={markdownCopyTableCellDataSet("th", node.attributes?.style)}
+        >
+          {children}
         </MarkdownTableCellText>
       ),
       td: (node: ASTNode, children: ReactNode[], _parent: ASTNode[], styles: MarkdownStyles) => (
-        <MarkdownTableCellText key={node.key}>
-          <View
-            style={styles._VIEW_SAFE_td}
-            dataSet={markdownCopyTableCellDataSet("td", node.attributes?.style)}
-          >
-            {children}
-          </View>
+        <MarkdownTableCellText
+          key={node.key}
+          style={styles._VIEW_SAFE_td}
+          dataSet={markdownCopyTableCellDataSet("td", node.attributes?.style)}
+        >
+          {children}
         </MarkdownTableCellText>
       ),
       paragraph: (

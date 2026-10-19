@@ -28,7 +28,10 @@ import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { HighlightedCodeBlock } from "@/components/highlighted-code-block";
 import { MarkdownFenceBlock } from "@/components/markdown/fence";
 import { MarkdownParagraphView, MarkdownTextSpan } from "@/components/markdown-text";
-import { MarkdownTableCellText } from "@/components/markdown-text-selection";
+import {
+  MarkdownTableCellText,
+  MarkdownTableColumnsContext,
+} from "@/components/markdown-text-selection";
 import { getMarkdownListMarker, getMarkdownListSpacing } from "@/utils/markdown-list";
 import { markdownNodeContainsType } from "@/utils/markdown-ast";
 import { createMarkdownParser } from "@/utils/markdown-parser";
@@ -712,13 +715,13 @@ export function createSharedMarkdownRules(): RenderRules {
       </MarkdownTable>
     ),
     th: (node: ASTNode, children: ReactNode[], _parent: ASTNode[], styles: MarkdownStyles) => (
-      <MarkdownTableCellText key={node.key}>
-        <View style={styles._VIEW_SAFE_th}>{children}</View>
+      <MarkdownTableCellText key={node.key} style={styles._VIEW_SAFE_th}>
+        {children}
       </MarkdownTableCellText>
     ),
     td: (node: ASTNode, children: ReactNode[], _parent: ASTNode[], styles: MarkdownStyles) => (
-      <MarkdownTableCellText key={node.key}>
-        <View style={styles._VIEW_SAFE_td}>{children}</View>
+      <MarkdownTableCellText key={node.key} style={styles._VIEW_SAFE_td}>
+        {children}
       </MarkdownTableCellText>
     ),
     paragraph: (
@@ -755,8 +758,9 @@ export function createSharedMarkdownRules(): RenderRules {
   };
 }
 
-// Below this a column breaks words mid-word on a phone; wider tables scroll sideways instead.
 const MIN_TABLE_COLUMN_WIDTH = 150;
+const TABLE_VIEWPORT_STYLE: ViewStyle = { width: "100%", minWidth: 0 };
+const TABLE_SCROLL_STYLE: ViewStyle = { alignSelf: "stretch", flexGrow: 0 };
 
 export function countTableColumns(table: ASTNode): number {
   const firstRow = table.children.flatMap((section) => section.children)[0];
@@ -774,28 +778,23 @@ export function MarkdownTable({
   dataSet?: Record<string, string>;
   children: ReactNode;
 }) {
-  // A horizontal scroller sizes its content to the text, so the table gets an explicit
-  // width: the space available, or more when its columns would otherwise get too narrow.
   const [available, setAvailable] = useState(0);
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => setAvailable(event.nativeEvent.layout.width),
     [],
   );
   const innerStyle = useMemo(
-    () => [
-      tableStyle,
-      available > 0
-        ? { width: Math.max(available, columns * MIN_TABLE_COLUMN_WIDTH) }
-        : { minWidth: columns * MIN_TABLE_COLUMN_WIDTH },
-    ],
+    () => [tableStyle, { width: Math.max(available, columns * MIN_TABLE_COLUMN_WIDTH) }],
     [available, columns, tableStyle],
   );
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator onLayout={handleLayout}>
-      <View style={innerStyle} dataSet={dataSet}>
-        {children}
-      </View>
-    </ScrollView>
+    <View style={TABLE_VIEWPORT_STYLE} onLayout={handleLayout}>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={TABLE_SCROLL_STYLE}>
+        <View style={innerStyle} dataSet={dataSet}>
+          <MarkdownTableColumnsContext value={columns}>{children}</MarkdownTableColumnsContext>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
