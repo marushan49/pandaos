@@ -17,7 +17,7 @@ export function MarkdownTableCellText({
 }) {
   const columns = useContext(MarkdownTableColumnsContext);
   const cellStyle = useMemo(
-    () => [style, { width: `${100 / columns}%` as const, flex: 0, minWidth: 0 }],
+    () => [style, { width: `${100 / columns}%` as const, flex: -1, minWidth: 0 }],
     [style, columns],
   );
   return (
