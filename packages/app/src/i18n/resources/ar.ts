@@ -650,6 +650,7 @@ export const ar: TranslationResources = {
       },
     },
     browser: {
+      menu: en.workspace.browser.menu,
       passwords: en.workspace.browser.passwords,
       copied: "تم النسخ من المتصفح",
       unavailable: {

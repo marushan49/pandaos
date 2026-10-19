@@ -1,6 +1,8 @@
 import { chromium, type BrowserContext } from "playwright-core";
 import { findExecutable } from "../../executable-resolution/executable-resolution.js";
 
+export const HOST_BROWSER_SCALE_FACTOR = 2;
+
 interface InteractiveBrowser {
   context: BrowserContext;
   close: () => Promise<void>;
@@ -29,6 +31,7 @@ export async function launchInteractiveBrowser(input: {
     "--remote-debugging-pipe",
     "--disable-blink-features=AutomationControlled",
     "--no-first-run",
+    `--force-device-scale-factor=${HOST_BROWSER_SCALE_FACTOR}`,
     "about:blank",
   ]);
   const context = await chromium.launchPersistentContext(input.userDataDir, {

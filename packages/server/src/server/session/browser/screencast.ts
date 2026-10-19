@@ -21,7 +21,7 @@ interface ScreencastPreset {
 }
 
 export const SCREENCAST_PRESETS: Record<BrowserScreencastQuality, ScreencastPreset> = {
-  smooth: { maxFps: SCREENCAST_MAX_FPS, jpegQuality: 70 },
+  smooth: { maxFps: SCREENCAST_MAX_FPS, jpegQuality: 60 },
   sharp: { maxFps: SCREENCAST_MAX_FPS, jpegQuality: 90 },
   saver: { maxFps: 10, jpegQuality: 50, maxWidth: 960 },
 };

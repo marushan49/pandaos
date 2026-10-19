@@ -653,6 +653,7 @@ export const fr: TranslationResources = {
       },
     },
     browser: {
+      menu: en.workspace.browser.menu,
       passwords: en.workspace.browser.passwords,
       copied: "Copié depuis le navigateur",
       unavailable: {

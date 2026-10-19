@@ -42,6 +42,14 @@ import {
   READ_SELECTION_FUNCTION,
   TAKE_PAGE_COPY_FUNCTION,
 } from "@/desktop/browser/remote-clipboard";
+import { useHostFeature } from "@/runtime/host-features";
+import { BrowserMenu } from "@/desktop/browser/browser-menu";
+import {
+  BrowserFind,
+  findInPageFunction,
+  type BrowserFindHandle,
+  type BrowserFindResult,
+} from "@/desktop/browser/find-bar";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import {
   getBrowserRecord,
@@ -716,7 +724,7 @@ function RemoteBrowserPane({
           },
         });
         await refreshFrame();
-        await takePageCopy(currentBrowserId);
+        void takePageCopy(currentBrowserId).catch(() => undefined);
       });
     },
     [
@@ -798,9 +806,26 @@ function RemoteBrowserPane({
     setViewportSize({ width, height });
   }, []);
 
+  const supportsMobileViewport = useHostFeature(serverId, "browserMobileViewport");
+  const [zoom, setZoom] = useState(1);
+  const findRef = useRef<BrowserFindHandle>(null);
+  const handleFind = useCallback(
+    async (input: { text: string; backwards: boolean; restart: boolean }) => {
+      const currentBrowserId = remoteBrowserIdRef.current;
+      if (!currentBrowserId) return { found: false, total: 0 };
+      const result = await execute({
+        command: "evaluate",
+        args: { browserId: currentBrowserId, function: findInPageFunction(input) },
+      });
+      if (result.command !== "evaluate" || !result.resultJson) return { found: false, total: 0 };
+      return JSON.parse(result.resultJson) as BrowserFindResult;
+    },
+    [execute],
+  );
+  const openFind = useCallback(() => findRef.current?.open(), []);
   useEffect(() => {
-    const width = Math.round(viewportSize.width);
-    const height = Math.round(viewportSize.height);
+    const width = Math.round(viewportSize.width / zoom);
+    const height = Math.round(viewportSize.height / zoom);
     if (!remoteBrowserId || width < 50 || height < 50) return;
     const last = requestedSizeRef.current;
     if (last && last.width === width && last.height === height) return;
@@ -811,13 +836,24 @@ function RemoteBrowserPane({
       if (current && current.width === width && current.height === height) return;
       requestedSizeRef.current = { width, height };
       enqueueRemoteOperation(async () => {
-        await execute({ command: "resize", args: { browserId: remoteBrowserId, width, height } });
+        await execute({
+          command: "resize",
+          args: {
+            browserId: remoteBrowserId,
+            width,
+            height,
+            ...(supportsMobileViewport ? { mobile: isCompact } : {}),
+          },
+        });
         await refreshFrame();
       });
     }, RESIZE_SETTLE_MS);
   }, [
     enqueueRemoteOperation,
     execute,
+    isCompact,
+    supportsMobileViewport,
+    zoom,
     refreshFrame,
     remoteBrowserId,
     requestedSizeRef,
@@ -1023,6 +1059,13 @@ function RemoteBrowserPane({
                 <ThemedKeyboard size={toolbarIconSize} uniProps={mutedIconColor} />
               </ToolbarButton>
             ) : null}
+            <BrowserMenu
+              serverId={serverId}
+              compact={isCompact}
+              zoom={zoom}
+              onZoomChange={setZoom}
+              onFind={openFind}
+            />
           </ToolbarControls>
         </View>
       </PaneContentToolbar>
@@ -1055,6 +1098,7 @@ function RemoteBrowserPane({
         />
       ) : null}
       <View onLayout={handleViewportLayout} style={styles.viewport}>
+        <BrowserFind ref={findRef} active={canInteract} onFind={handleFind} />
         <AdaptiveTextInput
           accessibilityLabel="Remote browser input"
           autoCapitalize="none"

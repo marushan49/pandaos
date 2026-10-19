@@ -647,6 +647,15 @@ export const en = {
       },
     },
     browser: {
+      menu: {
+        label: "Browser menu",
+        find: "Find on page",
+        zoomOut: "Zoom out",
+        zoomIn: "Zoom in",
+        zoomReset: "Reset zoom",
+        import: "Import cookies and passwords",
+        settings: "Browser settings",
+      },
       passwords: {
         savePrompt: "Save password for {{username}} on {{origin}}?",
         savePromptNoUsername: "Save password for {{origin}}?",
@@ -2728,6 +2737,14 @@ export const en = {
         confirmMessage: "{{username}} on {{origin}}",
       },
       import: {
+        csv: {
+          label: "Passwords from a CSV file",
+          hint: "Export passwords as CSV from Google Password Manager (Android: Settings > Google > Password Manager > Export), Apple Passwords, Firefox or Bitwarden, then import the file into the host browser.",
+          action: "Choose file",
+          success:
+            "{{passwordCount}} passwords imported, {{preserved}} existing kept, {{skipped}} rows skipped",
+          none: "The file contains no website passwords.",
+        },
         title: "Import from browser",
         info: "Import this device's cookies and saved passwords into the desktop browser. Copy cookies to the host separately for agent handoffs. Passwords stay on this device. Source browsers can require access to the keychain or a Firefox Primary Password.",
         action: "Import",

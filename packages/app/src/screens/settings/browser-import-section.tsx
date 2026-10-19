@@ -17,6 +17,8 @@ import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-
 import { useSessionStore } from "@/stores/session-store";
 import { settingsStyles } from "@/styles/settings";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import { useFilePicker } from "@/hooks/use-file-picker";
+import { parsePasswordCsv } from "./password-csv";
 
 type ImportLocation = "host" | "device";
 
@@ -95,6 +97,7 @@ export function BrowserImportSection({
           useHostProfile={useHostProfile}
           fullHostImport={fullHostImport}
         />
+        {fullHostImport && client ? <PasswordCsvImportRow client={client} /> : null}
       </SettingsCard>
     </SettingsSection>
   );
@@ -343,6 +346,53 @@ function BrowserImportRow({
             : "Copy cookies to host / handoff"}
         </Button>
       ) : null}
+    </SettingsRow>
+  );
+}
+
+function PasswordCsvImportRow({ client }: { client: DaemonClient }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { pickFiles } = useFilePicker();
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const file = (await pickFiles())?.[0];
+      if (!file) return null;
+      const { logins, skipped } = parsePasswordCsv(
+        new TextDecoder().decode(await file.readBytes()),
+      );
+      if (logins.length === 0) throw new Error(t("settings.browser.import.csv.none"));
+      const response = await client.importBrowserCookies({ kind: "cookies", cookies: [], logins });
+      if (response.error) throw new Error(response.error);
+      return {
+        passwordCount: response.passwordCount ?? 0,
+        preserved: response.skippedPasswords ?? 0,
+        skipped,
+      };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["browser-saved-passwords"] }),
+  });
+  const handlePress = useCallback(() => mutation.mutate(), [mutation]);
+  return (
+    <SettingsRow
+      label={t("settings.browser.import.csv.label")}
+      hint={
+        mutation.data
+          ? t("settings.browser.import.csv.success", mutation.data)
+          : t("settings.browser.import.csv.hint")
+      }
+      error={mutation.error?.message}
+      testID="browser-import-password-csv"
+    >
+      <Button
+        variant="outline"
+        size="sm"
+        loading={mutation.isPending}
+        disabled={mutation.isPending}
+        onPress={handlePress}
+      >
+        {t("settings.browser.import.csv.action")}
+      </Button>
     </SettingsRow>
   );
 }

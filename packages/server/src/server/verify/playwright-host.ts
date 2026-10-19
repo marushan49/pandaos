@@ -7,6 +7,7 @@ import { isPathInsideRoot } from "../../utils/path.js";
 import type { Logger } from "pino";
 import {
   type BrowserContext,
+  type CDPSession,
   type Dialog,
   type Page,
   type Request,
@@ -34,7 +35,7 @@ import {
   type BrowserToolsResponsePayload,
 } from "../browser-tools/errors.js";
 import { resolveBrowserExecutable } from "./browser-capability.js";
-import { launchInteractiveBrowser } from "./interactive-browser.js";
+import { HOST_BROWSER_SCALE_FACTOR, launchInteractiveBrowser } from "./interactive-browser.js";
 import { ProfileCookieSecrets } from "./profile-secrets.js";
 import {
   encryptBrowserBackup,
@@ -195,6 +196,12 @@ interface DaemonBrowserTab {
   pendingRequests: Map<Request, number>;
   dialogs: BrowserAutomationDialogEvent[];
   mirrorEvents: BrowserMirrorEvent[];
+  display: TabDisplay;
+}
+
+interface TabDisplay {
+  mobile: boolean;
+  session: Promise<CDPSession> | null;
 }
 
 export interface DaemonPlaywrightHostOptions {
@@ -329,8 +336,7 @@ export class DaemonPlaywrightHost {
     for (const saved of pending) {
       const context = await this.ensureContext({ workspaceId, profile: saved.profile });
       const page = await context.newPage();
-      await page.setViewportSize(DEFAULT_VERIFY_VIEWPORT);
-      this.registerPage({
+      const tab = this.registerPage({
         workspaceId,
         profile: saved.profile,
         context,
@@ -338,6 +344,7 @@ export class DaemonPlaywrightHost {
         browserId: saved.browserId,
         url: saved.url,
       });
+      await this.setTabViewport(tab, DEFAULT_VERIFY_VIEWPORT);
 
       void page.goto(saved.url, { waitUntil: "domcontentloaded" }).catch(() => undefined);
     }
@@ -1064,7 +1071,8 @@ export class DaemonPlaywrightHost {
     requestId: string;
   }): Promise<BrowserToolsResponsePayload> {
     const { tab, command, requestId } = input;
-    await tab.page.setViewportSize({ width: command.args.width, height: command.args.height });
+    if (command.args.mobile !== undefined) tab.display.mobile = command.args.mobile;
+    await this.setTabViewport(tab, { width: command.args.width, height: command.args.height });
     return ok(requestId, {
       command: "resize",
       browserId: tab.browserId,
@@ -1137,6 +1145,28 @@ export class DaemonPlaywrightHost {
     });
   }
 
+  private async setTabViewport(
+    tab: DaemonBrowserTab,
+    size: { width: number; height: number },
+  ): Promise<void> {
+    await tab.page.setViewportSize(size);
+    tab.display.session ??= tab.context.newCDPSession(tab.page).catch((error: unknown) => {
+      tab.display.session = null;
+      throw error;
+    });
+    const session = await tab.display.session;
+    const { mobile } = tab.display;
+    await session.send("Emulation.setDeviceMetricsOverride", {
+      ...size,
+      deviceScaleFactor: HOST_BROWSER_SCALE_FACTOR,
+      mobile,
+    });
+    await session.send("Emulation.setTouchEmulationEnabled", {
+      enabled: mobile,
+      ...(mobile ? { maxTouchPoints: 5 } : {}),
+    });
+  }
+
   private async captureScreenshot(tab: DaemonBrowserTab, fullPage: boolean): Promise<Buffer> {
     const previous = this.captureQueues.get(tab.context) ?? Promise.resolve();
     const capture = previous
@@ -1144,7 +1174,7 @@ export class DaemonPlaywrightHost {
       .then(async () => {
         await tab.page.bringToFront();
         await waitForPaint(tab.page);
-        return tab.page.screenshot({ fullPage, timeout: 5_000 });
+        return tab.page.screenshot({ fullPage, scale: "css", timeout: 5_000 });
       });
     this.captureQueues.set(tab.context, capture);
     return capture;
@@ -1302,8 +1332,8 @@ export class DaemonPlaywrightHost {
       profile: input.profile,
     });
     const page = await context.newPage();
-    await page.setViewportSize(DEFAULT_VERIFY_VIEWPORT);
     const tab = this.registerPage({ ...input, context, page });
+    await this.setTabViewport(tab, DEFAULT_VERIFY_VIEWPORT);
     if (input.url) {
       await page.goto(input.url, { waitUntil: "domcontentloaded" });
     }
@@ -1346,6 +1376,7 @@ export class DaemonPlaywrightHost {
       pendingRequests: new Map(),
       dialogs: [],
       mirrorEvents: [],
+      display: { mobile: false, session: null },
     };
     attachTabListeners(tab);
     this.tabs.set(browserId, tab);

@@ -656,6 +656,7 @@ export const ja: TranslationResources = {
       },
     },
     browser: {
+      menu: en.workspace.browser.menu,
       passwords: en.workspace.browser.passwords,
       copied: "ブラウザからコピーしました",
       unavailable: {

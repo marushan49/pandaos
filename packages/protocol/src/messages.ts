@@ -4069,6 +4069,8 @@ export const ServerInfoStatusPayloadSchema = z
         browserTunnel: z.boolean().optional(),
         // COMPAT(browserScreencast): added in v0.9.1, remove gate after 2027-03-27.
         browserScreencast: z.boolean().optional(),
+        // COMPAT(browserMobileViewport): added in v0.11.3, remove gate after 2027-04-19.
+        browserMobileViewport: z.boolean().optional(),
         // COMPAT(agentHistory): added in v0.9.1, remove gate after 2027-03-29.
         agentHistory: z.boolean().optional(),
         // COMPAT(skillManagement): added in v0.4.0, remove gate after 2027-08-16.

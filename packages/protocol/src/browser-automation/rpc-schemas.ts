@@ -253,6 +253,8 @@ export const BrowserAutomationResizeCommandSchema = z.object({
   args: BrowserAutomationTabTargetSchema.extend({
     width: z.number().int().positive(),
     height: z.number().int().positive(),
+    // COMPAT(browserMobileViewport): added in v0.11.3, send only when the host advertises it.
+    mobile: z.boolean().optional(),
   }),
 });
 

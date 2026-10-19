@@ -655,6 +655,7 @@ export const ru: TranslationResources = {
       },
     },
     browser: {
+      menu: en.workspace.browser.menu,
       passwords: en.workspace.browser.passwords,
       copied: "Скопировано из браузера",
       unavailable: {

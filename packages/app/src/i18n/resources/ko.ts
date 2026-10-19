@@ -651,6 +651,7 @@ export const ko: TranslationResources = {
       },
     },
     browser: {
+      menu: en.workspace.browser.menu,
       passwords: en.workspace.browser.passwords,
       copied: "브라우저에서 복사됨",
       unavailable: {

@@ -1968,7 +1968,12 @@ export class VoiceAssistantWebSocketServer {
         // COMPAT(agentHistory): added in v0.9.1, remove gate after 2027-03-29.
         agentHistory: true,
         ...(this.verifyHost
-          ? { browserCookieImport: true, browserProfileImport: true, browserScreencast: true }
+          ? {
+              browserCookieImport: true,
+              browserProfileImport: true,
+              browserScreencast: true,
+              browserMobileViewport: true,
+            }
           : {}),
         ...(this.browserActivity
           ? {
