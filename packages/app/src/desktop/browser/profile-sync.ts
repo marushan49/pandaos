@@ -129,7 +129,7 @@ export function mountBrowserProfileSync(client: DaemonClient, serverId: string):
     const plan = planLocalApply({ previous, hostCookies, local: local.cookies, upserts });
     const logins = result.logins ?? [];
     if (plan.upserts.length > 0 || plan.removed.length > 0 || logins.length > 0) {
-      await profileSync({ action: "apply", ...plan, logins });
+      await profileSync({ action: "apply", upserts: plan.upserts, removed: plan.removed, logins });
     }
     synced = new Map(hostCookies.map((cookie) => [cookieKey(cookie), cookie]));
     if (plan.missingOnHost.length === 0) return;
