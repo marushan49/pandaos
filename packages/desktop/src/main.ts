@@ -736,6 +736,83 @@ ipcMain.handle("paseo:browser:import-profile", async (event, raw: unknown) => {
   }
 });
 
+let profileSyncApplying = 0;
+let profileChangedTimer: ReturnType<typeof setTimeout> | null = null;
+
+function notifyBrowserProfileChanged(): void {
+  if (profileSyncApplying > 0) return;
+  if (profileChangedTimer) clearTimeout(profileChangedTimer);
+  profileChangedTimer = setTimeout(() => {
+    profileChangedTimer = null;
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.webContents.isDestroyed())
+        window.webContents.send("paseo:browser:profile-changed");
+    }
+  }, 1000);
+}
+
+const profileSyncCookieKeySchema = z.object({
+  name: z.string().max(4096),
+  domain: z.string().min(1).max(253),
+  path: z.string().max(4096),
+});
+const profileSyncCookieSchema = profileSyncCookieKeySchema.extend({
+  value: z.string().max(65536),
+  expires: z.number(),
+  httpOnly: z.boolean(),
+  secure: z.boolean(),
+  sameSite: z.enum(["Strict", "Lax", "None"]).optional(),
+});
+const profileSyncLoginSchema = z.object({
+  origin: z.string().max(2048),
+  username: z.string().max(1024),
+  password: z.string().min(1).max(1024),
+});
+const profileSyncInputSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("read") }).strict(),
+  z
+    .object({
+      action: z.literal("apply"),
+      upserts: z.array(profileSyncCookieSchema).max(20_000),
+      removed: z.array(profileSyncCookieKeySchema).max(20_000),
+      logins: z.array(profileSyncLoginSchema).max(100_000),
+    })
+    .strict(),
+]);
+
+ipcMain.handle("paseo:browser:profile-sync", async (event, raw: unknown) => {
+  assertBrowserSettingsSender(event);
+  const input = profileSyncInputSchema.parse(raw);
+  const profile = session.fromPartition(PASEO_BROWSER_PROFILE_PARTITION);
+  const vaultAvailable = browserPasswordVault.isAvailable();
+  if (input.action === "read") {
+    return {
+      cookies: (await profile.cookies.get({})).map(fromElectronCookie),
+      logins: vaultAvailable ? browserPasswordVault.exportLogins() : [],
+    };
+  }
+  profileSyncApplying += 1;
+  try {
+    for (const key of input.removed) {
+      const host = key.domain.replace(/^\./, "");
+      await profile.cookies.remove(`https://${host}${key.path}`, key.name).catch(() => undefined);
+      await profile.cookies.remove(`http://${host}${key.path}`, key.name).catch(() => undefined);
+    }
+    const nowSeconds = Date.now() / 1000;
+    for (const cookie of input.upserts) {
+      if (cookie.expires !== -1 && cookie.expires <= nowSeconds) continue;
+      await profile.cookies.set(toElectronCookie(cookie)).catch(() => undefined);
+    }
+    if (vaultAvailable && input.logins.length > 0) browserPasswordVault.importLogins(input.logins);
+    await saveBrowserSession().catch(() => undefined);
+  } finally {
+    setTimeout(() => {
+      profileSyncApplying -= 1;
+    }, 1500);
+  }
+  return { ok: true };
+});
+
 let browserBackupBusy = false;
 ipcMain.handle("paseo:browser:backup", async (event, raw: unknown) => {
   assertBrowserSettingsSender(event);
@@ -1259,6 +1336,7 @@ async function bootstrap(): Promise<void> {
   }
   let cookieSaveTimer: ReturnType<typeof setTimeout> | null = null;
   profileSession.cookies.on("changed", () => {
+    notifyBrowserProfileChanged();
     if (cookieSaveTimer) clearTimeout(cookieSaveTimer);
     cookieSaveTimer = setTimeout(() => {
       cookieSaveTimer = null;

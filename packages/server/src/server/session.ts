@@ -14,6 +14,7 @@ import {
   handleBrowserProfileBackup,
   handleBrowserProfilePasswords,
   handleBrowserProfileClearData,
+  handleBrowserProfileSync,
   handleBrowserDownloadsManage,
   handleBrowserSitePermissionsManage,
   handleBrowserImportCookies,
@@ -3490,6 +3491,8 @@ export class Session {
         return handleBrowserProfilePasswords(msg, deps);
       case "browser.profile.clear_data.request":
         return handleBrowserProfileClearData(msg, deps);
+      case "browser.profile.sync.request":
+        return handleBrowserProfileSync(msg, deps);
       case "browser.downloads.manage.request":
         return handleBrowserDownloadsManage(msg, deps);
       case "browser.site_permissions.manage.request":

@@ -1,3 +1,4 @@
+import { mountBrowserProfileSync } from "@/desktop/browser/profile-sync";
 import { useSyncExternalStore, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import equal from "fast-deep-equal/es6";
@@ -623,14 +624,19 @@ function createDefaultDeps(): HostRuntimeControllerDeps {
         queryClient,
         serverId: host.serverId,
       });
+      const unmountProfileSync = mountBrowserProfileSync(client, host.serverId);
       if (!browserAutomationCapabilities) {
-        return unmountServerData;
+        return () => {
+          unmountProfileSync();
+          unmountServerData();
+        };
       }
       const unmountBrowserAutomation = mountBrowserAutomationDaemonClientHandler(client, {
         serverId: host.serverId,
       });
       return () => {
         unmountBrowserAutomation();
+        unmountProfileSync();
         unmountServerData();
       };
     },

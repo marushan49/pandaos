@@ -6,12 +6,16 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/contexts/toast-context";
 import { useBrowserHistoryEntries, useBrowserHistoryStore } from "@/desktop/browser/store/history";
 import { confirmDialog } from "@/utils/confirm-dialog";
+import { useHostFeature } from "@/runtime/host-features";
+import { useHostRuntimeClient } from "@/runtime/host-runtime";
 
 export function BrowserHistorySection({ serverId }: { serverId: string }) {
   const { t } = useTranslation();
   const toast = useToast();
   const entries = useBrowserHistoryEntries(serverId);
   const clearHistory = useBrowserHistoryStore((state) => state.clearHistory);
+  const client = useHostRuntimeClient(serverId);
+  const syncsHistory = useHostFeature(serverId, "browserProfileSync");
 
   const handleClear = useCallback(async () => {
     const confirmed = await confirmDialog({
@@ -25,8 +29,11 @@ export function BrowserHistorySection({ serverId }: { serverId: string }) {
       return;
     }
     clearHistory(serverId);
+    if (client && syncsHistory) {
+      await client.syncBrowserProfile({ history: { entries: [], clear: true } }).catch(() => null);
+    }
     toast.show(t("settings.browser.history.success"), { variant: "success" });
-  }, [clearHistory, serverId, t, toast]);
+  }, [clearHistory, client, serverId, syncsHistory, t, toast]);
 
   return (
     <SettingsSection

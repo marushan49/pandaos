@@ -253,6 +253,38 @@ export interface DesktopBrowserBridge {
   }) => Promise<boolean>;
   listSavedPasswords?: () => Promise<DesktopSavedPasswordList>;
   removeSavedPassword?: (input: DesktopSavedLogin) => Promise<void>;
+  profileSync?: (
+    input: DesktopProfileSyncReadInput | DesktopProfileSyncApplyInput,
+  ) => Promise<unknown>;
+  onProfileChanged?: (handler: () => void) => () => void;
+}
+
+export interface DesktopProfileSyncCookie {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  expires: number;
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite?: "Strict" | "Lax" | "None";
+}
+
+export interface DesktopProfileSyncLogin {
+  origin: string;
+  username: string;
+  password: string;
+}
+
+export interface DesktopProfileSyncReadInput {
+  action: "read";
+}
+
+export interface DesktopProfileSyncApplyInput {
+  action: "apply";
+  upserts: DesktopProfileSyncCookie[];
+  removed: { name: string; domain: string; path: string }[];
+  logins: DesktopProfileSyncLogin[];
 }
 
 export interface DesktopInvokeBridge {

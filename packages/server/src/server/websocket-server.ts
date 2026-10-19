@@ -1974,6 +1974,7 @@ export class VoiceAssistantWebSocketServer {
               browserScreencast: true,
               browserMobileViewport: true,
               browserSiteSettings: true,
+              browserProfileSync: true,
             }
           : {}),
         ...(this.browserActivity

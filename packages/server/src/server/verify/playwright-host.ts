@@ -47,8 +47,12 @@ import {
 import type {
   BrowserDownload,
   BrowserDownloadsManageRequest,
+  BrowserProfileSyncRequest,
   BrowserSitePermissions,
+  BrowserSyncCookie,
+  BrowserSyncHistoryEntry,
 } from "@getpaseo/protocol/browser-settings/rpc-schemas";
+import { BrowserHistoryStore, cookieVersion } from "./browser-profile-sync.js";
 import {
   encryptBrowserBackup,
   decryptBrowserBackup,
@@ -236,6 +240,7 @@ export class DaemonPlaywrightHost {
   private readonly paseoHome: string;
   private readonly sitePermissions: BrowserSitePermissionStore;
   private readonly downloadsDir: string;
+  private readonly historyStore: BrowserHistoryStore;
   private readonly logger: Logger;
   private readonly profileSecrets: ProfileCookieSecrets;
   private profileWrites: Promise<unknown> = Promise.resolve();
@@ -273,6 +278,9 @@ export class DaemonPlaywrightHost {
       path.join(options.paseoHome, "browser-profiles", "site-permissions.json"),
     );
     this.downloadsDir = path.join(options.paseoHome, "browser-downloads");
+    this.historyStore = new BrowserHistoryStore(
+      path.join(options.paseoHome, "browser-profiles", "history.json"),
+    );
     this.logger = options.logger;
     this.profileSecrets = new ProfileCookieSecrets(options.profileEncryptionKey);
     this.savedTabsLoaded = this.loadSavedTabs();
@@ -1224,6 +1232,50 @@ export class DaemonPlaywrightHost {
       directory: this.downloadsDir,
       downloads: await listBrowserDownloads(this.downloadsDir),
     };
+  }
+
+  public syncProfile(request: Omit<BrowserProfileSyncRequest, "type" | "requestId">): Promise<{
+    cookieVersion?: string;
+    cookies?: BrowserSyncCookie[];
+    logins?: BrowserImportLogin[];
+    history?: BrowserSyncHistoryEntry[];
+  }> {
+    return this.updateProfile(async () => {
+      const history = request.history ? await this.historyStore.sync(request.history) : undefined;
+      if (request.logins?.length) await this.importSavedLogins(request.logins);
+      const logins = request.wantLogins ? await this.readSavedLogins() : undefined;
+      if (!request.cookies && !request.wantCookies) return { history, logins };
+      const context = await this.ensureContext({
+        workspaceId: "browser-profile-sync",
+        profile: DEFAULT_VERIFY_PROFILE,
+      });
+      for (const key of request.cookies?.removed ?? []) {
+        await context.clearCookies(key);
+      }
+      const nowSeconds = Date.now() / 1000;
+      const upserts = (request.cookies?.upserts ?? []).filter(
+        (cookie) => cookie.expires === -1 || cookie.expires > nowSeconds,
+      );
+      if (upserts.length > 0) await context.addCookies(upserts);
+      if (request.cookies) await this.saveSessionCookies(context);
+      const cookies = (await context.cookies()).map((cookie) => ({
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
+        expires: cookie.expires,
+        httpOnly: cookie.httpOnly,
+        secure: cookie.secure,
+        sameSite: cookie.sameSite,
+      }));
+      const version = cookieVersion(cookies);
+      return {
+        history,
+        logins,
+        cookieVersion: version,
+        ...(request.wantCookies && version !== request.knownCookieVersion ? { cookies } : {}),
+      };
+    });
   }
 
   public clearBrowsingData(): Promise<{ cookieCount: number; originCount: number }> {

@@ -5,6 +5,7 @@ import type {
   BrowserImportListSourcesRequest,
 } from "@getpaseo/protocol/browser-import/rpc-schemas";
 import type {
+  BrowserProfileSyncRequest,
   BrowserDownloadsManageRequest,
   BrowserSitePermissionsManageRequest,
 } from "@getpaseo/protocol/browser-settings/rpc-schemas";
@@ -203,6 +204,26 @@ export async function handleBrowserSitePermissionsManage(
     deps.emit({
       type: "browser.site_permissions.manage.response",
       payload: { requestId: request.requestId, error: settingsError(error), permissions: null },
+    });
+  }
+}
+
+export async function handleBrowserProfileSync(
+  request: BrowserProfileSyncRequest,
+  deps: BrowserImportSessionDeps,
+): Promise<void> {
+  try {
+    if (!deps.host) throw new BrowserImportError("The host browser is unavailable.");
+    const { type: _type, requestId, ...input } = request;
+    const result = await deps.host.syncProfile(input);
+    deps.emit({
+      type: "browser.profile.sync.response",
+      payload: { requestId, error: null, ...result },
+    });
+  } catch (error) {
+    deps.emit({
+      type: "browser.profile.sync.response",
+      payload: { requestId: request.requestId, error: settingsError(error) },
     });
   }
 }

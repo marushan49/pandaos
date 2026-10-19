@@ -86,3 +86,68 @@ export const BrowserSitePermissionsManageResponseSchema = z.object({
 export type BrowserSitePermissionsManageRequest = z.infer<
   typeof BrowserSitePermissionsManageRequestSchema
 >;
+
+export const BrowserSyncCookieSchema = z.object({
+  name: z.string().max(4096),
+  value: z.string().max(65536),
+  domain: z.string().min(1).max(253),
+  path: z.string().max(4096),
+  expires: z.number(),
+  httpOnly: z.boolean(),
+  secure: z.boolean(),
+  sameSite: z.enum(["Strict", "Lax", "None"]).optional(),
+});
+export type BrowserSyncCookie = z.infer<typeof BrowserSyncCookieSchema>;
+
+export const BrowserSyncCookieKeySchema = z.object({
+  name: z.string().max(4096),
+  domain: z.string().min(1).max(253),
+  path: z.string().max(4096),
+});
+
+export const BrowserSyncLoginSchema = z.object({
+  origin: z.string().max(2048),
+  username: z.string().max(1024),
+  password: z.string().min(1).max(1024),
+});
+
+export const BrowserSyncHistoryEntrySchema = z.object({
+  url: z.string().max(4096),
+  title: z.string().max(400),
+  visitCount: z.number().int().positive(),
+  lastVisitedAt: z.number(),
+});
+export type BrowserSyncHistoryEntry = z.infer<typeof BrowserSyncHistoryEntrySchema>;
+
+export const BrowserProfileSyncRequestSchema = z.object({
+  type: z.literal("browser.profile.sync.request"),
+  requestId: z.string(),
+  cookies: z
+    .object({
+      upserts: z.array(BrowserSyncCookieSchema).max(20_000),
+      removed: z.array(BrowserSyncCookieKeySchema).max(20_000),
+    })
+    .optional(),
+  knownCookieVersion: z.string().max(128).optional(),
+  wantCookies: z.boolean().optional(),
+  logins: z.array(BrowserSyncLoginSchema).max(100_000).optional(),
+  wantLogins: z.boolean().optional(),
+  history: z
+    .object({
+      entries: z.array(BrowserSyncHistoryEntrySchema).max(5_000),
+      clear: z.boolean().optional(),
+    })
+    .optional(),
+});
+export const BrowserProfileSyncResponseSchema = z.object({
+  type: z.literal("browser.profile.sync.response"),
+  payload: z.object({
+    requestId: z.string(),
+    error: z.string().nullable(),
+    cookieVersion: z.string().optional(),
+    cookies: z.array(BrowserSyncCookieSchema).optional(),
+    logins: z.array(BrowserSyncLoginSchema).optional(),
+    history: z.array(BrowserSyncHistoryEntrySchema).optional(),
+  }),
+});
+export type BrowserProfileSyncRequest = z.infer<typeof BrowserProfileSyncRequestSchema>;

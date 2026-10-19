@@ -2918,6 +2918,21 @@ export class DaemonClient {
     });
   }
 
+  async syncBrowserProfile(
+    input: Omit<
+      Extract<SessionInboundMessage, { type: "browser.profile.sync.request" }>,
+      "type" | "requestId"
+    >,
+  ): Promise<
+    Extract<SessionOutboundMessage, { type: "browser.profile.sync.response" }>["payload"]
+  > {
+    return this.sendCorrelatedSessionRequest({
+      message: { type: "browser.profile.sync.request", ...input },
+      responseType: "browser.profile.sync.response",
+      timeout: 120_000,
+    });
+  }
+
   async manageBrowserDownloads(
     input: Omit<
       Extract<SessionInboundMessage, { type: "browser.downloads.manage.request" }>,

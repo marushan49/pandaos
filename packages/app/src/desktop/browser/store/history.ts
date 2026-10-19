@@ -31,6 +31,7 @@ interface BrowserHistoryStore extends BrowserHistoryState {
   recordVisit: (input: { serverId: string; rawUrl: string; now?: number }) => void;
   updateTitle: (input: { serverId: string; rawUrl: string; title: string }) => void;
   clearHistory: (serverId: string) => void;
+  replaceHistory: (serverId: string, entries: BrowserHistoryEntry[]) => void;
 }
 
 function cleanTitle(title: string): string {
@@ -97,6 +98,14 @@ export const useBrowserHistoryStore = create<BrowserHistoryStore>()(
             },
           };
         });
+      },
+      replaceHistory: (serverId, entries) => {
+        set((state) => ({
+          entriesByServerId: {
+            ...state.entriesByServerId,
+            [serverId]: entries.slice(0, MAX_HISTORY_ENTRIES),
+          },
+        }));
       },
       clearHistory: (serverId) => {
         set((state) => {

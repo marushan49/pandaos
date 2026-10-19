@@ -163,6 +163,13 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
     respondToPasswordSave: (input: { requestId: string; action: "save" | "never" | "dismiss" }) =>
       ipcRenderer.invoke("paseo:browser:passwords:respond", input),
     listSavedPasswords: () => ipcRenderer.invoke("paseo:browser:passwords:list"),
+    profileSync: (input: Record<string, unknown>) =>
+      ipcRenderer.invoke("paseo:browser:profile-sync", input),
+    onProfileChanged: (handler: () => void): (() => void) => {
+      const listener = () => handler();
+      ipcRenderer.on("paseo:browser:profile-changed", listener);
+      return () => ipcRenderer.removeListener("paseo:browser:profile-changed", listener);
+    },
     removeSavedPassword: (input: { origin: string; username: string }) =>
       ipcRenderer.invoke("paseo:browser:passwords:remove", input),
   },
