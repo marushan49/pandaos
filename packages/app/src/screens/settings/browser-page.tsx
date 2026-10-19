@@ -13,11 +13,20 @@ import { useHostFeature } from "@/runtime/host-features";
 import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
 import { BrowserImportSection } from "./browser-import-section";
 import { BrowserToolsOptInCard } from "./browser-tools-card";
+import { useHostRuntimeClient } from "@/runtime/host-runtime";
+import {
+  HostBrowserDataSection,
+  HostBrowserDownloadsSection,
+  HostSitePermissionsSection,
+} from "@/desktop/browser/settings/host-browser-sections";
 
 export function HostBrowserPage({ serverId }: { serverId: string }) {
   const { t } = useTranslation();
   const hostBrowser = useHostFeature(serverId, "browserScreencast");
   const isLocalDaemon = useIsLocalDaemon(serverId);
+  const siteSettings = useHostFeature(serverId, "browserSiteSettings");
+  const client = useHostRuntimeClient(serverId);
+  const hostClient = hostBrowser && siteSettings ? client : null;
 
   return (
     <View>
@@ -45,6 +54,9 @@ export function HostBrowserPage({ serverId }: { serverId: string }) {
       {hostBrowser || getIsElectron() ? <BrowserHistorySection serverId={serverId} /> : null}
       {getIsElectron() ? <BrowserBackupSection serverId={serverId} /> : null}
       {getIsElectron() && isLocalDaemon && !hostBrowser ? <BrowserDataSection /> : null}
+      {hostClient ? <HostBrowserDownloadsSection client={hostClient} serverId={serverId} /> : null}
+      {hostClient ? <HostSitePermissionsSection client={hostClient} serverId={serverId} /> : null}
+      {hostClient ? <HostBrowserDataSection client={hostClient} /> : null}
     </View>
   );
 }

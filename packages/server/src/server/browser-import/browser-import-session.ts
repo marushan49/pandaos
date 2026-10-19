@@ -4,6 +4,10 @@ import type {
   BrowserImportCookiesRequest,
   BrowserImportListSourcesRequest,
 } from "@getpaseo/protocol/browser-import/rpc-schemas";
+import type {
+  BrowserDownloadsManageRequest,
+  BrowserSitePermissionsManageRequest,
+} from "@getpaseo/protocol/browser-settings/rpc-schemas";
 import type { SessionOutboundMessage } from "../messages.js";
 import type { DaemonPlaywrightHost } from "../verify/playwright-host.js";
 import {
@@ -126,6 +130,79 @@ export async function handleBrowserProfilePasswords(
         logins: [],
         error: errorMessage(error),
       },
+    });
+  }
+}
+
+function settingsError(error: unknown): string {
+  return error instanceof Error ? error.message : "The host browser request failed.";
+}
+
+export async function handleBrowserProfileClearData(
+  request: { requestId: string },
+  deps: BrowserImportSessionDeps,
+): Promise<void> {
+  try {
+    if (!deps.host) throw new BrowserImportError("The host browser is unavailable.");
+    const result = await deps.host.clearBrowsingData();
+    deps.emit({
+      type: "browser.profile.clear_data.response",
+      payload: { requestId: request.requestId, error: null, ...result },
+    });
+  } catch (error) {
+    deps.emit({
+      type: "browser.profile.clear_data.response",
+      payload: {
+        requestId: request.requestId,
+        error: settingsError(error),
+        cookieCount: 0,
+        originCount: 0,
+      },
+    });
+  }
+}
+
+export async function handleBrowserDownloadsManage(
+  request: BrowserDownloadsManageRequest,
+  deps: BrowserImportSessionDeps,
+): Promise<void> {
+  try {
+    if (!deps.host) throw new BrowserImportError("The host browser is unavailable.");
+    const result = await deps.host.manageDownloads(request);
+    deps.emit({
+      type: "browser.downloads.manage.response",
+      payload: { requestId: request.requestId, error: null, ...result },
+    });
+  } catch (error) {
+    deps.emit({
+      type: "browser.downloads.manage.response",
+      payload: {
+        requestId: request.requestId,
+        error: settingsError(error),
+        directory: "",
+        downloads: [],
+      },
+    });
+  }
+}
+
+export async function handleBrowserSitePermissionsManage(
+  request: BrowserSitePermissionsManageRequest,
+  deps: BrowserImportSessionDeps,
+): Promise<void> {
+  try {
+    if (!deps.host) throw new BrowserImportError("The host browser is unavailable.");
+    const permissions = await deps.host.manageSitePermissions(
+      request.action === "set" ? request.permissions : undefined,
+    );
+    deps.emit({
+      type: "browser.site_permissions.manage.response",
+      payload: { requestId: request.requestId, error: null, permissions },
+    });
+  } catch (error) {
+    deps.emit({
+      type: "browser.site_permissions.manage.response",
+      payload: { requestId: request.requestId, error: settingsError(error), permissions: null },
     });
   }
 }

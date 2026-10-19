@@ -2908,6 +2908,44 @@ export class DaemonClient {
     });
   }
 
+  async clearBrowserData(): Promise<
+    Extract<SessionOutboundMessage, { type: "browser.profile.clear_data.response" }>["payload"]
+  > {
+    return this.sendCorrelatedSessionRequest({
+      message: { type: "browser.profile.clear_data.request" },
+      responseType: "browser.profile.clear_data.response",
+      timeout: 120_000,
+    });
+  }
+
+  async manageBrowserDownloads(
+    input: Omit<
+      Extract<SessionInboundMessage, { type: "browser.downloads.manage.request" }>,
+      "type" | "requestId"
+    >,
+  ): Promise<
+    Extract<SessionOutboundMessage, { type: "browser.downloads.manage.response" }>["payload"]
+  > {
+    return this.sendCorrelatedSessionRequest({
+      message: { type: "browser.downloads.manage.request", ...input },
+      responseType: "browser.downloads.manage.response",
+    });
+  }
+
+  async manageBrowserSitePermissions(
+    input: Omit<
+      Extract<SessionInboundMessage, { type: "browser.site_permissions.manage.request" }>,
+      "type" | "requestId"
+    >,
+  ): Promise<
+    Extract<SessionOutboundMessage, { type: "browser.site_permissions.manage.response" }>["payload"]
+  > {
+    return this.sendCorrelatedSessionRequest({
+      message: { type: "browser.site_permissions.manage.request", ...input },
+      responseType: "browser.site_permissions.manage.response",
+    });
+  }
+
   async importBrowserCookies(
     source: Extract<
       SessionInboundMessage,

@@ -3,6 +3,7 @@ import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { withUnistyles } from "react-native-unistyles";
 import {
+  Download,
   Import as ImportIcon,
   MoreHorizontal,
   Search,
@@ -27,6 +28,7 @@ const ThemedZoomIn = withUnistyles(ZoomIn);
 const ThemedZoomOut = withUnistyles(ZoomOut);
 const ThemedImport = withUnistyles(ImportIcon);
 const ThemedSettings = withUnistyles(Settings);
+const ThemedDownload = withUnistyles(Download);
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 const FIND_ICON = <ThemedSearch size={16} uniProps={mutedColorMapping} />;
@@ -34,6 +36,7 @@ const ZOOM_IN_ICON = <ThemedZoomIn size={16} uniProps={mutedColorMapping} />;
 const ZOOM_OUT_ICON = <ThemedZoomOut size={16} uniProps={mutedColorMapping} />;
 const IMPORT_ICON = <ThemedImport size={16} uniProps={mutedColorMapping} />;
 const SETTINGS_ICON = <ThemedSettings size={16} uniProps={mutedColorMapping} />;
+const DOWNLOADS_ICON = <ThemedDownload size={16} uniProps={mutedColorMapping} />;
 
 export const BROWSER_ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 
@@ -115,6 +118,13 @@ export function BrowserMenu({
           {t("workspace.browser.menu.zoomReset")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          leading={DOWNLOADS_ICON}
+          onSelect={openSettings}
+          testID="remote-browser-menu-downloads"
+        >
+          {t("workspace.browser.menu.downloads")}
+        </DropdownMenuItem>
         <DropdownMenuItem
           leading={IMPORT_ICON}
           onSelect={openSettings}

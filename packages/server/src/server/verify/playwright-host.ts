@@ -1,7 +1,7 @@
 import { findTabForOrigin, keepNewestPerApplication } from "../browser-tools/origin-key.js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isPathInsideRoot } from "../../utils/path.js";
 import type { Logger } from "pino";
@@ -37,6 +37,18 @@ import {
 import { resolveBrowserExecutable } from "./browser-capability.js";
 import { HOST_BROWSER_SCALE_FACTOR, launchInteractiveBrowser } from "./interactive-browser.js";
 import { ProfileCookieSecrets } from "./profile-secrets.js";
+import {
+  BrowserSitePermissionStore,
+  listBrowserDownloads,
+  removeBrowserDownload,
+  saveBrowserDownload,
+  siteOrigin,
+} from "./browser-site-settings.js";
+import type {
+  BrowserDownload,
+  BrowserDownloadsManageRequest,
+  BrowserSitePermissions,
+} from "@getpaseo/protocol/browser-settings/rpc-schemas";
 import {
   encryptBrowserBackup,
   decryptBrowserBackup,
@@ -202,6 +214,7 @@ interface DaemonBrowserTab {
 interface TabDisplay {
   mobile: boolean;
   session: Promise<CDPSession> | null;
+  permissionOrigin: string | null;
 }
 
 export interface DaemonPlaywrightHostOptions {
@@ -221,6 +234,8 @@ export interface ExecuteLocalInput {
 
 export class DaemonPlaywrightHost {
   private readonly paseoHome: string;
+  private readonly sitePermissions: BrowserSitePermissionStore;
+  private readonly downloadsDir: string;
   private readonly logger: Logger;
   private readonly profileSecrets: ProfileCookieSecrets;
   private profileWrites: Promise<unknown> = Promise.resolve();
@@ -254,6 +269,10 @@ export class DaemonPlaywrightHost {
 
   public constructor(options: DaemonPlaywrightHostOptions) {
     this.paseoHome = options.paseoHome;
+    this.sitePermissions = new BrowserSitePermissionStore(
+      path.join(options.paseoHome, "browser-profiles", "site-permissions.json"),
+    );
+    this.downloadsDir = path.join(options.paseoHome, "browser-downloads");
     this.logger = options.logger;
     this.profileSecrets = new ProfileCookieSecrets(options.profileEncryptionKey);
     this.savedTabsLoaded = this.loadSavedTabs();
@@ -1150,11 +1169,7 @@ export class DaemonPlaywrightHost {
     size: { width: number; height: number },
   ): Promise<void> {
     await tab.page.setViewportSize(size);
-    tab.display.session ??= tab.context.newCDPSession(tab.page).catch((error: unknown) => {
-      tab.display.session = null;
-      throw error;
-    });
-    const session = await tab.display.session;
+    const session = await this.tabSession(tab);
     const { mobile } = tab.display;
     await session.send("Emulation.setDeviceMetricsOverride", {
       ...size,
@@ -1164,6 +1179,92 @@ export class DaemonPlaywrightHost {
     await session.send("Emulation.setTouchEmulationEnabled", {
       enabled: mobile,
       ...(mobile ? { maxTouchPoints: 5 } : {}),
+    });
+  }
+
+  private tabSession(tab: DaemonBrowserTab): Promise<CDPSession> {
+    tab.display.session ??= tab.context.newCDPSession(tab.page).catch((error: unknown) => {
+      tab.display.session = null;
+      throw error;
+    });
+    return tab.display.session;
+  }
+
+  private async applySitePermissions(tab: DaemonBrowserTab, url: string): Promise<void> {
+    const origin = siteOrigin(url);
+    if (!origin || tab.display.permissionOrigin === origin || tab.page.isClosed()) return;
+    tab.display.permissionOrigin = origin;
+    try {
+      await this.sitePermissions.apply(await this.tabSession(tab), origin);
+    } catch (error) {
+      tab.display.permissionOrigin = null;
+      this.logger.warn({ err: error, origin }, "Applying browser site permissions failed");
+    }
+  }
+
+  public async manageSitePermissions(
+    next: BrowserSitePermissions | undefined,
+  ): Promise<BrowserSitePermissions> {
+    if (!next) return this.sitePermissions.read();
+    const saved = await this.sitePermissions.write(next);
+    for (const tab of this.tabs.values()) {
+      tab.display.permissionOrigin = null;
+      await this.applySitePermissions(tab, tab.page.url());
+    }
+    return saved;
+  }
+
+  public async manageDownloads(
+    request: Pick<BrowserDownloadsManageRequest, "action" | "name">,
+  ): Promise<{ directory: string; downloads: BrowserDownload[] }> {
+    if (request.action === "remove" && request.name) {
+      await removeBrowserDownload(this.downloadsDir, request.name);
+    }
+    return {
+      directory: this.downloadsDir,
+      downloads: await listBrowserDownloads(this.downloadsDir),
+    };
+  }
+
+  public clearBrowsingData(): Promise<{ cookieCount: number; originCount: number }> {
+    return this.updateProfile(async () => {
+      const profilesRoot = path.join(this.paseoHome, "browser-profiles");
+      await rm(this.importedCookieStorePath(), { force: true });
+      await rm(path.join(profilesRoot, IMPORTED_COOKIES_FILE), { force: true });
+      for (const dir of this.contextProfileDirs.values()) {
+        await rm(path.join(dir, "session-cookies.enc"), { force: true });
+        await rm(path.join(dir, IMPORTED_COOKIES_MARKER), { force: true });
+      }
+      if (this.contexts.size === 0) {
+        await this.ensureContext({ workspaceId: "", profile: DEFAULT_VERIFY_PROFILE });
+      }
+      let cookieCount = 0;
+      const origins = new Set<string>();
+      for (const context of this.contexts.values()) {
+        const cookies = await context.cookies();
+        cookieCount += cookies.length;
+        for (const cookie of cookies) {
+          const domain = cookie.domain.replace(/^\./, "");
+          origins.add(`https://${domain}`);
+          origins.add(`http://${domain}`);
+        }
+        for (const page of context.pages()) {
+          const origin = siteOrigin(page.url());
+          if (origin) origins.add(origin);
+        }
+        await context.clearCookies();
+        const page = context.pages()[0] ?? (await context.newPage());
+        const session = await context.newCDPSession(page);
+        try {
+          await session.send("Network.clearBrowserCache");
+          for (const origin of origins) {
+            await session.send("Storage.clearDataForOrigin", { origin, storageTypes: "all" });
+          }
+        } finally {
+          await session.detach().catch(() => undefined);
+        }
+      }
+      return { cookieCount, originCount: origins.size };
     });
   }
 
@@ -1376,16 +1477,22 @@ export class DaemonPlaywrightHost {
       pendingRequests: new Map(),
       dialogs: [],
       mirrorEvents: [],
-      display: { mobile: false, session: null },
+      display: { mobile: false, session: null, permissionOrigin: null },
     };
     attachTabListeners(tab);
     this.tabs.set(browserId, tab);
     this.saveTab(tab, input.url);
     let mirroredUrl = "";
+    input.page.on("download", (download) => {
+      void saveBrowserDownload(this.downloadsDir, download).catch((error: unknown) =>
+        this.logger.warn({ err: error }, "Saving a browser download failed"),
+      );
+    });
     input.page.on("framenavigated", (frame) => {
       if (frame !== input.page.mainFrame()) return;
       const url = frame.url();
       this.rememberTabUrl(tab, url);
+      void this.applySitePermissions(tab, url);
 
       if (url !== mirroredUrl && /^(https?|file):/i.test(url)) {
         mirroredUrl = url;

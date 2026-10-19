@@ -13,6 +13,9 @@ import { VerifySession } from "./verify/verify-session.js";
 import {
   handleBrowserProfileBackup,
   handleBrowserProfilePasswords,
+  handleBrowserProfileClearData,
+  handleBrowserDownloadsManage,
+  handleBrowserSitePermissionsManage,
   handleBrowserImportCookies,
   handleBrowserImportListSources,
 } from "./browser-import/browser-import-session.js";
@@ -3485,6 +3488,12 @@ export class Session {
         return handleBrowserProfileBackup(msg, deps);
       case "browser.profile.manage_passwords.request":
         return handleBrowserProfilePasswords(msg, deps);
+      case "browser.profile.clear_data.request":
+        return handleBrowserProfileClearData(msg, deps);
+      case "browser.downloads.manage.request":
+        return handleBrowserDownloadsManage(msg, deps);
+      case "browser.site_permissions.manage.request":
+        return handleBrowserSitePermissionsManage(msg, deps);
       case "browser.import.list_sources.request":
         return handleBrowserImportListSources(msg, deps);
       case "browser.import.import_cookies.request":
