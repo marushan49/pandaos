@@ -1,10 +1,7 @@
 import { create } from "zustand";
 import { File as FSFile, Paths } from "expo-file-system";
-import * as LegacyFileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import type { HostProfile } from "@/types/host-connection";
-import { buildDaemonWebSocketUrl } from "@/utils/daemon-endpoints";
-import { openExternalUrl } from "@/utils/open-external-url";
+import type { FileReadResult } from "@getpaseo/client/internal/daemon-client";
 import { isWeb } from "@/constants/platform";
 import { i18n } from "@/i18n/i18next";
 
@@ -36,13 +33,7 @@ interface DownloadState {
     scopeId: string;
     fileName: string;
     path: string;
-    daemonProfile: HostProfile | undefined;
-    requestFileDownloadToken: (path: string) => Promise<{
-      token: string | null;
-      fileName: string | null;
-      mimeType: string | null;
-      error: string | null;
-    }>;
+    readFile: (path: string) => Promise<FileReadResult>;
   }) => Promise<void>;
 
   updateProgress: (id: string, progress: DownloadProgress) => void;
@@ -60,14 +51,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
   downloads: new Map(),
   activeDownloadId: null,
 
-  startDownload: async ({
-    serverId,
-    scopeId,
-    fileName,
-    path,
-    daemonProfile,
-    requestFileDownloadToken,
-  }) => {
+  startDownload: async ({ serverId, scopeId, fileName, path, readFile }) => {
     const id = generateDownloadId();
     const download: Download = {
       id,
@@ -84,74 +68,32 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
     }));
 
     try {
-      const tokenResponse = await requestFileDownloadToken(path);
-      if (tokenResponse.error || !tokenResponse.token) {
-        throw new Error(tokenResponse.error ?? i18n.t("downloads.requestTokenFailed"));
+      const file = await readFile(path);
+      if (file.bytes.byteLength !== file.size) {
+        throw new Error(i18n.t("downloads.failed"));
       }
-
-      const downloadTarget = resolveDaemonDownloadTarget(daemonProfile);
-      if (!downloadTarget.baseUrl) {
-        throw new Error(i18n.t("downloads.hostUnavailable"));
-      }
-
-      const resolvedFileName = tokenResponse.fileName ?? fileName;
-      const downloadUrl = buildDownloadUrl(
-        downloadTarget.baseUrl,
-        tokenResponse.token,
-        isWeb ? downloadTarget.authCredentials : null,
-      );
 
       if (isWeb) {
-        triggerBrowserDownload(downloadUrl, resolvedFileName);
+        const url = URL.createObjectURL(
+          new Blob([Uint8Array.from(file.bytes)], { type: file.mime }),
+        );
+        try {
+          triggerBrowserDownload(url, fileName);
+        } finally {
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
         get().completeDownload(id);
         return;
       }
 
-      const downloadStartTime = Date.now();
-      const targetFile = resolveDownloadTargetFile(resolvedFileName);
-      const downloadResumable = LegacyFileSystem.createDownloadResumable(
-        downloadUrl,
-        targetFile.uri,
-        downloadTarget.authHeader
-          ? { headers: { Authorization: downloadTarget.authHeader } }
-          : undefined,
-        (data) => {
-          const now = Date.now();
-          const { totalBytesWritten, totalBytesExpectedToWrite } = data;
-
-          if (totalBytesExpectedToWrite <= 0) {
-            return;
-          }
-
-          const percent = totalBytesWritten / totalBytesExpectedToWrite;
-          const elapsed = (now - downloadStartTime) / 1000;
-          const speed = elapsed > 0 ? totalBytesWritten / elapsed : 0;
-          const remaining = totalBytesExpectedToWrite - totalBytesWritten;
-          const eta = speed > 0 ? remaining / speed : 0;
-
-          get().updateProgress(id, {
-            percent,
-            bytesWritten: totalBytesWritten,
-            totalBytes: totalBytesExpectedToWrite,
-            speed,
-            eta,
-          });
-        },
-      );
-
-      const result = await downloadResumable.downloadAsync();
-      if (!result) {
-        throw new Error(i18n.t("downloads.cancelled"));
-      }
-
+      const targetFile = resolveDownloadTargetFile(fileName);
+      targetFile.write(file.bytes);
       get().completeDownload(id);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(result.uri, {
-          mimeType: tokenResponse.mimeType ?? undefined,
-          dialogTitle: resolvedFileName
-            ? i18n.t("downloads.shareFileNamed", { fileName: resolvedFileName })
-            : i18n.t("downloads.shareFile"),
+        await Sharing.shareAsync(targetFile.uri, {
+          mimeType: file.mime,
+          dialogTitle: i18n.t("downloads.shareFileNamed", { fileName }),
         });
       }
     } catch (error) {
@@ -238,75 +180,7 @@ function findMostRecentDownloadId(downloads: Map<string, Download>): string | nu
   return mostRecent?.id ?? null;
 }
 
-interface DownloadTarget {
-  baseUrl: string | null;
-  authHeader: string | null;
-  authCredentials: { username: string; password: string } | null;
-}
-
-function resolveDaemonDownloadTarget(daemon?: HostProfile): DownloadTarget {
-  const connection = daemon?.connections.find((conn) => conn.type === "directTcp") ?? null;
-  if (!connection) {
-    return { baseUrl: null, authHeader: null, authCredentials: null };
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(
-      buildDaemonWebSocketUrl(connection.endpoint, { useTls: connection.useTls ?? false }),
-    );
-  } catch {
-    return { baseUrl: null, authHeader: null, authCredentials: null };
-  }
-
-  if (parsed.protocol === "ws:") {
-    parsed.protocol = "http:";
-  } else if (parsed.protocol === "wss:") {
-    parsed.protocol = "https:";
-  }
-
-  let authCredentials: { username: string; password: string } | null = null;
-  if (parsed.username || parsed.password) {
-    authCredentials = {
-      username: decodeURIComponent(parsed.username),
-      password: decodeURIComponent(parsed.password),
-    };
-    parsed.username = "";
-    parsed.password = "";
-  }
-
-  parsed.pathname = parsed.pathname.replace(/\/ws\/?$/, "/");
-
-  const baseUrl = parsed.origin;
-  const authHeader = authCredentials
-    ? `Basic ${btoa(`${authCredentials.username}:${authCredentials.password}`)}`
-    : null;
-
-  return { baseUrl, authHeader, authCredentials };
-}
-
-function buildDownloadUrl(
-  baseUrl: string,
-  token: string,
-  authCredentials: { username: string; password: string } | null,
-): string {
-  const url = new URL("/api/files/download", baseUrl);
-  url.searchParams.set("token", token);
-  if (authCredentials) {
-    url.username = authCredentials.username;
-    url.password = authCredentials.password;
-  }
-  return url.toString();
-}
-
 function triggerBrowserDownload(url: string, fileName: string) {
-  if (typeof document === "undefined") {
-    if (typeof window !== "undefined") {
-      void openExternalUrl(url);
-    }
-    return;
-  }
-
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
@@ -316,7 +190,6 @@ function triggerBrowserDownload(url: string, fileName: string) {
   link.remove();
 }
 
-/** Hands text to the native share sheet as a file, for text too large for the clipboard. */
 export async function shareTextFile(input: {
   text: string;
   fileName: string;
