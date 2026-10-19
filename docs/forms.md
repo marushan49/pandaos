@@ -66,7 +66,9 @@ complete`), keyed off the opened snapshot's serverId. Waiting for data is a
   edits through `onChangeText`, and programmatic mutations use the input's
   `replaceText` command. Its props omit `value` and `defaultValue`, web IME
   candidates stay unpublished until composition commits, and lint rejects raw
-  React Native `TextInput` imports outside the primitive.
+  React Native `TextInput` imports outside the primitive. Native replacement
+  commands run after the input commits its change event: `clear()` inside
+  `onChangeText` carries the previous event count and Android discards it.
 - The form declares one size for all fields: `sm` on desktop, `md` compact
   (`useIsCompactFormFactor`).
 - Availability hierarchy: a field whose capability doesn't apply is **hidden**

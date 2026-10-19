@@ -2,6 +2,7 @@ import React, {
   forwardRef,
   useCallback,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useReducer,
   useState,
@@ -45,9 +46,13 @@ export const EditingTextInput = forwardRef<EditingTextInputHandle, EditingTextIn
     const inputRef = useRef<NativeInput | null>(null);
     const initialTextRef = useRef(initialValue);
     const textRef = useRef(initialTextRef.current);
+    const pendingTextReplacementRef = useRef<{
+      text: string;
+      selection?: { start: number; end: number };
+    } | null>(null);
     const isAwaitingReplacementRef = useRef(false);
     const [replacement, setReplacement] = useState({ revision: 0, autoFocus: false });
-    const [, bumpTextRevision] = useReducer((revision: number) => revision + 1, 0);
+    const [textRevision, bumpTextRevision] = useReducer((revision: number) => revision + 1, 0);
 
     const assignInputRef = useCallback((input: NativeInput | null) => {
       inputRef.current = input;
@@ -82,21 +87,11 @@ export const EditingTextInput = forwardRef<EditingTextInputHandle, EditingTextIn
         getText: () => textRef.current,
         replaceText: (nextText, selection) => {
           textRef.current = nextText;
-          if (inputRef.current?.replaceText) {
-            inputRef.current.replaceText(nextText, selection);
-            return;
-          }
-          if (nextText === "") {
-            inputRef.current?.clear?.();
-            return;
-          }
-          inputRef.current?.setNativeProps?.({
-            text: nextText,
-            ...(selection ? { selection } : {}),
-          });
-          if (selection) inputRef.current?.setSelection?.(selection.start, selection.end);
+          pendingTextReplacementRef.current = { text: nextText, selection };
+          bumpTextRevision();
         },
         reset: () => {
+          pendingTextReplacementRef.current = null;
           textRef.current = "";
           const autoFocus = inputRef.current?.isFocused?.() ?? false;
           if (autoFocus) beforeProgrammaticFocus();
@@ -112,6 +107,24 @@ export const EditingTextInput = forwardRef<EditingTextInputHandle, EditingTextIn
       }),
       [beforeProgrammaticFocus, setReplacementFocus],
     );
+
+    useLayoutEffect(() => {
+      const pending = pendingTextReplacementRef.current;
+      if (!pending) return;
+      pendingTextReplacementRef.current = null;
+      const { text, selection } = pending;
+      if (inputRef.current?.replaceText) {
+        inputRef.current.replaceText(text, selection);
+      } else if (text === "") {
+        inputRef.current?.clear?.();
+      } else {
+        inputRef.current?.setNativeProps?.({
+          text,
+          ...(selection ? { selection } : {}),
+        });
+        if (selection) inputRef.current?.setSelection?.(selection.start, selection.end);
+      }
+    }, [textRevision]);
 
     const handleChangeText = useCallback(
       (nextText: string) => {

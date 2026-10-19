@@ -157,6 +157,39 @@ describe("EditingTextInputNative", () => {
     expect(handleRef.current?.getText()).toBe("");
   });
 
+  it("clears forwarded keystrokes after native change handling so repeated letters arrive once", () => {
+    const handleRef = createRef<EditingTextInputHandle>();
+    const forwarded: string[] = [];
+    let handlingChange = false;
+    const forwardText = vi.fn((text: string) => {
+      handlingChange = true;
+      forwarded.push(text);
+      handleRef.current?.replaceText("");
+      handlingChange = false;
+    });
+    act(() => {
+      root?.render(<EditingTextInput ref={handleRef} onChangeText={forwardText} />);
+    });
+    const input = container?.querySelector("input");
+    if (!input) throw new Error("Expected native input");
+    Object.assign(input, {
+      clear: () => {
+        if (!handlingChange) input.value = "";
+      },
+    });
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setValue) throw new Error("Expected input value setter");
+    for (const letter of ["a", "a", "b"]) {
+      act(() => {
+        setValue.call(input, input.value + letter);
+        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: letter }));
+      });
+      expect(input.value).toBe("");
+      expect(handleRef.current?.getText()).toBe("");
+    }
+    expect(forwarded).toEqual(["a", "a", "b"]);
+  });
+
   it("replaces the native input when resetting the editor", () => {
     const handleRef = createRef<EditingTextInputHandle>();
 
@@ -178,6 +211,17 @@ describe("EditingTextInputNative", () => {
 
     expect(container?.querySelector("input")).not.toBe(grownInput);
     expect(handleRef.current).toBe(handle);
+  });
+
+  it("discards a queued replacement when the editor is reset in the same update", () => {
+    const handleRef = createRef<EditingTextInputHandle>();
+    act(() => root?.render(<EditingTextInput ref={handleRef} initialValue="initial" />));
+    act(() => {
+      handleRef.current?.replaceText("replacement");
+      handleRef.current?.reset();
+    });
+    expect(handleRef.current?.getText()).toBe("");
+    expect(container?.querySelector("input")?.value).toBe("");
   });
 
   it("restores focus after replacing a reset native input", () => {
