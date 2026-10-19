@@ -19,8 +19,11 @@ export interface BrowserRecord {
   viewport: BrowserViewport;
   /** Agent that opened the tab; its archive closes the tab. Null for tabs the user opened. */
   ownerAgentId: string | null;
+  kind?: BrowserPaneKind;
   createdAt: number;
 }
+
+export type BrowserPaneKind = "local" | "host";
 
 export type BrowserRecordPatch = Partial<
   Omit<BrowserRecord, "browserId" | "createdAt" | "ownerAgentId">
@@ -53,6 +56,7 @@ const BrowserRecordSchema = z.strictObject({
   lastError: z.string().nullable(),
   viewport: BrowserViewportSchema.optional().default(RESPONSIVE_BROWSER_VIEWPORT),
   ownerAgentId: z.string().nullable().optional().default(null),
+  kind: z.enum(["local", "host"]).optional(),
   createdAt: z.number(),
 });
 

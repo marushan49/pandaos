@@ -10,27 +10,18 @@ import {
 import { duplicateRemoteBrowserRecordIds, getBrowserPaneKind } from "./remote-tab-records";
 
 describe("duplicateRemoteBrowserRecordIds", () => {
-  it("keeps host tabs on the host in Electron, including before a new tab is attached", () => {
+  it("opens new Electron tabs locally and keeps attached or chosen host tabs on the host", () => {
+    expect(getBrowserPaneKind({ isElectron: true, remoteBrowserId: null })).toBe("desktop");
+    expect(getBrowserPaneKind({ isElectron: true, remoteBrowserId: "host-tab" })).toBe("host");
+    expect(getBrowserPaneKind({ isElectron: true, remoteBrowserId: null, kind: "host" })).toBe(
+      "host",
+    );
     expect(
-      getBrowserPaneKind({ isElectron: true, supportsHostBrowser: true, remoteBrowserId: null }),
-    ).toBe("host");
-    expect(
-      getBrowserPaneKind({
-        isElectron: true,
-        supportsHostBrowser: true,
-        remoteBrowserId: "host-tab",
-      }),
-    ).toBe("host");
-    expect(
-      getBrowserPaneKind({
-        isElectron: true,
-        supportsHostBrowser: false,
-        remoteBrowserId: "host-tab",
-      }),
-    ).toBe("host");
-    expect(
-      getBrowserPaneKind({ isElectron: true, supportsHostBrowser: false, remoteBrowserId: null }),
+      getBrowserPaneKind({ isElectron: true, remoteBrowserId: "host-tab", kind: "local" }),
     ).toBe("desktop");
+    expect(getBrowserPaneKind({ isElectron: false, remoteBrowserId: null, kind: "local" })).toBe(
+      "host",
+    );
   });
   it("drops the record adopted from a listing when the requesting record owns the same tab", () => {
     expect(

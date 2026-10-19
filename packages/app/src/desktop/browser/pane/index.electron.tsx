@@ -27,6 +27,7 @@ import {
   Monitor,
   MousePointer2,
   RotateCw,
+  Server,
   Smartphone,
   Tablet,
   Wrench,
@@ -1394,6 +1395,11 @@ export function BrowserPane({
     startElementSelector("annotate");
   }, [cancelElementSelector, selectorActive, startElementSelector]);
 
+  const handleOpenOnHost = useCallback(
+    () => updateBrowser(browserId, { kind: "host" }),
+    [browserId, updateBrowser],
+  );
+
   const handleToggleScreenshot = useCallback(() => {
     if (selectorActive) {
       cancelElementSelector();
@@ -1621,6 +1627,13 @@ export function BrowserPane({
                 selectorMode === "screenshot" ? theme.colors.accent : theme.colors.foregroundMuted
               }
             />
+          </ToolbarButton>
+          <ToolbarButton
+            label={t("workspace.browser.menu.openOnHost")}
+            onPress={handleOpenOnHost}
+            style={screenshotIconButtonStyle}
+          >
+            <Server size={16} color={theme.colors.foregroundMuted} />
           </ToolbarButton>
         </View>
       </View>

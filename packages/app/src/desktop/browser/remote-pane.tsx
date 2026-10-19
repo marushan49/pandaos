@@ -54,6 +54,7 @@ import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import {
   getBrowserRecord,
   isRemoteBrowserClosed,
+  markRemoteBrowserClosed,
   normalizeWorkspaceBrowserUrl,
   useBrowserStore,
 } from "@/desktop/browser/store";
@@ -823,6 +824,13 @@ function RemoteBrowserPane({
     [execute],
   );
   const openFind = useCallback(() => findRef.current?.open(), []);
+  const openLocally = useCallback(() => {
+    const current = remoteBrowserIdRef.current;
+    updateBrowser(browserId, { kind: "local", remoteBrowserId: null });
+    if (!current) return;
+    markRemoteBrowserClosed(current);
+    void execute({ command: "close_tab", args: { browserId: current } }).catch(() => undefined);
+  }, [browserId, execute, updateBrowser]);
   useEffect(() => {
     const width = Math.round(viewportSize.width / zoom);
     const height = Math.round(viewportSize.height / zoom);
@@ -1065,6 +1073,7 @@ function RemoteBrowserPane({
               zoom={zoom}
               onZoomChange={setZoom}
               onFind={openFind}
+              onOpenLocally={openLocally}
             />
           </ToolbarControls>
         </View>

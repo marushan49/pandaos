@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { withUnistyles } from "react-native-unistyles";
 import {
   Download,
+  Monitor,
   Import as ImportIcon,
   MoreHorizontal,
   Search,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { extraMutedIconColorMapping } from "@/components/ui/icon-button-chrome";
 import { ToolbarButton, paneContentToolbarIconSize } from "@/components/ui/pane-content-toolbar";
+import { getIsElectron } from "@/constants/platform";
 import type { Theme } from "@/styles/theme";
 import { buildSettingsHostSectionRoute } from "@/utils/host-routes";
 
@@ -29,6 +31,7 @@ const ThemedZoomOut = withUnistyles(ZoomOut);
 const ThemedImport = withUnistyles(ImportIcon);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedDownload = withUnistyles(Download);
+const ThemedMonitor = withUnistyles(Monitor);
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 const FIND_ICON = <ThemedSearch size={16} uniProps={mutedColorMapping} />;
@@ -37,6 +40,7 @@ const ZOOM_OUT_ICON = <ThemedZoomOut size={16} uniProps={mutedColorMapping} />;
 const IMPORT_ICON = <ThemedImport size={16} uniProps={mutedColorMapping} />;
 const SETTINGS_ICON = <ThemedSettings size={16} uniProps={mutedColorMapping} />;
 const DOWNLOADS_ICON = <ThemedDownload size={16} uniProps={mutedColorMapping} />;
+const LOCAL_ICON = <ThemedMonitor size={16} uniProps={mutedColorMapping} />;
 
 export const BROWSER_ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 
@@ -52,12 +56,14 @@ export function BrowserMenu({
   zoom,
   onZoomChange,
   onFind,
+  onOpenLocally,
 }: {
   serverId: string;
   compact: boolean;
   zoom: number;
   onZoomChange: (zoom: number) => void;
   onFind: () => void;
+  onOpenLocally?: () => void;
 }) {
   const { t } = useTranslation();
   const openSettings = useCallback(() => {
@@ -118,6 +124,15 @@ export function BrowserMenu({
           {t("workspace.browser.menu.zoomReset")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        {onOpenLocally && getIsElectron() ? (
+          <DropdownMenuItem
+            leading={LOCAL_ICON}
+            onSelect={onOpenLocally}
+            testID="remote-browser-menu-open-locally"
+          >
+            {t("workspace.browser.menu.openLocally")}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           leading={DOWNLOADS_ICON}
           onSelect={openSettings}

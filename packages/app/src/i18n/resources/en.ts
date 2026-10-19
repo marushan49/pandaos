@@ -655,6 +655,8 @@ export const en = {
         zoomReset: "Reset zoom",
         import: "Import cookies and passwords",
         downloads: "Downloads",
+        openLocally: "Open in this app",
+        openOnHost: "Open in the host browser",
         settings: "Browser settings",
       },
       passwords: {

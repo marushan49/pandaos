@@ -25,7 +25,6 @@ import type { BrowserHandoffAction } from "@/desktop/browser/activity-bar";
 import { useBrowserStore } from "@/desktop/browser/store";
 import { getBrowserPaneKind } from "@/desktop/browser/remote-tab-records";
 import { DEFAULT_BROWSER_URL } from "@/desktop/browser/store/state";
-import { useHostFeature } from "@/runtime/host-features";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import { useWorkspaceDirectory } from "@/stores/session-store-hooks";
 
@@ -119,6 +118,7 @@ function BrowserPanel() {
   const remoteBrowserId = useBrowserStore(
     (state) => state.browsersById[target.browserId]?.remoteBrowserId ?? null,
   );
+  const recordKind = useBrowserStore((state) => state.browsersById[target.browserId]?.kind);
 
   const handoff = useActiveBrowserHandoff(serverId, workspaceId, remoteBrowserId ?? undefined);
   const activity = useBrowserActivity(serverId, workspaceId, remoteBrowserId ?? undefined);
@@ -149,11 +149,10 @@ function BrowserPanel() {
   const dismiss = useCallback(() => {
     if (activity) useBrowserActivityStore.getState().dismiss(serverId, activity);
   }, [activity, serverId]);
-  const supportsHostBrowser = useHostFeature(serverId, "browserScreencast");
   const paneKind = getBrowserPaneKind({
     isElectron: getIsElectron(),
-    supportsHostBrowser,
     remoteBrowserId,
+    kind: recordKind,
   });
   if (paneKind === "desktop") {
     return (

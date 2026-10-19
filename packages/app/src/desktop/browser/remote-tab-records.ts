@@ -19,12 +19,12 @@ export function duplicateRemoteBrowserRecordIds(
 }
 export function getBrowserPaneKind(input: {
   isElectron: boolean;
-  supportsHostBrowser: boolean;
   remoteBrowserId: string | null;
+  kind?: "local" | "host";
 }): "desktop" | "host" {
-  return input.isElectron && !input.supportsHostBrowser && !input.remoteBrowserId
-    ? "desktop"
-    : "host";
+  if (!input.isElectron) return "host";
+  if (input.kind) return input.kind === "local" ? "desktop" : "host";
+  return input.remoteBrowserId ? "host" : "desktop";
 }
 
 export function closedRemoteBrowserTabIds(input: {
