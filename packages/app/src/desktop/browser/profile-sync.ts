@@ -152,7 +152,8 @@ export function mountBrowserProfileSync(client: DaemonClient, serverId: string):
     try {
       await syncHistory();
       await syncLocalProfile();
-    } catch {
+    } catch (error) {
+      console.warn("[browser-profile-sync] sync failed", error);
       return;
     } finally {
       running = false;
