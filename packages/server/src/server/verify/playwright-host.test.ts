@@ -95,11 +95,15 @@ describe.skipIf(!BROWSER_AVAILABLE)("DaemonPlaywrightHost", { timeout: 20_000 },
     return browserId;
   }
 
-  async function readSnapshotYaml(browserId: string, profile: string): Promise<string> {
+  async function readSnapshotYaml(
+    browserId: string,
+    profile: string,
+    forGoal = false,
+  ): Promise<string> {
     const snapshot = await host?.executeLocal({
       workspaceId: WORKSPACE_ID,
       profile,
-      command: { command: "snapshot", args: { browserId } },
+      command: { command: "snapshot", args: { browserId, forGoal } },
     });
     return snapshot?.ok && snapshot.result.command === "snapshot" ? snapshot.result.snapshot : "";
   }
@@ -129,10 +133,128 @@ describe.skipIf(!BROWSER_AVAILABLE)("DaemonPlaywrightHost", { timeout: 20_000 },
       expect(snapshot.result.snapshot).toContain('textbox "Email" @e');
       expect(snapshot.result.snapshot).toContain('button "Sign in" @e');
       expect(snapshot.result.stats.refCount).toBeGreaterThan(0);
+      const oldRef = refFor(snapshot.result.snapshot, "textbox", "Email");
+      await host?.close();
+      host = new DaemonPlaywrightHost({ paseoHome, logger: pino({ enabled: false }) });
+      const restored = await readSnapshotYaml(browserId, "default");
+      expect(refFor(restored, "textbox", "Email")).not.toBe(oldRef);
+      const stale = await executeTabCommand(
+        {
+          command: "fill",
+          args: {
+            browserId,
+            ref: oldRef ?? "",
+            value: "must-not-fill-after-restart",
+          },
+        },
+        "default",
+      );
+      expect(stale).toMatchObject({ ok: false, error: { code: "browser_stale_ref" } });
     } else {
       expect.unreachable();
     }
   }, 45_000);
+
+  it("collects Ultrafast field state without passwords and rejects a replaced target", async () => {
+    const profile = "ultrafast-state";
+    const browserId = await openTab(`${app?.url}/login`, profile);
+    await executeTabCommand(
+      {
+        command: "evaluate",
+        args: {
+          browserId,
+          function: `() => {
+      document.body.innerHTML = '<label>Route <input id="route" value="Vienna"></label><label>Password <input type="password" value="not-in-snapshot"></label><label>Code <input autocomplete="one-time-code" value="otp-private-712994"></label><label>Card <input autocomplete="cc-number" value="card-private-2345"></label><label>Payment <input id="cardNumber" value="unseparated-card-private"></label><label>Security <input id="securityCode" value="unseparated-security-private"></label><label>Company <input id="businessName" value="company-public-value"></label><label>Social number <input id="customerSSN" value="ssn-private-value"></label><label>Class <select><option value="economy">Economy</option><option value="first">First</option><option disabled>Unavailable</option></select></label><button id="search">Search</button><div style="margin-top:2000px"><button>Offscreen</button></div>';
+    }`,
+        },
+      },
+      profile,
+    );
+    const yaml = await readSnapshotYaml(browserId, profile, true);
+    expect(yaml).toContain('"value":"Vienna"');
+    expect(yaml).not.toContain("otp-private-712994");
+    expect(yaml).not.toContain("card-private-2345");
+    expect(yaml).not.toContain("unseparated-card-private");
+    expect(yaml).not.toContain("unseparated-security-private");
+    expect(yaml).not.toContain("ssn-private-value");
+    expect(yaml).toContain("company-public-value");
+    expect(yaml).toContain('"options":[{"label":"First","value":"first"}]');
+    expect(yaml).not.toContain("not-in-snapshot");
+    expect(yaml).not.toContain("Offscreen");
+    const ref = refFor(yaml, "button", "Search");
+    expect(ref).not.toBeNull();
+    await executeTabCommand(
+      {
+        command: "evaluate",
+        args: {
+          browserId,
+          function:
+            '() => { const old = document.querySelector("#search"); old.replaceWith(old.cloneNode(true)); }',
+        },
+      },
+      profile,
+    );
+    const result = await executeTabCommand(
+      {
+        command: "click",
+        args: { browserId, ref: ref ?? "", button: "left", doubleClick: false, modifiers: [] },
+      },
+      profile,
+    );
+    expect(result).toMatchObject({ ok: false, error: { code: "browser_stale_ref" } });
+    const fresh = await readSnapshotYaml(browserId, profile, true);
+    const goalRef = refFor(fresh, "button", "Search");
+    await executeTabCommand(
+      {
+        command: "evaluate",
+        args: {
+          browserId,
+          function:
+            '() => { const cover=document.createElement("div"); cover.id="cover"; cover.style="position:fixed;inset:0;z-index:99999"; document.body.append(cover); }',
+        },
+      },
+      profile,
+    );
+    expect(
+      await executeTabCommand(
+        {
+          command: "click",
+          args: {
+            browserId,
+            ref: goalRef ?? "",
+            button: "left",
+            doubleClick: false,
+            modifiers: [],
+          },
+        },
+        profile,
+      ),
+    ).toMatchObject({ ok: false, error: { code: "browser_stale_ref" } });
+    await executeTabCommand(
+      {
+        command: "evaluate",
+        args: { browserId, function: '() => document.querySelector("#cover").remove()' },
+      },
+      profile,
+    );
+    const generic = await readSnapshotYaml(browserId, profile);
+    expect(generic).toContain("Offscreen");
+    expect(refFor(generic, "button", "Search")).not.toBe(goalRef);
+    const replacedSnapshot = await executeTabCommand(
+      {
+        command: "click",
+        args: {
+          browserId,
+          ref: goalRef ?? "",
+          button: "left",
+          doubleClick: false,
+          modifiers: [],
+        },
+      },
+      profile,
+    );
+    expect(replacedSnapshot).toMatchObject({ ok: false, error: { code: "browser_stale_ref" } });
+  });
 
   it("fills the login form and reaches the report behind auth", async () => {
     const browserId = await openTab(`${app?.url}/login`, "login-flow");
@@ -148,7 +270,14 @@ describe.skipIf(!BROWSER_AVAILABLE)("DaemonPlaywrightHost", { timeout: 20_000 },
       "login-flow",
     );
     await executeTabCommand(
-      { command: "fill", args: { browserId, ref: passwordRef ?? "", value: FIXTURE_PASSWORD } },
+      {
+        command: "fill",
+        args: {
+          browserId,
+          ref: passwordRef ?? "",
+          value: FIXTURE_PASSWORD,
+        },
+      },
       "login-flow",
     );
 

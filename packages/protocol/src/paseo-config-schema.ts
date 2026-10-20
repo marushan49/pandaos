@@ -94,6 +94,21 @@ const PaseoRecipeTargetSchema = z
   })
   .strict();
 
+export const PaseoBrowserValueSchema = z.union([
+  z
+    .object({
+      env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
+      description: z.string().min(1).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      text: z.string(),
+      description: z.string().min(1).optional(),
+    })
+    .strict(),
+]);
+
 export const PaseoRecipeStepSchema = z.discriminatedUnion("action", [
   PaseoRecipeTargetSchema.extend({
     action: z.literal("navigate"),
@@ -188,17 +203,7 @@ export const PaseoRecipeStepSchema = z.discriminatedUnion("action", [
           ]),
         )
         .min(1),
-      values: z
-        .record(
-          z.string().min(1),
-          z
-            .object({
-              env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
-              description: z.string().min(1).optional(),
-            })
-            .strict(),
-        )
-        .optional(),
+      values: z.record(z.string().min(1), PaseoBrowserValueSchema).optional(),
       maxSteps: z.number().int().min(1).max(30).optional(),
     })
     .strict(),

@@ -109,7 +109,13 @@ For anything the tree can't capture, agents fall back to `browser_screenshot`, a
 
 ## Fast goal loops with Jev
 
-`browser_goal` runs a bounded browser loop through TypeSafe's Jev model. Jev chooses one operation and one observed element at a time; Paseo executes that choice through the existing browser host, takes a fresh snapshot, and stops only after every required text or URL check passes.
+`browser_goal` embeds the DOM reader and indexed operation/target policy from [Jev Ultrafast](https://github.com/browser-use/jev-ultrafast), pinned to `1231850a0bf1a0c0341fe408ef1668dbbfdfac46`. Jev receives visible text, current field and checkbox states, and available native dropdown choices. Operation and compatible target heads share one TypeSafe request. Only the chosen operation's target can execute. The existing host validates page/form state, node identity and click coverage before input; a changed target requires a fresh observation. Normal `browser_snapshot` and manual browser commands keep their existing behavior.
+
+The calling coding agent supplies exact public field text as `values.query = { "text": "Vienna to Graz", "description": "route search field" }`. It serves the text-generation role from the upstream architecture, without an additional model key or model call per field. Public text can enter the tool transcript and Jev request. Passwords and other credentials must use local `env` slots. The same slots work in recipe `goal` steps. Native dropdowns use observed options; a field already containing its supplied value is skipped.
+
+Saved scripted recipes run without a model. A goal whose verification checks already hold returns that fact without a Jev call. Other goals use the compact Jev loop. If Jev is unavailable or remains unsure, the result preserves the tab and completed-action trace for the calling agent to continue with normal snapshots and browser tools, including screenshots. The agent keeps its configured provider and permissions. A compact-reader failure falls back to the existing snapshot reader. Invalid decisions can be re-observed twice before takeover; an action with an uncertain execution result is not automatically submitted again.
+
+The bounded loop stops only after every required text or URL check passes. It sends no screenshots in the decision loop. The host retains its browser profile, handoffs, activity bar and input execution. The upstream demo, Python process and separate Chrome session are not started. Source adaptations and license are recorded in [the source notice](../packages/server/src/server/verify/jev-ultrafast.md). This integration does not establish a general speedup; measure representative flows before making performance claims.
 
 Configure and enable Jev under **Settings → your host → System One**. Paseo stores a key entered there in a host-local `0600` file; it can also use `TYPESAFE_API_KEY` or `~/.config/typesafe-ai/env` as a fallback. Form values use environment-variable references so credentials do not enter the tool transcript or the TypeSafe request:
 
@@ -180,6 +186,6 @@ agent ──MCP──▶ daemon (broker) ──▶ persistent browser (workspace
 - File uploads can only reference files inside the agent's workspace.
 - Tabs share the browser profile you use in Paseo, including cookies and logins — that's what makes logged-in testing work, and why the feature is opt-in per host.
 - Sign in inside the remote tab to keep the session on the workspace host. The browser uses a dedicated Chrome profile with its normal security settings. A Linux host needs `xvfb` and `xauth` for its private virtual display. Run the daemon as a non-root user with Chrome sandbox support; Paseo does not disable the sandbox when launch fails. Identity providers can still apply their own account and browser checks. **Open in device browser** opens a separate session.
-- `browser_goal` sends the goal, accessibility element summary, and recent action metadata to TypeSafe. It does not send screenshots or values loaded from the `values` environment-variable map.
+- `browser_goal` sends the goal, visible page text, element labels, non-sensitive field states, and executed action metadata to TypeSafe. Passwords, recognized payment fields and one-time-code fields have no value in the goal snapshot. It does not send screenshots or values loaded from the `values` environment-variable map.
 
 See the [tools reference](/docs/browser-tools) for the full tool list.

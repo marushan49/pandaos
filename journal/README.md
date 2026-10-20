@@ -15,3 +15,5 @@
 - [2026-10-13 Scan chat](2026-10-13-scan-chat-prs.md)
 - [2026-10-08 provider account identity](2026-10-08-codex-provider-identity.md)
 - [2026-10-14 content blocks](2026-10-14-content-blocks.md)
+
+- [2026-10-20 Jev Ultrafast integration](2026-10-20-jev-ultrafast.md)

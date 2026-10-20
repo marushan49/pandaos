@@ -1,11 +1,20 @@
+import { z } from "zod";
+import { SnapshotElementStateSchema, SnapshotGuardSchema } from "./ultrafast-snapshot.js";
+
 export const SNAPSHOT_REF_PATTERN = /^@e\d+$/;
 export const MAX_SNAPSHOT_NODES = 400;
 
-export interface CollectedSnapshotNode {
-  role: string;
-  name: string;
-  selector: string;
-}
+export const CollectedSnapshotNodesSchema = z.array(
+  z.object({
+    role: z.string(),
+    name: z.string(),
+    selector: z.string(),
+    state: SnapshotElementStateSchema.optional(),
+    guard: SnapshotGuardSchema.optional(),
+  }),
+);
+
+export type CollectedSnapshotNode = z.infer<typeof CollectedSnapshotNodesSchema>[number];
 
 export interface SnapshotNodeWithRef extends CollectedSnapshotNode {
   ref: string;
@@ -29,14 +38,20 @@ export interface FindSnapshotRefInput {
   name: string;
 }
 
-export function formatSnapshotYaml(nodes: readonly CollectedSnapshotNode[]): FormattedSnapshot {
+export function formatSnapshotYaml(
+  nodes: readonly CollectedSnapshotNode[],
+  firstRef = 1,
+): FormattedSnapshot {
   const kept = nodes.slice(0, MAX_SNAPSHOT_NODES);
   const withRefs: SnapshotNodeWithRef[] = kept.map((node, index) => ({
     ...node,
-    ref: `@e${index + 1}`,
+    ref: `@e${firstRef + index}`,
   }));
   const yaml = withRefs
-    .map((node) => `- ${node.role} ${JSON.stringify(node.name)} ${node.ref}`)
+    .map(
+      (node) =>
+        `- ${node.role} ${JSON.stringify(node.name)} ${node.ref}${node.state ? `\n  state ${node.ref} ${JSON.stringify(node.state)}` : ""}`,
+    )
     .join("\n");
   const textLength = withRefs.reduce((total, node) => total + node.name.length, 0);
   return {
@@ -99,8 +114,6 @@ declare const getComputedStyle: (element: SnapshotDomElement) => {
 declare const CSS: { escape(value: string): string };
 
 export function collectSnapshotNodes(): CollectedSnapshotNode[] {
-  // Self-contained: Playwright serializes only this function into the page,
-  // so every helper and constant it needs lives inside it.
   const selectors =
     "a[href], button, input, select, textarea, h1, h2, h3, h4, h5, h6, img[alt], [role]";
   const knownRoles = new Set([

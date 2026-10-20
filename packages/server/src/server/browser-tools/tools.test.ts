@@ -697,6 +697,37 @@ describe("registerBrowserTools", () => {
     ).toBe(false);
   });
 
+  test("browser goals and recipe goals accept public text but reject mixed secret sources", () => {
+    const harness = new BrowserToolHarness(undefined, undefined, undefined, {
+      runForAgent: async () => {
+        throw new Error("Validation must not run a recipe");
+      },
+    });
+    const base = { goal: "Search", browserId: BROWSER_ID, verify: [{ text: "Results" }] };
+    expect(
+      harness.validate("browser_goal", { ...base, values: { query: { text: "Vienna to Graz" } } })
+        .success,
+    ).toBe(true);
+    expect(
+      harness.validate("browser_goal", {
+        ...base,
+        values: { query: { text: "Vienna", env: "PASSWORD" } },
+      }).success,
+    ).toBe(false);
+    expect(
+      harness.validate("browser_test", {
+        steps: [
+          {
+            action: "goal",
+            goal: "Search",
+            verify: [{ text: "Results" }],
+            values: { query: { text: "Vienna" } },
+          },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
   test("list tabs sends workspace in the request envelope", async () => {
     const harness = new BrowserToolHarness();
 

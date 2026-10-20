@@ -1,5 +1,9 @@
 import type { BrowserToolsBroker, BrowserToolsExecuteInput } from "./broker.js";
 import type { BrowserToolsResponsePayload } from "./errors.js";
+import {
+  SnapshotElementStateSchema,
+  type SnapshotElementState,
+} from "../verify/ultrafast-snapshot.js";
 import type { BrowserActivityStep } from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import {
   NOOP_BROWSER_ACTIVITY,
@@ -12,6 +16,7 @@ import {
   type TypeSafeChoiceAnswer,
   type TypeSafeChoiceQuestion,
   type TypeSafeDecisionRequest,
+  type TypeSafeDecisionResponse,
   type TypeSafeDecisionSource,
   type TypeSafeUsage,
 } from "./jev-client.js";
@@ -21,6 +26,7 @@ import {
   parseScrollPosition,
   SCROLL_OPERATIONS,
   SCROLL_POSITION_FUNCTION,
+  MAX_UNSURE_RETRIES,
   scrollEndHint,
   scrollOutcome,
   type ScrollPosition,
@@ -38,6 +44,15 @@ const NEXT_ACTION_RULES = [
   "DONE requires visible evidence that every requirement is satisfied.",
   "The goal is written in the requester's words; a control on the page may be labelled differently. Choose the control whose meaning matches the goal (a link labelled 'Learn more' for 'the More information link').",
   "BLOCKED means no offered operation can make progress, not that no label matches the goal word for word.",
+  "Use current field values and action history. Fill required fields before submitting.",
+  "For a multi-page goal, first follow the visible navigation link to the requested form. Do not wait for fields on another page.",
+  "Fill an empty editable field from its supplied value slot before clicking that same field.",
+  "A typed query still needs its matching autocomplete suggestion selected.",
+  "Set every requested filter; a matching result alone does not prove the requested filter was set.",
+  "Use SELECT for an offered native dropdown option before submitting. CLICK does not select a native dropdown value.",
+  "Do not toggle a checkbox, switch, or radio already in the requested state.",
+  "Submit populated search fields before opening a result. If Search/Submit is visible and fields are ready, click it immediately.",
+  "WAIT only when the needed control is absent or disabled, or submitted results are loading. Recent WAIT actions are not evidence of loading.",
 ];
 
 const EDITABLE_ROLES = new Set(["textbox", "searchbox", "spinbutton"]);
@@ -59,11 +74,13 @@ const NON_CLICKABLE_ROLES = new Set([
 export interface JevBrowserValue {
   value?: string;
   env?: string;
+  text?: string;
   description?: string;
 }
 
 interface ResolvedJevBrowserValue {
   value: string;
+  public: boolean;
   description?: string;
 }
 
@@ -94,11 +111,12 @@ export interface JevBrowserGoalTraceEntry {
   step: number;
   operation: string;
   target?: string;
+  control?: { role: string; name: string };
   value?: string;
   confidence: number;
   targetConfidence?: number;
   latencyMs: number;
-  outcome: "executed" | "stale" | "verification_failed";
+  outcome: "executed" | "stale" | "verification_failed" | "execution_uncertain" | "failed";
 }
 
 export interface JevBrowserGoalResult {
@@ -127,9 +145,11 @@ interface JevBrowserGoalRunnerOptions {
 }
 
 interface ObservedElement {
+  index: number;
   ref: string;
   role: string;
   name: string;
+  state?: SnapshotElementState;
 }
 
 interface BrowserPage {
@@ -161,6 +181,7 @@ interface OperationPlan {
   clickTargets: Candidate<ObservedElement>[];
   fillTargets: Candidate<ObservedElement>[];
   enterTargets: Candidate<ObservedElement>[];
+  selectTargets: Candidate<ObservedElement>[];
   fillValues: Candidate<{ name: string; value: ResolvedJevBrowserValue }>[];
 }
 
@@ -190,7 +211,6 @@ export class JevBrowserGoalRunner {
       ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   }
 
-  /** A caller-owned `reporter` (a recipe goal step) keeps the run open after the goal ends. */
   public async run(
     input: JevBrowserGoalInput,
     context: JevBrowserGoalContext,
@@ -198,6 +218,7 @@ export class JevBrowserGoalRunner {
   ): Promise<JevBrowserGoalResult> {
     const values = resolveBrowserValues(input.values ?? {});
     const redactions = Object.values(values)
+      .filter((entry) => !entry.public)
       .map((entry) => entry.value)
       .filter((value) => value.length > 0);
     const browserId = await this.prepareBrowser(input, context);
@@ -220,19 +241,23 @@ export class JevBrowserGoalRunner {
         redactions,
         activity: reporter ?? ownRun ?? NOOP_BROWSER_ACTIVITY,
         usage,
+        maxSteps: input.maxSteps ?? DEFAULT_MAX_STEPS,
+        minConfidence: input.minConfidence ?? DEFAULT_MIN_CONFIDENCE,
       });
       const screenshotRef = reporter ? undefined : await this.captureScreenshot(context, browserId);
-      const result = { ...decided, usage, ...(screenshotRef ? { screenshotRef } : {}) };
+      const result = {
+        ...decided,
+        title: redactValues(decided.title, redactions),
+        url: redactValues(decided.url, redactions),
+        message: redactValues(decided.message, redactions),
+        usage,
+        ...(screenshotRef ? { screenshotRef } : {}),
+      };
       ownRun?.finish({
         status: result.status === "passed" ? "passed" : "failed",
         message: result.message,
         ...(result.status === "uncertain" ? { uncertain: true } : {}),
       });
-      if (input.separateTab && !input.browserId && !reporter && result.status === "passed") {
-        await this.execute(context, { command: "close_tab", args: { browserId } }).catch(
-          () => undefined,
-        );
-      }
       return result;
     } catch (error) {
       ownRun?.finish({
@@ -268,10 +293,20 @@ export class JevBrowserGoalRunner {
     redactions: string[];
     activity: BrowserActivityReporter;
     usage: JevBrowserGoalUsage;
+    maxSteps: number;
+    minConfidence: number;
   }): Promise<JevBrowserGoalResult> {
-    const { input, context, browserId, values, redactions, activity, usage } = params;
-    const maxSteps = input.maxSteps ?? DEFAULT_MAX_STEPS;
-    const minConfidence = input.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
+    const {
+      input,
+      context,
+      browserId,
+      values,
+      redactions,
+      activity,
+      usage,
+      maxSteps,
+      minConfidence,
+    } = params;
     const steps: JevBrowserGoalTraceEntry[] = [];
     const activitySteps: BrowserActivityStep[] = [];
     const excludedActions = new Map<string, Set<string>>();
@@ -282,7 +317,6 @@ export class JevBrowserGoalRunner {
     let scrollEnd: ScrollEnd | undefined;
     activity.update({ phase: "observing", step: 1 });
     let page = await this.observe(browserId, context);
-    // The only pause point: after an action and before the snapshot the next decision uses.
     const observeNext = async (nextStep: number): Promise<BrowserPage> => {
       await activity.checkpoint();
       activity.update({
@@ -336,16 +370,19 @@ export class JevBrowserGoalRunner {
     };
 
     for (let step = 1; step <= maxSteps; step += 1) {
-      // After an action, a page that already shows every check is done: Jev tends to
-      // answer an unsure BLOCKED there, and asking it costs a call for nothing.
-      if (
-        steps.length > 0 &&
-        (await this.passesAlready({ page, input, context, activity, step }))
-      ) {
-        return resultFor("passed", page, steps, "Goal completed and verified.", lastModel);
+      if (await this.passesAlready({ page, input, context, activity, step })) {
+        return resultFor(
+          "passed",
+          page,
+          steps,
+          steps.length === 0
+            ? "Verification checks already satisfied before any action."
+            : "Goal completed and verified.",
+          lastModel,
+        );
       }
       activity.update({ phase: "deciding", step, action: null });
-      const stateKey = `${page.url}\n${page.snapshot}`;
+      const stateKey = `${page.url}\n${JSON.stringify(page.elements.map(({ ref: _ref, ...element }) => element))}`;
       const excluded = excludedActions.get(stateKey) ?? new Set<string>();
       const plan = buildOperationPlan({
         page,
@@ -363,12 +400,25 @@ export class JevBrowserGoalRunner {
         rejection: lastRejection,
         pageNote: scrollEndNote(scrollEnd, stateKey),
       });
-      const decision = await this.decisionSource.decide(request);
-      addDecisionUsage(usage, decision.usage);
+      const next = await this.decideNext({
+        request,
+        plan,
+        minConfidence,
+        unsureSoFar,
+        redactions,
+        usage,
+        steps,
+      });
+      if (next.status !== "ready") {
+        if (next.status === "invalid" && unsureSoFar < MAX_UNSURE_RETRIES) {
+          unsureSoFar += 1;
+          page = await observeNext(step + 1);
+          continue;
+        }
+        return resultFor("uncertain", page, steps, next.message, lastModel);
+      }
+      const { decision, operation, judgement } = next;
       lastModel = decision.model;
-      const operation = parseChoiceAnswer(decision.answers.operation, plan.operations);
-      // DONE mutates nothing and the verify checks decide it, so even an unsure DONE
-      // is checked instead of ending the run; the confidence gate guards actions.
       if (operation.choice === "DONE") {
         const doneAction: BrowserActivityStep = {
           operation: "DONE",
@@ -393,14 +443,6 @@ export class JevBrowserGoalRunner {
         continue;
       }
 
-      const judgement = judgeDecision({
-        operation,
-        plan,
-        decision,
-        minConfidence,
-        unsureSoFar,
-        redactions,
-      });
       if (judgement.kind === "blocked") {
         return resultFor("blocked", page, steps, "Jev found no supported next action.", lastModel);
       }
@@ -418,7 +460,7 @@ export class JevBrowserGoalRunner {
       unsureSoFar = judgement.unsure ? unsureSoFar + 1 : 0;
       lastRejection = undefined;
 
-      const actionKey = `${operation.choice}:${selected.target ?? ""}:${selected.valueName ?? ""}`;
+      const actionKey = selectedActionKey(operation.choice, selected, page.elements);
       if (excluded.has(actionKey)) {
         return repeatedResult(scrollEnd, stateKey, operation);
       }
@@ -458,19 +500,124 @@ export class JevBrowserGoalRunner {
           selected,
           confidence: operation.confidence,
           latencyMs: decision.latencyMs,
-          succeeded: payload.ok,
+          payload,
+          control: action.target,
         }),
       );
 
       activitySteps.push({ ...action, status: payload.ok ? "done" : "failed" });
 
       if (!payload.ok && payload.error.code !== "browser_stale_ref") {
-        return resultFor("blocked", page, steps, payload.error.message, lastModel);
+        return this.finishFailedAction({
+          page,
+          input,
+          context,
+          activity,
+          steps,
+          step,
+          payload,
+          model: lastModel,
+        });
       }
+      if (!payload.ok) excluded.delete(actionKey);
       page = await observeNext(step + 1);
     }
 
+    if (await this.passesAlready({ page, input, context, activity, step: maxSteps })) {
+      return resultFor("passed", page, steps, "Goal completed and verified.", lastModel);
+    }
     return resultFor("limit", page, steps, `Stopped after ${maxSteps} steps.`, lastModel);
+  }
+
+  private async finishFailedAction(params: {
+    page: BrowserPage;
+    input: JevBrowserGoalInput;
+    context: JevBrowserGoalContext;
+    activity: BrowserActivityReporter;
+    steps: JevBrowserGoalTraceEntry[];
+    step: number;
+    payload: Extract<BrowserToolsResponsePayload, { ok: false }>;
+    model?: string;
+  }): Promise<JevBrowserGoalResult> {
+    let page = params.page;
+    if (isExecutionUncertain(params.payload)) {
+      try {
+        page = await this.observe(page.browserId, params.context);
+        if (await this.passesAlready({ ...params, page })) {
+          return resultFor(
+            "passed",
+            page,
+            params.steps,
+            "Goal verified after an uncertain action response.",
+            params.model,
+          );
+        }
+      } catch {
+        return resultFor("blocked", page, params.steps, params.payload.error.message, params.model);
+      }
+    }
+    return resultFor("blocked", page, params.steps, params.payload.error.message, params.model);
+  }
+
+  private async decideNext(params: {
+    request: TypeSafeDecisionRequest;
+    plan: OperationPlan;
+    minConfidence: number;
+    unsureSoFar: number;
+    redactions: string[];
+    usage: JevBrowserGoalUsage;
+    steps: JevBrowserGoalTraceEntry[];
+  }): Promise<ValidatedDecision> {
+    let decision: TypeSafeDecisionResponse;
+    try {
+      decision = await this.decisionSource.decide(params.request);
+      addDecisionUsage(params.usage, decision.usage);
+    } catch (error) {
+      return { status: "unavailable", message: decisionFailure(error, params.redactions) };
+    }
+    try {
+      const operation = parseChoiceAnswer(decision.answers.operation, params.plan.operations);
+      let judgement = judgeDecision({ ...params, decision, operation });
+      const targetRef = judgement.kind === "unsure" ? judgement.rejection.valueTarget : undefined;
+      if (targetRef) {
+        const target = params.plan.fillTargets.find(
+          (candidate) => candidate.value.ref === targetRef,
+        )?.value;
+        const question = params.request.questions.fill_value;
+        if (target && question) {
+          let clarified: TypeSafeDecisionResponse;
+          try {
+            clarified = await this.decisionSource.decide({
+              state: {
+                selected_field: Object.assign(
+                  {
+                    index: target.index,
+                    role: target.role,
+                    name: redactValues(target.name, params.redactions),
+                  },
+                  redactBrowserData(target.state ?? {}, params.redactions),
+                ),
+                recent_actions: compactActions(params.steps).slice(-3),
+              },
+              questions: { fill_value: question },
+            });
+          } catch (error) {
+            return { status: "unavailable", message: decisionFailure(error, params.redactions) };
+          }
+          addDecisionUsage(params.usage, clarified.usage);
+          decision = {
+            ...decision,
+            model: clarified.model,
+            latencyMs: decision.latencyMs + clarified.latencyMs,
+            answers: { ...decision.answers, fill_value: clarified.answers.fill_value },
+          };
+          judgement = judgeDecision({ ...params, decision, operation });
+        }
+      }
+      return { status: "ready", decision, operation, judgement };
+    } catch (error) {
+      return { status: "invalid", message: decisionFailure(error, params.redactions) };
+    }
   }
 
   private async prepareBrowser(
@@ -504,10 +651,13 @@ export class JevBrowserGoalRunner {
   }
 
   private async observe(browserId: string, context: JevBrowserGoalContext): Promise<BrowserPage> {
-    const payload = await this.execute(context, {
+    let payload = await this.execute(context, {
       command: "snapshot",
-      args: { browserId },
+      args: { browserId, forGoal: true },
     });
+    if (!payload.ok) {
+      payload = await this.execute(context, { command: "snapshot", args: { browserId } });
+    }
     if (!payload.ok) {
       throw new Error(payload.error.message);
     }
@@ -630,6 +780,15 @@ export class JevBrowserGoalRunner {
             value: params.value ?? "",
           },
         });
+      case "SELECT":
+        return this.execute(params.context, {
+          command: "select",
+          args: {
+            browserId: params.browserId,
+            ref: requireTarget(params.target),
+            value: params.value ?? "",
+          },
+        });
       case "PRESS_ENTER":
         return this.execute(params.context, {
           command: "keypress",
@@ -682,16 +841,26 @@ function buildOperationPlan(params: {
   allowDone: boolean;
 }): OperationPlan {
   const clickTargets = candidatesForElements(
-    params.page.elements.filter((element) => !NON_CLICKABLE_ROLES.has(element.role)),
-  ).filter((candidate) => !params.excluded.has(`CLICK:${candidate.value.ref}:`));
-  const editable = params.page.elements.filter((element) => EDITABLE_ROLES.has(element.role));
-  const fillTargets = candidatesForElements(editable).filter((candidate) =>
-    Object.keys(params.values).some(
-      (valueName) => !params.excluded.has(`FILL:${candidate.value.ref}:${valueName}`),
+    params.page.elements.filter((element) =>
+      element.state ? element.state.clickable : !NON_CLICKABLE_ROLES.has(element.role),
     ),
+  ).filter((candidate) => !params.excluded.has(`CLICK:${candidate.value.index}:`));
+  const editable = params.page.elements.filter((element) =>
+    element.state ? element.state.editable : EDITABLE_ROLES.has(element.role),
+  );
+  const fillTargets = candidatesForElements(editable).filter((candidate) =>
+    Object.keys(params.values).some((valueName) => {
+      const slot = params.values[valueName];
+      return (
+        slot &&
+        !(candidate.value.state?.secret && slot.public) &&
+        candidate.value.state?.value !== slot.value &&
+        !params.excluded.has(`FILL:${candidate.value.index}:${valueName}`)
+      );
+    }),
   );
   const enterTargets = candidatesForElements(editable).filter(
-    (candidate) => !params.excluded.has(`PRESS_ENTER:${candidate.value.ref}:`),
+    (candidate) => !params.excluded.has(`PRESS_ENTER:${candidate.value.index}:`),
   );
   const fillValues = Object.entries(params.values).map(([name, value], index) => ({
     id: String(index + 1),
@@ -699,16 +868,35 @@ function buildOperationPlan(params: {
     criterion: {
       value_slot: name,
       description: value.description ?? name,
+      ...(value.public ? { text: value.value } : {}),
     },
   }));
+  const selectTargets = params.page.elements
+    .flatMap((element) =>
+      (element.state?.options ?? []).map((option, index) => ({
+        id: `${element.index}:${index + 1}`,
+        value: element,
+        criterion: {
+          element: `[${element.index}:${index + 1}] ${element.name} → ${option.label}`,
+          role: element.role,
+          current_value: element.state?.value,
+          value: option.value,
+        },
+      })),
+    )
+    .filter((candidate) => !params.excluded.has(`SELECT:${candidate.value.index}:${candidate.id}`));
   const operations: Record<string, string> = {};
   if (clickTargets.length > 0) operations.CLICK = "Click a visible interactive element.";
   if (fillTargets.length > 0 && fillValues.length > 0) {
     operations.FILL = "Fill an editable field with one supplied local value slot.";
   }
   if (enterTargets.length > 0) operations.PRESS_ENTER = "Press Enter in an editable field.";
-  operations.SCROLL_DOWN = "Scroll down to reveal more of the page.";
-  operations.SCROLL_UP = "Scroll up to reveal earlier page content.";
+  if (selectTargets.length > 0) operations.SELECT = "Select an observed native dropdown option.";
+  const scroll = params.page.elements.find((element) => element.role === "text")?.state;
+  if (scroll?.scrollDown !== false)
+    operations.SCROLL_DOWN = "Scroll down to reveal more of the page.";
+  if (scroll?.scrollUp !== false)
+    operations.SCROLL_UP = "Scroll up to reveal earlier page content.";
   operations.BACK = "Navigate back one page.";
   operations.WAIT = "Briefly wait because the needed control is loading.";
   if (params.allowDone) operations.DONE = "Every requirement is visibly satisfied.";
@@ -724,6 +912,7 @@ function buildOperationPlan(params: {
   addTargetQuestion(questions, "click_target", clickTargets, "CLICK");
   addTargetQuestion(questions, "fill_target", fillTargets, "FILL");
   addTargetQuestion(questions, "enter_target", enterTargets, "PRESS_ENTER");
+  addTargetQuestion(questions, "select_target", selectTargets, "SELECT");
   if (fillValues.length > 0) {
     questions.fill_value = {
       type: "choice",
@@ -743,6 +932,7 @@ function buildOperationPlan(params: {
     clickTargets,
     fillTargets,
     enterTargets,
+    selectTargets,
     fillValues,
   };
 }
@@ -764,18 +954,26 @@ function buildDecisionRequest(params: {
       page: {
         url: redact(params.page.url),
         title: redact(params.page.title),
+        text: redact(params.page.elements.find((element) => element.role === "text")?.name ?? ""),
       },
-      elements: params.page.elements.map((element, index) => ({
-        index: index + 1,
-        ref: element.ref,
-        role: element.role,
-        name: redact(element.name),
-      })),
+      elements: params.page.elements
+        .filter((element) => element.role !== "text")
+        .map((element) =>
+          Object.assign(
+            {
+              index: element.index,
+              role: element.role,
+              label: redact(element.name),
+            },
+            redactBrowserData(element.state ?? {}, params.redactions),
+          ),
+        ),
       value_slots: Object.entries(params.input.values ?? {}).map(([name, value]) => ({
         name,
         description: value.description ?? name,
+        text: value.text,
       })),
-      recent_actions: params.steps.slice(-8),
+      recent_actions: compactActions(params.steps).slice(-8),
       ...(params.pageNote ? { page_note: params.pageNote } : {}),
       ...(params.rejection
         ? {
@@ -793,6 +991,12 @@ function buildDecisionRequest(params: {
         name,
         {
           ...question,
+          criteria: Object.fromEntries(
+            Object.entries(question.criteria).map(([key, value]) => [
+              key,
+              redactBrowserData(value, params.redactions),
+            ]),
+          ),
           instructions: {
             goal: redact(params.input.goal),
             ...(typeof question.instructions === "object" &&
@@ -815,17 +1019,40 @@ interface SelectedAction {
   targetConfidence?: number;
 }
 
+function selectedActionKey(
+  operation: string,
+  selected: SelectedAction,
+  elements: ObservedElement[],
+): string {
+  const index = elements.find((element) => element.ref === selected.target)?.index;
+  return `${operation}:${index ?? ""}:${selected.valueName ?? ""}`;
+}
+
 interface UnsureRejection {
   reason: string;
   operation: string;
   confidence: number;
   guess?: string;
+  valueTarget?: string;
 }
 
 type DecisionJudgement =
   | { kind: "blocked" }
   | { kind: "unsure"; stop: boolean; rejection: UnsureRejection }
   | { kind: "act"; selected: SelectedAction; unsure: boolean };
+
+type ValidatedDecision =
+  | {
+      status: "ready";
+      decision: TypeSafeDecisionResponse;
+      operation: TypeSafeChoiceAnswer;
+      judgement: DecisionJudgement;
+    }
+  | { status: "invalid" | "unavailable"; message: string };
+
+function decisionFailure(error: unknown, redactions: string[]): string {
+  return `Jev decision unavailable: ${redactValues(error instanceof Error ? error.message : String(error), redactions)}. Continue with the current agent and browser tools.`;
+}
 
 type TypeSafeDecision = Awaited<ReturnType<TypeSafeDecisionSource["decide"]>>;
 
@@ -879,6 +1106,7 @@ function judgeDecision(params: {
     stop: targetGate === "stop",
     rejection: {
       reason: selection.message,
+      ...(selection.valueTarget ? { valueTarget: selection.valueTarget } : {}),
       operation: operation.choice,
       confidence: selection.confidence,
       ...(selection.guess ? { guess: describeGuess(selection.guess, params.redactions) } : {}),
@@ -904,6 +1132,8 @@ function targetQuestionFor(
   if (operation === "PRESS_ENTER") {
     return { candidates: plan.enterTargets, answerName: "enter_target" };
   }
+  if (operation === "SELECT")
+    return { candidates: plan.selectTargets, answerName: "select_target" };
   return null;
 }
 
@@ -933,7 +1163,13 @@ function selectAction(params: {
   minConfidence: number;
 }):
   | SelectedAction
-  | { status: "uncertain"; message: string; confidence: number; guess?: TargetGuess } {
+  | {
+      status: "uncertain";
+      message: string;
+      confidence: number;
+      guess?: TargetGuess;
+      valueTarget?: string;
+    } {
   const question = targetQuestionFor(params.operation, params.plan);
   if (!question) {
     return { status: "selected" };
@@ -958,6 +1194,20 @@ function selectAction(params: {
     throw new Error("TypeSafe selected an unknown browser target; no action executed.");
   }
 
+  if (params.operation === "SELECT") {
+    const index = Number(targetAnswer.choice.split(":")[1]) - 1;
+    const option = target.state?.options?.[index];
+    if (!option)
+      throw new Error("TypeSafe selected an unknown dropdown option; no action executed.");
+    return {
+      status: "selected",
+      target: target.ref,
+      value: option.value,
+      valueName: targetAnswer.choice,
+      targetConfidence,
+    };
+  }
+
   if (params.operation !== "FILL") {
     return {
       status: "selected",
@@ -978,6 +1228,7 @@ function selectAction(params: {
     return {
       status: "uncertain",
       message: "Jev was not confident enough to choose a value slot.",
+      valueTarget: target.ref,
       confidence: valueConfidence,
       guess: { element: target, confidence: targetAnswer.confidence },
     };
@@ -987,6 +1238,9 @@ function selectAction(params: {
   )?.value;
   if (!value) {
     throw new Error("TypeSafe selected an unknown value slot; no action executed.");
+  }
+  if (target.state?.secret && value.value.public) {
+    throw new Error("Password fields require a local credential slot; no action executed.");
   }
   return {
     status: "selected",
@@ -998,12 +1252,12 @@ function selectAction(params: {
 }
 
 function candidatesForElements(elements: ObservedElement[]): Candidate<ObservedElement>[] {
-  return elements.map((element, index) => ({
-    id: String(index + 1),
+  return elements.map((element) => ({
+    id: String(element.index),
     value: element,
     criterion: {
-      element: `[${index + 1}] ${element.role} ${JSON.stringify(element.name)}`,
-      ref: element.ref,
+      element: `[${element.index}] ${element.role} ${JSON.stringify(element.name)}`,
+      ...(element.state ? { state: element.state } : {}),
     },
   }));
 }
@@ -1024,13 +1278,21 @@ function addTargetQuestion(
     ),
     instructions: {
       operation,
-      rules: ["Choose only an offered element for this operation."],
+      rules: [
+        "Choose only an offered element index for this operation. Use the entire goal, current field values and recent actions. Do not choose a field already containing the requested value. Another question chooses the operation.",
+      ],
     },
   };
 }
 
 export function parseObservedElements(snapshot: string): ObservedElement[] {
   const elements: ObservedElement[] = [];
+  const states = new Map<string, SnapshotElementState>();
+  for (const line of snapshot.split("\n")) {
+    const match = line.match(/^\s+state (@e\d+) (\{.*\})$/);
+    if (match?.[1] && match[2])
+      states.set(match[1], SnapshotElementStateSchema.parse(JSON.parse(match[2])));
+  }
   for (const line of snapshot.split("\n")) {
     const match = line.match(
       /^\s*-\s+([a-z][\w-]*)\s+"((?:\\.|[^"])*)".*?(?:\[ref=)?(@e\d+)\]?\s*$/i,
@@ -1038,10 +1300,13 @@ export function parseObservedElements(snapshot: string): ObservedElement[] {
     if (!match) {
       continue;
     }
+    const state = states.get(match[3] ?? "");
     elements.push({
+      index: elements.length + 1,
       role: (match[1] ?? "").toLowerCase(),
       name: unescapeSnapshotName(match[2] ?? ""),
       ref: match[3] ?? "",
+      ...(state ? { state } : {}),
     });
   }
   return elements;
@@ -1062,6 +1327,27 @@ function redactValues(value: string, redactions: readonly string[]): string {
   );
 }
 
+function redactBrowserData(value: unknown, redactions: readonly string[]): unknown {
+  if (typeof value === "string") return redactValues(value, redactions);
+  if (Array.isArray(value)) return value.map((item) => redactBrowserData(item, redactions));
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, redactBrowserData(item, redactions)]),
+    );
+  }
+  return value;
+}
+
+function compactActions(steps: JevBrowserGoalTraceEntry[]) {
+  return steps
+    .filter((step) => step.outcome === "executed")
+    .map(({ operation, control, value }) => ({ operation, control, value }));
+}
+
+function isExecutionUncertain(payload: BrowserToolsResponsePayload): boolean {
+  return !payload.ok && ["browser_timeout", "browser_unknown_error"].includes(payload.error.code);
+}
+
 function traceFor(params: {
   step: number;
   operation: string;
@@ -1072,11 +1358,17 @@ function traceFor(params: {
   };
   confidence: number;
   latencyMs: number;
-  succeeded: boolean;
+  payload: BrowserToolsResponsePayload;
+  control?: BrowserActivityStep["target"];
 }): JevBrowserGoalTraceEntry {
+  let outcome: JevBrowserGoalTraceEntry["outcome"] = "failed";
+  if (isExecutionUncertain(params.payload)) outcome = "execution_uncertain";
+  if (params.payload.ok) outcome = "executed";
+  else if (params.payload.error.code === "browser_stale_ref") outcome = "stale";
   return {
     step: params.step,
     operation: params.operation,
+    ...(params.control ? { control: params.control } : {}),
     ...(params.selected.target ? { target: params.selected.target } : {}),
     ...(params.selected.valueName ? { value: params.selected.valueName } : {}),
     confidence: params.confidence,
@@ -1084,7 +1376,7 @@ function traceFor(params: {
       ? { targetConfidence: params.selected.targetConfidence }
       : {}),
     latencyMs: params.latencyMs,
-    outcome: params.succeeded ? "executed" : "stale",
+    outcome,
   };
 }
 
@@ -1093,12 +1385,13 @@ function resolveBrowserValues(
 ): Record<string, ResolvedJevBrowserValue> {
   return Object.fromEntries(
     Object.entries(values).map(([name, source]) => {
-      const hasLiteral = source.value !== undefined;
-      const hasEnvironment = source.env !== undefined;
-      if (hasLiteral === hasEnvironment) {
-        throw new Error(`Browser value slot ${name} requires exactly one of value or env.`);
+      const sources = [source.value, source.env, source.text].filter(
+        (value) => value !== undefined,
+      );
+      if (sources.length !== 1) {
+        throw new Error(`Browser value slot ${name} requires exactly one of value, env or text.`);
       }
-      const value = hasLiteral ? source.value : process.env[source.env ?? ""];
+      const value = source.text ?? source.value ?? process.env[source.env ?? ""];
       if (value === undefined) {
         throw new Error(`Browser value slot ${name} references an unset environment variable.`);
       }
@@ -1106,6 +1399,7 @@ function resolveBrowserValues(
         name,
         {
           value,
+          public: source.text !== undefined,
           ...(source.description ? { description: source.description } : {}),
         },
       ];
@@ -1156,10 +1450,8 @@ function describeControl(element: ObservedElement, redactions: readonly string[]
   return `${element.role} "${redactValues(element.name, redactions)}" ${element.ref}`;
 }
 
-// Cheap pre-check on the observation already in hand, so a page that cannot pass
-// never waits out the real checks' timeout.
 function looksVerified(page: BrowserPage, checks: readonly JevBrowserVerification[]): boolean {
-  const text = `${page.title}\n${page.snapshot}`;
+  const text = `${page.title}\n${page.elements.map((element) => element.name).join("\n")}`;
   return (
     checks.length > 0 &&
     checks.every(

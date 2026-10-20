@@ -121,4 +121,70 @@ describe.skipIf(!RUN_REAL_E2E)("Jev browser goal real E2E", () => {
       pages.close();
     }
   }, 60_000);
+  it("uses the embedded Ultrafast reader to fill public text and select a native filter", async () => {
+    const pages = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end(`<!doctype html><html><head><title>Train search fixture</title></head><body>
+        <h1>Train search fixture</h1><form id="search">
+        <label>Route <input id="route" name="route"></label>
+        <label>Travel class <select id="class"><option value="economy">Economy</option><option value="first">First</option><option disabled>Unavailable</option></select></label>
+        <label><input id="direct" type="checkbox" checked>Direct only</label><button>Search trains</button></form>
+        <p id="result"></p><script>
+        document.querySelector('form').addEventListener('submit', event => {
+          event.preventDefault();
+          const valid = document.querySelector('#route').value === 'Vienna to Graz' && document.querySelector('#class').value === 'first' && document.querySelector('#direct').checked;
+          document.querySelector('#result').textContent = valid ? 'Route: Vienna to Graz. Class: First. Direct only: yes.' : 'Search settings incomplete';
+        });
+        </script></body></html>`);
+    });
+    await new Promise<void>((resolve) => pages.listen(0, "127.0.0.1", resolve));
+    const address = pages.address();
+    if (!address || typeof address === "string") throw new Error("Fixture listener unavailable");
+    try {
+      const runner = new JevBrowserGoalRunner({
+        broker: {
+          execute: (input: BrowserToolsExecuteInput) =>
+            host.executeLocal({
+              workspaceId: WORKSPACE_ID,
+              command: input.command,
+            }),
+        },
+      });
+      const result = await runner.run(
+        {
+          url: `http://127.0.0.1:${address.port}/`,
+          goal: "Search trains for route Vienna to Graz using the route value slot. Set Travel class to First, keep Direct only checked, then click Search trains and show the results.",
+          values: { route: { text: "Vienna to Graz", description: "route search field" } },
+          verify: [{ text: "Route: Vienna to Graz. Class: First. Direct only: yes." }],
+          maxSteps: 10,
+        },
+        { workspaceId: WORKSPACE_ID },
+      );
+      if (process.env.JEV_E2E_TRACE_PATH)
+        writeFileSync(process.env.JEV_E2E_TRACE_PATH, JSON.stringify(result, null, 2));
+      expect(result.status, result.message).toBe("passed");
+      expect(result.steps.some((step) => step.operation === "FILL")).toBe(true);
+      expect(result.steps.some((step) => step.operation === "SELECT")).toBe(true);
+      const screenshot = await host.executeLocal({
+        workspaceId: WORKSPACE_ID,
+        command: {
+          command: "screenshot",
+          args: { browserId: result.browserId, fullPage: true, reveal: true },
+        },
+      });
+      if (
+        screenshot.ok &&
+        screenshot.result.command === "screenshot" &&
+        screenshot.result.dataBase64 &&
+        process.env.JEV_E2E_SCREENSHOT_PATH
+      ) {
+        writeFileSync(
+          process.env.JEV_E2E_SCREENSHOT_PATH,
+          Buffer.from(screenshot.result.dataBase64, "base64"),
+        );
+      }
+    } finally {
+      await new Promise<void>((resolve) => pages.close(() => resolve()));
+    }
+  }, 60_000);
 });

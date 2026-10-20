@@ -65,10 +65,10 @@ import { createBrowserSecretRedactor, type SecretRedactor } from "./secret-redac
 import {
   collectSnapshotNodes,
   formatSnapshotYaml,
-  snapshotRefIndex,
-  type CollectedSnapshotNode,
+  CollectedSnapshotNodesSchema,
   type SnapshotNodeWithRef,
 } from "./page-snapshot.js";
+import { ultrafastSnapshotSource, VALIDATE_ULTRAFAST_TARGET } from "./ultrafast-snapshot.js";
 
 export const DAEMON_PLAYWRIGHT_HOST_ID = "daemon-playwright";
 export const DAEMON_PLAYWRIGHT_HOST_KIND = "daemon-playwright";
@@ -207,6 +207,7 @@ interface DaemonBrowserTab {
   context: BrowserContext;
   page: Page;
   snapshot: SnapshotNodeWithRef[];
+  nextSnapshotRef: number;
   consoleEntries: VerifyConsoleEntry[];
   networkEntries: VerifyNetworkEntry[];
   pendingRequests: Map<Request, number>;
@@ -708,6 +709,21 @@ export class DaemonPlaywrightHost {
   }): Promise<BrowserToolsResponsePayload> {
     const { tab, command } = input;
 
+    for (const key of ["ref", "sourceRef", "targetRef"] as const) {
+      if (!(key in command.args)) continue;
+      const ref = Reflect.get(command.args, key);
+      if (typeof ref !== "string") continue;
+      const node = tab.snapshot.find((candidate) => candidate.ref === ref);
+      if (!node?.guard) continue;
+      const valid = await tab.page.evaluate(
+        `(${VALIDATE_ULTRAFAST_TARGET})(${JSON.stringify({
+          ...node.guard,
+          selector: node.selector,
+        })})`,
+      );
+      if (!valid) throw new StaleRefError(input.requestId, ref);
+    }
+
     const mirror = await mirrorActionFor(tab, command);
     if (mirror) this.emitMirror(tab, mirror);
     return this.dispatchTabCommand(input);
@@ -773,7 +789,7 @@ export class DaemonPlaywrightHost {
       case "reload":
         return this.runNavigationCommand({ tab, command, requestId });
       case "snapshot":
-        return this.runSnapshotCommand({ tab, requestId });
+        return this.runSnapshotCommand({ tab, requestId, forGoal: command.args.forGoal });
       case "click":
       case "fill":
       case "select":
@@ -859,9 +875,10 @@ export class DaemonPlaywrightHost {
   private async runSnapshotCommand(input: {
     tab: DaemonBrowserTab;
     requestId: string;
+    forGoal?: boolean;
   }): Promise<BrowserToolsResponsePayload> {
     const { tab, requestId } = input;
-    const snapshot = await this.refreshSnapshot(tab);
+    const snapshot = await this.refreshSnapshot(tab, input.forGoal);
     return ok(requestId, {
       command: "snapshot",
       browserId: tab.browserId,
@@ -1529,6 +1546,7 @@ export class DaemonPlaywrightHost {
       context: input.context,
       page: input.page,
       snapshot: [],
+      nextSnapshotRef: randomBytes(4).readUInt32BE(0) * 1_000_000 + 1,
       consoleEntries: [],
       networkEntries: [],
       pendingRequests: new Map(),
@@ -1580,14 +1598,22 @@ export class DaemonPlaywrightHost {
     this.scheduleSaveTabs();
   }
 
-  private async refreshSnapshot(tab: DaemonBrowserTab): Promise<{
+  private async refreshSnapshot(
+    tab: DaemonBrowserTab,
+    forGoal = false,
+  ): Promise<{
     yaml: string;
     truncated: boolean;
     stats: { nodeCount: number; refCount: number; textLength: number };
   }> {
     const snapshotSource = collectSnapshotNodes.toString().replace(/__name\([^;]*\);?/g, "");
-    const collected = (await tab.page.evaluate(`(${snapshotSource})()`)) as CollectedSnapshotNode[];
-    const formatted = formatSnapshotYaml(collected);
+    const collected = CollectedSnapshotNodesSchema.parse(
+      await tab.page.evaluate(
+        forGoal ? `(${ultrafastSnapshotSource(snapshotSource)})()` : `(${snapshotSource})()`,
+      ),
+    );
+    const formatted = formatSnapshotYaml(collected, tab.nextSnapshotRef);
+    tab.nextSnapshotRef += formatted.nodes.length;
     tab.snapshot = formatted.nodes;
     return { yaml: formatted.yaml, truncated: formatted.truncated, stats: formatted.stats };
   }
@@ -2112,8 +2138,7 @@ async function performMirrorAction(page: Page, action: BrowserMirrorAction): Pro
 
 function mirrorTarget(tab: DaemonBrowserTab, ref: string | undefined): BrowserMirrorTarget | null {
   if (!ref) return null;
-  const index = snapshotRefIndex(ref);
-  const node = index === null ? undefined : tab.snapshot[index];
+  const node = tab.snapshot.find((candidate) => candidate.ref === ref);
   if (!node || node.ref !== ref) return null;
   return { selector: node.selector, role: node.role, ...(node.name ? { name: node.name } : {}) };
 }
@@ -2197,8 +2222,7 @@ function resolveUploadFilePaths(filePaths: string[], cwd: string | undefined): s
 }
 
 function resolveRefSelector(tab: DaemonBrowserTab, ref: string, requestId: string): string {
-  const index = snapshotRefIndex(ref);
-  const node = index === null ? undefined : tab.snapshot[index];
+  const node = tab.snapshot.find((candidate) => candidate.ref === ref);
   if (!node || node.ref !== ref) {
     throw new StaleRefError(requestId, ref);
   }

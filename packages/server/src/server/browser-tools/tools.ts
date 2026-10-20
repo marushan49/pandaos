@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BrowserAutomationBrowserIdSchema } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import {
   PaseoRecipeStepSchema,
+  PaseoBrowserValueSchema,
   type PaseoRecipeStep,
 } from "@getpaseo/protocol/paseo-config-schema";
 import type { BrowserHandoff } from "@getpaseo/protocol/browser-activity/rpc-schemas";
@@ -93,17 +94,7 @@ const BrowserGoalInputSchema = z
     browserId: BrowserAutomationBrowserIdSchema.optional(),
     url: BrowserHttpUrlInputSchema.optional(),
     separateTab: z.boolean().optional(),
-    values: z
-      .record(
-        z.string().min(1),
-        z
-          .object({
-            env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
-            description: z.string().min(1).optional(),
-          })
-          .strict(),
-      )
-      .optional(),
+    values: z.record(z.string().min(1), PaseoBrowserValueSchema).optional(),
     verify: z.array(BrowserGoalVerificationSchema).min(1),
     maxSteps: z.number().int().min(1).max(30).optional(),
     minConfidence: z.number().min(0).max(1).optional(),
@@ -234,7 +225,7 @@ export function registerBrowserTools(options: RegisterBrowserToolsOptions): void
     {
       title: "Run browser goal with Jev",
       description:
-        "The default for any multi-step browser task outside tests: describe the goal and verify checks, and Jev drives the clicks and typing inside the daemon, returning only the outcome. Run a bounded Jev decision loop against an existing Paseo browser tab or a new http(s) URL. Paseo sends the page's accessibility element summary, goal, and recent action metadata to TypeSafe, but not screenshots or values loaded locally from environment-variable names in the values map. Every successful run must pass the explicit text or URL checks in verify.",
+        "The default for any multi-step browser task outside tests: describe the goal and verify checks, and Jev drives the clicks and typing inside the daemon, returning only the outcome. Run a bounded Jev decision loop against an existing Paseo browser tab or a new http(s) URL. Paseo sends visible page text, element labels, non-sensitive field states, goal, and executed action metadata to TypeSafe, but not screenshots or values loaded locally from environment-variable names in the values map. Every successful run must pass the explicit text or URL checks in verify. The native host embeds the open-source jev-ultrafast DOM reader and indexed action policy. Supply exact public field text in values slots as { text, description }; generate that text from the user goal before calling. Credentials use { env, description } and stay local. Jev selects observed dropdown options and already-satisfied controls are skipped.",
       inputSchema: BrowserGoalInputSchema,
     },
     async (input: JevBrowserGoalInput) => {
@@ -1047,8 +1038,11 @@ function browserGoalToolResult(
   const trace = result.steps
     .map((step) => {
       const target = step.target ? ` target=${step.target}` : "";
+      const control = step.control
+        ? ` ${step.control.role} ${JSON.stringify(step.control.name)}`
+        : "";
       const value = step.value ? ` value=${step.value}` : "";
-      return `- ${step.step}. ${step.operation}${target}${value} (${step.outcome}, confidence=${step.confidence.toFixed(2)}, ${step.latencyMs}ms)`;
+      return `- ${step.step}. ${step.operation}${target}${control}${value} (${step.outcome}, confidence=${step.confidence.toFixed(2)}, ${step.latencyMs}ms)`;
     })
     .join("\n");
   return {
@@ -1068,7 +1062,7 @@ function browserGoalToolResult(
             ? []
             : [
                 "",
-                `Not finished. Continue yourself on browserId ${result.browserId}: browser_snapshot, then browser_click/browser_fill with the refs. Do not stop here and do not leave the tab open.`,
+                `Not finished. Continue yourself on browserId ${result.browserId}: browser_snapshot, then the browser tools with fresh refs. Inspect the screenshot for visual targets if needed. Check the trace and current page before repeating any submitted action. Verify the original goal after recovery. Keep the tab open.`,
               ]),
         ].join("\n"),
       },

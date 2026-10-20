@@ -93,7 +93,7 @@ export const BrowserAutomationNewTabCommandSchema = z.object({
 
 export const BrowserAutomationSnapshotCommandSchema = z.object({
   command: z.literal("snapshot"),
-  args: BrowserAutomationTabTargetSchema,
+  args: BrowserAutomationTabTargetSchema.extend({ forGoal: z.boolean().optional() }),
 });
 
 export const BrowserAutomationClickCommandSchema = z.object({
