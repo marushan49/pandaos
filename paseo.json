@@ -1644,6 +1644,968 @@
             "name": "provider-color-roundtrip-fixed"
           }
         ]
+      },
+      "android-readability-builtin-renderer": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_3291468ca65e5733",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Erkläre Michelin Kitchen Architektur und Fachbegriffe"
+          },
+          {
+            "action": "wait-text",
+            "text": "Ports und Adapter"
+          },
+          {
+            "action": "assert-text",
+            "text": "Idempotenz"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "android-readability-builtin-renderer"
+          }
+        ]
+      },
+      "android-readability-core-renderer": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_3291468ca65e5733",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Michelin Kitchen ist die Steuerzentrale"
+          },
+          {
+            "action": "assert-visible",
+            "role": "link",
+            "name": "Konfiguration"
+          },
+          {
+            "action": "assert-visible",
+            "role": "img",
+            "name": "Diagram"
+          },
+          {
+            "action": "assert-text",
+            "text": "Fachbegriff"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "android-readability-core-renderer"
+          }
+        ]
+      },
+      "file-card-download-and-error": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:45937/h/srv_Y1M3DDsHd93L/workspace/wks_0024b8a549e553b5",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download file: Relay PDF"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download complete",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "screenshot",
+            "name": "pdf-download-complete"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download file: Missing PDF"
+          },
+          {
+            "action": "wait-text",
+            "text": "ENOENT",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "screenshot",
+            "name": "missing-file-error"
+          }
+        ]
+      },
+      "mail-breeze-agent-running": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Zahlen für unseren Termin prüfen",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Agenten ansehen"
+          },
+          {
+            "action": "assert-text",
+            "text": "In Arbeit"
+          }
+        ]
+      },
+      "mail-breeze-real-agent-result": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main?param.taskId=a6b0e5ad9ea59e31c09d5544",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "450",
+            "timeoutMs": 45000
+          },
+          {
+            "action": "assert-text",
+            "text": "50"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Ergebnis kopieren"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Agenten öffnen"
+          }
+        ]
+      },
+      "mail-breeze-desktop-result": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main?param.taskId=a6b0e5ad9ea59e31c09d5544",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "450",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "assert-text",
+            "text": "50"
+          },
+          {
+            "action": "screenshot",
+            "name": "mail-breeze-desktop"
+          }
+        ]
+      },
+      "mail-breeze-compact-navigation": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main?param.taskId=a6b0e5ad9ea59e31c09d5544",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "450",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Zur Liste"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zur Liste"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Outlook"
+          },
+          {
+            "action": "screenshot",
+            "name": "mail-breeze-compact"
+          }
+        ]
+      },
+      "mail-breeze-outlook-missing-registration": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Eingehende Mails",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Outlook"
+          },
+          {
+            "action": "wait-text",
+            "text": "Mit Outlook anmelden",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Mit Outlook anmelden"
+          },
+          {
+            "action": "wait-text",
+            "text": "Aktion fehlgeschlagen",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "assert-text",
+            "text": "Client-ID"
+          },
+          {
+            "action": "screenshot",
+            "name": "mail-breeze-outlook-setup"
+          }
+        ]
+      },
+      "mail-breeze-outlook-setup": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Eingehende Mails",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Outlook"
+          },
+          {
+            "action": "wait-text",
+            "text": "Outlook ist noch nicht eingerichtet"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Einrichtung öffnen"
+          },
+          {
+            "action": "screenshot",
+            "name": "mail-breeze-outlook-setup"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Einrichtung öffnen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Outlook einrichten"
+          },
+          {
+            "action": "assert-text",
+            "text": "Eine Anmeldung in ChatGPT oder Claude ersetzt diese Einrichtung nicht."
+          },
+          {
+            "action": "assert-visible",
+            "role": "textbox",
+            "name": "Client-ID"
+          },
+          {
+            "action": "screenshot",
+            "name": "mail-breeze-outlook-settings"
+          }
+        ]
+      },
+      "mail-breeze-device-login-start": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Eingehende Mails",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Einstellungen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Outlook einrichten"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Client-ID",
+            "value": "d0c4b3df-4a5f-495b-bf9c-58875926ffdb"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Mandant",
+            "value": "9elf26.com"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Speichern"
+          },
+          {
+            "action": "wait-text",
+            "text": "Einstellungen gespeichert",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Outlook"
+          },
+          {
+            "action": "wait-text",
+            "text": "Mit Outlook anmelden"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Mit Outlook anmelden"
+          },
+          {
+            "action": "wait-text",
+            "text": "Schließe die Anmeldung bei Microsoft ab",
+            "timeoutMs": 20000
+          }
+        ]
+      },
+      "mail-breeze-cancel-pending-login": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Eingehende Mails",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Outlook"
+          },
+          {
+            "action": "wait-text",
+            "text": "Mit Outlook anmelden"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Mit Outlook anmelden"
+          },
+          {
+            "action": "wait-text",
+            "text": "Schließe die Anmeldung bei Microsoft ab",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Code kopieren"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Abbrechen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Mit Outlook anmelden",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Mit Outlook anmelden"
+          }
+        ]
+      },
+      "mail-breeze-device-login-retry": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Eingehende Mails",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Outlook"
+          },
+          {
+            "action": "wait-text",
+            "text": "Mit Outlook anmelden",
+            "timeoutMs": 8000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Mit Outlook anmelden"
+          },
+          {
+            "action": "wait-text",
+            "text": "Schließe die Anmeldung bei Microsoft ab",
+            "timeoutMs": 20000
+          }
+        ]
+      },
+      "mail-breeze-gmail-read": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Postfach"
+          },
+          {
+            "action": "wait-text",
+            "text": "Jetzt lesen",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-text",
+            "text": "marushan49@gmail.com"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Jetzt lesen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Mails synchronisiert",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "screenshot",
+            "name": "gmail-connected"
+          }
+        ]
+      },
+      "mail-breeze-gmail-wide": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:4699/h/srv_RtppvtlARpFR/plugin/mail-breeze/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Postfach"
+          },
+          {
+            "action": "assert-text",
+            "text": "marushan49@gmail.com"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Jetzt lesen"
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "gmail-wide"
+          }
+        ]
+      },
+      "jev-ultrafast-built-candidate": {
+        "params": ["candidateUrl"],
+        "steps": [
+          {
+            "url": "{{candidateUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Run candidate flow"
+          },
+          {
+            "action": "wait-text",
+            "text": "Candidate passed",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "assert-text",
+            "text": "Goal completed and verified."
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "jev-ultrafast-built-candidate"
+          }
+        ]
+      },
+      "android-project-menu-sidebar-reopen": {
+        "params": ["workspaceUrl", "loadedText"],
+        "steps": [
+          {
+            "url": "{{workspaceUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "{{loadedText}}"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open menu"
+          },
+          {
+            "action": "wait-text",
+            "text": "WORKSPACES"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Close sidebar"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open menu"
+          },
+          {
+            "action": "wait-text",
+            "text": "WORKSPACES"
+          },
+          {
+            "action": "screenshot",
+            "name": "sidebar-reopened-without-project-sheet"
+          }
+        ]
+      },
+      "workspace-sidebar-reopen": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:33453/h/srv_jheglSfxm3wR/workspace/wks_32f4f1b3b6e74656",
+            "action": "navigate"
+          },
+          {
+            "action": "goal",
+            "goal": "Use this isolated local PandaOS fixture. Open the sidebar using the menu button, select its existing Project menu verification workspace, and reopen sidebar. Do not send messages or create/edit/delete data. Verify New workspace and History visible.",
+            "verify": [
+              {
+                "text": "New workspace"
+              },
+              {
+                "text": "History"
+              }
+            ],
+            "maxSteps": 10
+          }
+        ]
+      },
+      "chat-file-layout-download": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:36093/h/srv_9uzJ7Owed5wW/workspace/wks_9a584c3c8b9c2640",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Layout-Prüfung beendet.",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Download file: Android-Update"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download file: Android-Update"
+          },
+          {
+            "action": "wait-text",
+            "text": "Download complete",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "formatted-card-download-complete"
+          }
+        ]
+      },
+      "chat-file-layout-missing-file": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:36093/h/srv_9uzJ7Owed5wW/workspace/wks_9a584c3c8b9c2640",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Layout-Prüfung beendet.",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Download file: Fehlende Datei"
+          },
+          {
+            "action": "wait-text",
+            "text": "ENOENT",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "formatted-card-missing-file-error"
+          }
+        ]
+      },
+      "browser-autonomous-production-train": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:39093/",
+            "action": "navigate"
+          },
+          {
+            "action": "goal",
+            "goal": "Search for trains on the supplied route, choose First travel class and keep Direct only enabled. Submit Search trains.",
+            "verify": [
+              {
+                "text": "Route: Vienna to Graz. Class: First. Direct only: yes."
+              }
+            ],
+            "values": {
+              "route": {
+                "text": "Vienna to Graz",
+                "description": "Route search field"
+              }
+            },
+            "maxSteps": 10
+          },
+          {
+            "action": "assert-text",
+            "text": "Route: Vienna to Graz. Class: First. Direct only: yes."
+          },
+          {
+            "action": "screenshot",
+            "name": "browser-train-production"
+          }
+        ]
+      },
+      "browser-public-turing-machine": {
+        "params": [],
+        "steps": [
+          {
+            "url": "https://en.wikipedia.org/wiki/Alan_Turing",
+            "action": "navigate"
+          },
+          {
+            "action": "goal",
+            "goal": "Open the Turing machine article from this biography.",
+            "verify": [
+              {
+                "url": "/wiki/Turing_machine"
+              },
+              {
+                "text": "mathematical model"
+              }
+            ],
+            "maxSteps": 10
+          },
+          {
+            "action": "assert-text",
+            "text": "mathematical model"
+          },
+          {
+            "action": "screenshot",
+            "name": "browser-public-production"
+          }
+        ]
+      },
+      "browser-autonomous-fast-wiki": {
+        "params": [],
+        "steps": [
+          {
+            "url": "https://en.wikipedia.org/wiki/Alan_Turing",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "link",
+            "name": "Turing machine"
+          },
+          {
+            "action": "goal",
+            "goal": "Verify the Turing machine article is open.",
+            "verify": [
+              {
+                "url": "/wiki/Turing_machine"
+              },
+              {
+                "text": "mathematical model"
+              }
+            ],
+            "maxSteps": 1
+          },
+          {
+            "action": "screenshot",
+            "name": "browser-fast-verified"
+          }
+        ]
+      },
+      "direct-rollout-production-settings": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/settings/general",
+            "action": "navigate"
+          },
+          {
+            "action": "assert-visible",
+            "role": "textbox",
+            "name": "Search settings"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Default send: Steer"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "About"
+          },
+          {
+            "action": "assert-text",
+            "text": "0.11.2"
+          },
+          {
+            "action": "screenshot",
+            "name": "direct-rollout-about"
+          }
+        ]
+      },
+      "direct-rollout-sidebar-reopen": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_aba455b96fce4b53",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Der Mac hat den optimierten Android-Code",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Close sidebar"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open menu"
+          },
+          {
+            "action": "wait-text",
+            "text": "New workspace",
+            "timeoutMs": 5000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "New workspace"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Mail Breeze"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Close sidebar"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open menu"
+          },
+          {
+            "action": "wait-text",
+            "text": "New workspace",
+            "timeoutMs": 5000
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "History"
+          },
+          {
+            "action": "screenshot",
+            "name": "production-sidebar-reopened"
+          }
+        ]
+      },
+      "sidebar-cache-return-state": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:33454/h/srv__G8BZ4FyUoiG/workspace/wks_a2956c7894befe2b",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Sidebar cache A ready."
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Close sidebar"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "cache-b, Sidebar cache B"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "sidebar-cache-return-verified"
+          }
+        ]
+      },
+      "native-tap-web-toggle-regression": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:33455/h/srv_6tOgXbHK8M3i/workspace/wks_db4eb9be9d639fea",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Sidebar cache A ready."
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open menu"
+          },
+          {
+            "action": "wait-text",
+            "text": "New workspace"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Close sidebar"
+          },
+          {
+            "action": "wait-text",
+            "text": "Sidebar cache A ready."
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open menu"
+          },
+          {
+            "action": "wait-text",
+            "text": "New workspace"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Close sidebar"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "native-tap-web-toggle-regression"
+          }
+        ]
       }
     }
   }
