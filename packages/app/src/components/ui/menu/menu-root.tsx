@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useMemo,
   type PropsWithChildren,
   type ReactElement,
@@ -22,14 +23,8 @@ import {
   type MenuCompactMode,
 } from "./menu-context";
 import { isWeb } from "@/constants/platform";
+import { useRetainedPanelActive } from "@/components/retained-panel";
 
-/**
- * Owns one menu's state. Wrap a trigger and a `MenuSurface` in it.
- *
- * The trigger is deliberately not part of this: what opens a menu is the only thing that
- * differs between a dropdown (press) and a context menu (long press or right click), and it is
- * the whole reason those two wrappers still exist.
- */
 export function MenuRoot({
   open,
   defaultOpen,
@@ -43,6 +38,11 @@ export function MenuRoot({
   compactMode?: MenuCompactMode;
 }>): ReactElement {
   const value = useMenuState({ open, defaultOpen, onOpenChange, compactMode });
+  const active = useRetainedPanelActive();
+  const { open: isOpen, setOpen } = value;
+  useEffect(() => {
+    if (!active && isOpen) setOpen(false);
+  }, [active, isOpen, setOpen]);
   return <MenuContextProvider value={value}>{children}</MenuContextProvider>;
 }
 
