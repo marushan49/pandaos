@@ -57,3 +57,13 @@ Marushan bedient den Host-Browser nur vom Mac und vom Android-Handy aus; der Zot
 - 17:15 Zotac live auf `ac6fe03a1-profile-hub`. Erster Abgleich: Verlauf kam an (373 Einträge in `browser-profiles/history.json`), Cookies erreichten den Mac aber nicht: Die App schickte beim Übernehmen das Planungsfeld `missingOnHost` mit, der strikte Bridge-Validator lehnte ab, der Fehler wurde verschluckt. Behoben in `24ce0166f`, Fehler werden seit `309fa4808` in der Konsole gemeldet. Nur die Oberfläche neu ausgeliefert (Sicherung `rollout-backups/sync-fix-20261019-171852`).
 - 17:19 Nachweis auf dem Mac: Cookie-Datenbank des lokalen Browsers von 129 auf 1154 Cookies (389 Hosts), CCA-Anmeldung vorhanden; Passwortspeicher 98 Logins für 87 Seiten, aktualisiert 17:19:09.
 - 20.10. 02:44 Standard zurück auf den Zotac-Stream (`dd2641439`), auf Marushans Rückmeldung: Jev-Läufe und ihre Schrittleiste sowie das „…“-Menü leben in Host-Tabs; Jev übernimmt den Tab derselben Seite, ein lokaler Tab kann das nicht. Der lokale Browser bleibt pro Tab wählbar („…“ → „Lokal öffnen“), der Profil-Abgleich bleibt aktiv. Mac-Oberfläche getauscht, Sicherung `rollout-backups/stream-default-20261020-024436`.
+
+## Verzögerung und falsche Bildgröße im Host-Stream (20.10.)
+
+- Rückmeldung Marushan: Der Stream ist verzögert, passt nicht zur Fenstergröße (schwarze Balken, abgeschnitten) und braucht ein Neuladen.
+- Ursache Verzögerung: Seit Pixeldichte 2 streamte „Flüssig“ ohne Obergrenze. Messung mit echtem Chromium, Mac-Bereich 1650×1200: 3300×2400-JPEGs mit 560 KB pro Bild. Mit 1920 px Obergrenze 1920×1396 und 241 KB. „Scharf“ bleibt ohne Obergrenze (`14ece56aa`).
+- Ursache Bildgröße: Der Tab schickte seine Größe nur, wenn sich die eigene Bereichsgröße änderte. Hat ein Daemon-Neustart, ein Agent-Resize oder ein zweites Gerät die Host-Größe geändert, blieb das Bild falsch bis zum Neuladen. Jetzt schickt der Tab seine Größe erneut, sobald das Bild nicht mehr passt, höchstens alle 5 s (`dcfa10307`). Die Bildmetadaten liefern CSS-Größe, auch mit Mobil-Modus (393×700 geprüft).
+- Grenze: Zeigen zwei Geräte gleichzeitig denselben Host-Tab, wechselt die Größe höchstens alle 5 s zum jeweils anderen Gerät.
+- Release `~/.local/share/pandaos-releases/dcfa10307-stream-fit`: Live-Schnappschuss `rollout-2026-10-20/source` plus nur diese zwei Commits. Electron-Oberfläche für den Mac unter `.dev/stream-fit/electron`.
+- 17:47 Build Queue #1696 grün. Mac: nur `app-dist` getauscht, `index.html` SHA-256 `13296fd3…d9891` gleich Kandidat, `codesign` geprüft, App läuft. Sicherung `rollout-backups/stream-fit-20261020-174702`.
+- Geplanter Zotac-Neustart auf `dcfa10307-stream-fit` freigegeben (20.10.) und gestartet.
