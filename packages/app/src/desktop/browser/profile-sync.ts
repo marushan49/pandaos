@@ -11,6 +11,26 @@ import { useBrowserHistoryStore } from "./store/history";
 const SYNC_INTERVAL_MS = 60_000;
 const FIRST_SYNC_DELAY_MS = 3_000;
 
+const DEVICE_BOUND_SIGN_IN_DOMAINS = [
+  "google.com",
+  "youtube.com",
+  "microsoftonline.com",
+  "live.com",
+  "microsoft.com",
+  "cloud.microsoft",
+  "office.com",
+  "office365.com",
+  "outlook.com",
+  "sharepoint.com",
+];
+
+function isSyncableCookie(cookie: CookieKey): boolean {
+  const host = cookie.domain.replace(/^\./, "");
+  return !DEVICE_BOUND_SIGN_IN_DOMAINS.some(
+    (domain) => host === domain || host.endsWith(`.${domain}`),
+  );
+}
+
 type CookieKey = Pick<DesktopProfileSyncCookie, "name" | "domain" | "path">;
 
 function cookieKey(cookie: CookieKey): string {
@@ -114,8 +134,9 @@ export function mountBrowserProfileSync(client: DaemonClient, serverId: string):
   async function syncLocalProfile() {
     if (!profileSync) return;
     const local = (await profileSync({ action: "read" })) as LocalProfile;
+    const localCookies = local.cookies.filter(isSyncableCookie);
     const previous = synced;
-    const { upserts, removed } = diffLocalCookies(previous, local.cookies);
+    const { upserts, removed } = diffLocalCookies(previous, localCookies);
     const result = await client.syncBrowserProfile({
       cookies: { upserts, removed },
       wantCookies: true,
@@ -125,8 +146,10 @@ export function mountBrowserProfileSync(client: DaemonClient, serverId: string):
     });
     if (result.error) throw new Error(result.error);
     hostVersion = result.cookieVersion;
-    const hostCookies = result.cookies ?? assumeHostCookies(previous, upserts, removed);
-    const plan = planLocalApply({ previous, hostCookies, local: local.cookies, upserts });
+    const hostCookies = (result.cookies ?? assumeHostCookies(previous, upserts, removed)).filter(
+      isSyncableCookie,
+    );
+    const plan = planLocalApply({ previous, hostCookies, local: localCookies, upserts });
     const logins = result.logins ?? [];
     if (plan.upserts.length > 0 || plan.removed.length > 0 || logins.length > 0) {
       await profileSync({ action: "apply", upserts: plan.upserts, removed: plan.removed, logins });

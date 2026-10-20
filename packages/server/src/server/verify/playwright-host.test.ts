@@ -827,6 +827,43 @@ describe.skipIf(!BROWSER_AVAILABLE)(
       expect(names).not.toContain("OIDC");
     });
 
+    it("preserves unrelated cookie metadata when the profile sync removes a cookie", async () => {
+      await openReport("default");
+      const context = host!["contexts"].get("default")!;
+      const session = await context.newCDPSession(context.pages()[0]!);
+      try {
+        await session.send("Network.setCookie", {
+          name: "preserved_sign_in",
+          value: "signed-in",
+          domain: ".google.com",
+          path: "/",
+          secure: true,
+          httpOnly: true,
+          priority: "High",
+        });
+        await session.send("Network.setCookie", {
+          name: "removed_sync_cookie",
+          value: "1",
+          domain: "127.0.0.1",
+          path: "/",
+        });
+        await host!.syncProfile({
+          cookies: {
+            upserts: [],
+            removed: [{ name: "removed_sync_cookie", domain: "127.0.0.1", path: "/" }],
+          },
+        });
+        const { cookies } = await session.send("Network.getAllCookies");
+        expect(cookies.find((cookie) => cookie.name === "preserved_sign_in")).toMatchObject({
+          value: "signed-in",
+          priority: "High",
+        });
+        expect(cookies.find((cookie) => cookie.name === "removed_sync_cookie")).toBeUndefined();
+      } finally {
+        await session.detach();
+      }
+    });
+
     it("signs already open and later launched profiles in with imported cookies", async () => {
       const early = await openReport("early");
       expect(new URL(early.url).pathname).toBe("/login");

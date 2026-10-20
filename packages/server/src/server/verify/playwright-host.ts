@@ -1268,8 +1268,15 @@ export class DaemonPlaywrightHost {
         workspaceId: "browser-profile-sync",
         profile: DEFAULT_VERIFY_PROFILE,
       });
-      for (const key of request.cookies?.removed ?? []) {
-        if (!isDeviceBoundCookie(key)) await context.clearCookies(key);
+      const removed = (request.cookies?.removed ?? []).filter((key) => !isDeviceBoundCookie(key));
+      if (removed.length > 0) {
+        const page = context.pages()[0] ?? (await context.newPage());
+        const session = await context.newCDPSession(page);
+        try {
+          for (const key of removed) await session.send("Network.deleteCookies", key);
+        } finally {
+          await session.detach();
+        }
       }
       const nowSeconds = Date.now() / 1000;
       const upserts = (request.cookies?.upserts ?? []).filter(

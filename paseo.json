@@ -2606,6 +2606,29 @@
             "name": "native-tap-web-toggle-regression"
           }
         ]
+      },
+      "google-live-session-present": {
+        "params": [],
+        "steps": [
+          {
+            "url": "https://play.google.com/console/developers",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Entwicklerkonto auswählen",
+            "timeoutMs": 8000
+          },
+          {
+            "action": "assert-visible",
+            "role": "heading",
+            "name": "Entwicklerkonto auswählen"
+          },
+          {
+            "action": "screenshot",
+            "name": "google-session-present"
+          }
+        ]
       }
     }
   }
