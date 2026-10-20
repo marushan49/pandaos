@@ -1781,9 +1781,10 @@ export class DaemonPlaywrightHost {
     for (const [context, userDataDir] of this.contextProfileDirs) {
       await this.applyImportedCookies({ context, userDataDir, store });
     }
+    const applied = cookies.filter((cookie) => !isGoogleAccountCookie(cookie));
     return {
-      cookieCount: cookies.length,
-      domainCount: new Set(cookies.map((cookie) => cookie.domain.replace(/^\./, ""))).size,
+      cookieCount: applied.length,
+      domainCount: new Set(applied.map((cookie) => cookie.domain.replace(/^\./, ""))).size,
     };
   }
 
@@ -1994,11 +1995,12 @@ export class DaemonPlaywrightHost {
     const markerPath = path.join(input.userDataDir, IMPORTED_COOKIES_MARKER);
     const applied = await readFile(markerPath, "utf8").catch(() => null);
     if (applied === input.store.version) return;
+    const cookies = input.store.cookies.filter((cookie) => !isGoogleAccountCookie(cookie));
     try {
-      await input.context.addCookies(input.store.cookies);
+      await input.context.addCookies(cookies);
     } catch {
       let rejected = 0;
-      for (const cookie of input.store.cookies) {
+      for (const cookie of cookies) {
         await input.context.addCookies([cookie]).catch(() => {
           rejected += 1;
         });
@@ -2027,6 +2029,11 @@ async function waitForPaint(page: Page): Promise<void> {
     undefined,
     { timeout: 5_000 },
   );
+}
+
+function isGoogleAccountCookie(cookie: BrowserImportCookie): boolean {
+  const host = cookie.domain.replace(/^\./, "");
+  return host === "google.com" || host.endsWith(".google.com");
 }
 
 function ok(requestId: string, result: CommandResult): BrowserToolsResponsePayload {

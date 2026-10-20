@@ -683,6 +683,16 @@ describe.skipIf(!BROWSER_AVAILABLE)(
           secure: false,
           sameSite: "Lax",
         },
+        {
+          name: "SID",
+          value: "from-another-device",
+          domain: ".google.com",
+          path: "/",
+          expires: -1,
+          httpOnly: true,
+          secure: true,
+          sameSite: "Lax",
+        },
       ]);
       expect(result).toEqual({ cookieCount: 1, domainCount: 1 });
 
