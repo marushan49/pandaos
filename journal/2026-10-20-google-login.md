@@ -8,3 +8,11 @@
 - Release `~/.local/share/pandaos-releases/cd7b2153e-google-login`: Kopie von `dcfa10307-stream-fit` plus nur dieser Commit, Build Queue #1706 grün (`.dev/google-login/`). Nur der Server hat sich geändert, die Web-UI ist unverändert.
 - Grenze: Google braucht einmal einen direkten Login im Host-Browser (Passwort und 2FA). Autofill füllt das gespeicherte Passwort nur nach einem eigenen Klick ins Passwortfeld.
 - 18:34 Geplanter Neustart auf `cd7b2153e-google-login` gesund: Dienst aktiv, `pandaos-live` zeigt auf den Release, `dist` enthält den Filter, Chromium 1208 vorhanden, Host-Browser startet und kennt das Konto in der Kontoauswahl (abgemeldet bis zum direkten Login).
+
+## Eigentliche Ursache: Profil-Abgleich (19:10)
+
+- Rückmeldung Marushan: Auch Outlook meldet ständig ab.
+- Befund: Um 19:01 waren alle 1358 Cookies im Host-Profil neu gesetzt, ohne Import. Der Profil-Abgleich (`packages/app/src/desktop/browser/profile-sync.ts`, seit `ac6fe03a1-profile-hub`) kopiert jede Minute und nach jedem Daemon-Neustart alle Cookies zwischen dem lokalen Mac-Browser und dem Host-Browser in beide Richtungen, auch Löschungen. Google und Microsoft sehen dieselbe Sitzung auf zwei Geräten und widerrufen sie.
+- Fix `e0aa8362f`: Abgleich und Import lassen Cookies von Google, YouTube, Microsoft-Login, Live, Office, Outlook und SharePoint aus. Jeder Browser behält dort seine eigene Anmeldung, alle anderen Seiten gleichen sich weiter ab. Nur Server, die Mac-App bleibt unverändert.
+- Prüfung: Tests `profile sync` und `imported cookies` grün, Commit-Hook grün. Release `e0aa8362f-sign-in-sync`, Build Queue #1716 grün.
+- Folge: Google und Outlook brauchen je einmal eine direkte Anmeldung im Host-Browser. Der lokale Mac-Browser löscht beim ersten Abgleich nach dem Update seine bisher gespiegelten Google- und Microsoft-Cookies einmalig und braucht dort ebenfalls eine eigene Anmeldung, falls er genutzt wird.
