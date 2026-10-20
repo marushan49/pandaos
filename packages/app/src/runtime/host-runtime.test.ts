@@ -16,7 +16,7 @@ import type { SessionOutboundMessage } from "@getpaseo/protocol/messages";
 import type { AgentPermissionRequest } from "@getpaseo/protocol/agent-types";
 import type { HostConnection, HostProfile } from "@/types/host-connection";
 import { defaultHostAppearance } from "@/hosts/appearance";
-import { useSessionStore, type Agent } from "@/stores/session-store";
+import { selectAgentTimelineState, useSessionStore, type Agent } from "@/stores/session-store";
 import { normalizeAgentSnapshot } from "@/utils/agent-snapshots";
 import { isAgentArchiving, setAgentArchiving } from "@/hooks/use-archive-agent";
 import { queryClient } from "@/data/query-client";
@@ -28,6 +28,8 @@ import {
   type HostRuntimeStorage,
 } from "./host-runtime";
 import type { ReplicaRow, ReplicaRowStore } from "./replica-cache/row-store";
+import { ReplicaCache } from "./replica-cache";
+import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 
 import { subscriptionFixture } from "./subscription-fixture";
 import { readDesktopManagedLocalCredential } from "@/desktop/daemon/local-credential";
@@ -1842,6 +1844,78 @@ describe("HostRuntimeStore", () => {
 
     store.syncHosts([]);
     session.clearSession(host.serverId);
+  });
+
+  it("paints recent cached chats before opening them without connecting or resuming agents", async () => {
+    const host = makeHost();
+    const storage = createMemoryHostRuntimeStorage();
+    const backingStore = createMemoryReplicaRowStore();
+    const timelineReads: string[] = [];
+    const replicaRowStore: ReplicaRowStore = {
+      ...backingStore,
+      read: async (serverId, kinds, ids) => {
+        if (kinds.includes("timeline")) timelineReads.push(...(ids ?? []));
+        return backingStore.read(serverId, kinds, ids);
+      },
+    };
+    const cache = new ReplicaCache(backingStore);
+    cache.setHosts([host.serverId]);
+    for (let index = 0; index < 9; index += 1) {
+      const agent = {
+        ...replicaAgent(
+          makeFetchAgentsEntry({
+            id: `cached-${index}`,
+            cwd: `/project-${index}`,
+            updatedAt: new Date(Date.UTC(2026, 9, 20, 8, 0, 10 - index)).toISOString(),
+            archivedAt: index === 0 ? "2026-10-20T08:01:00.000Z" : null,
+          }).agent,
+          host.serverId,
+        ),
+        workspaceId: `workspace-${index === 2 || index === 8 ? 1 : index}`,
+        parentAgentId: index === 1 ? "cached-2" : null,
+      };
+      cache.commitDirectoryMutations(host.serverId, [
+        { kind: "agent", type: "upsert", id: agent.id, value: agent },
+      ]);
+      cache.commitTimeline(host.serverId, agent.id, {
+        agentId: agent.id,
+        items: [{ kind: "assistant_message", id: agent.id, text: "Ready", timestamp: new Date() }],
+        range: null,
+        hasOlder: false,
+      });
+    }
+    await cache.flush();
+    await storage.setItem("@paseo:daemon-registry", JSON.stringify([host]));
+    await storage.setItem("@paseo:e2e", "1");
+    const workspaceKey = `${host.serverId}:workspace-1`;
+    const tabId = useWorkspaceLayoutStore.getState().openTab({
+      workspaceKey,
+      target: { kind: "agent", agentId: "cached-8" },
+      intent: "reveal",
+    });
+    const createClient = vi.fn(() => {
+      throw new Error("Cache preparation must not connect");
+    });
+    const store = new HostRuntimeStore({
+      storage,
+      replicaRowStore,
+      deps: { ...makeDeps({}, []), createClient },
+    });
+    try {
+      await store.boot();
+      await vi.waitFor(() =>
+        expect(
+          selectAgentTimelineState(useSessionStore.getState().sessions[host.serverId], "cached-6")
+            .status,
+        ).toBe("painted"),
+      );
+      expect(timelineReads).toEqual(["cached-8", "cached-3", "cached-4", "cached-5", "cached-6"]);
+      expect(createClient).not.toHaveBeenCalled();
+      expect(useSessionStore.getState().sessions[host.serverId]?.viewedTimelineSync).toBeNull();
+    } finally {
+      store.syncHosts([]);
+      if (tabId) useWorkspaceLayoutStore.getState().closeTab(workspaceKey, tabId);
+    }
   });
 
   it("marks the host registry loaded after boot reads storage", async () => {

@@ -42,6 +42,7 @@ const ANIMATION_DURATION = 220;
 const ANIMATION_EASING = Easing.bezier(0.25, 0.1, 0.25, 1);
 
 interface MobilePanelsRuntime {
+  requestAgentListOpen: () => MobilePanelCommit | null;
   beginGesture: (input: BeginGestureInput) => number;
   finishGesture: (input: FinishGestureInput) => MobilePanelCommit | null;
   leftCloseGestureRef: RefObject<GestureType | undefined>;
@@ -213,8 +214,17 @@ export function MobilePanelsProvider({ children }: { children: ReactNode }) {
     [animateTransition, motionState],
   );
 
+  const requestAgentListOpen = useCallback((): MobilePanelCommit | null => {
+    "worklet";
+    const transition = transitionMobilePanel(motionState.value, { type: "sidebar.open" });
+    motionState.value = transition.state;
+    animateTransition(transition);
+    return transition.commit ?? null;
+  }, [animateTransition, motionState]);
+
   const value = useMemo<MobilePanelsRuntime>(
     () => ({
+      requestAgentListOpen,
       beginGesture,
       finishGesture,
       leftCloseGestureRef,
@@ -232,6 +242,7 @@ export function MobilePanelsProvider({ children }: { children: ReactNode }) {
       beginGesture,
       finishGesture,
       motionState,
+      requestAgentListOpen,
       openGesturesBlocked,
       position,
       setOpenGestureBlocked,

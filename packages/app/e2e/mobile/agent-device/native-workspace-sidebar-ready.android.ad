@@ -1,0 +1,11 @@
+context platform=android timeout=60000 retries=0
+env APP_ID=sh.pandaos.debug
+
+open "${APP_ID}"
+wait "id=\"menu-button\"" 20000
+press "id=\"menu-button\""
+wait "id=\"sidebar-workspace-row-${WORKSPACE_KEY}\"" 10000
+press "id=\"sidebar-workspace-row-${WORKSPACE_KEY}\""
+wait "id=\"menu-button\"" 1000
+press "id=\"menu-button\""
+wait "id=\"sidebar-footer\"" 1000

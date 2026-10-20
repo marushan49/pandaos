@@ -160,7 +160,13 @@ deletion clears the transcript; list membership changes do not.
 Removing the host from the registry is the destructive boundary: it stops the runtime and clears the
 session and host-scoped setup state together.
 
-The timeline owner asks durable replica storage for an agent when that agent becomes visible. An
+After the cached host directory restores, the runtime prepares the attention or focused chat from
+each of its five most recently active workspaces, falling back to its latest non-archived root chat,
+one at a time between event-loop turns. This reads
+local storage only; it never resumes providers or subscribes restored tabs. Already opened chats
+continue their existing live subscriptions independently of mounted workspace views.
+
+The timeline owner also asks durable replica storage for an agent when that agent becomes visible. An
 accepted row paints immediately before subscription acknowledgement or timeline fetch. The stored
 range describes those exact items: `startSeq` drives older pagination and `endSeq` drives forward
 catch-up. The owner requests `after endSeq`, and requests `before startSeq` when the user loads older

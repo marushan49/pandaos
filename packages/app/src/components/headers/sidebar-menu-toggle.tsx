@@ -7,6 +7,8 @@ import { HeaderToggleButton, headerIconSlotStyle } from "./header-toggle-button"
 import { selectIsAgentListOpen, usePanelStore } from "@/stores/panel-store";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { getShortcutOs } from "@/utils/shortcut-platform";
+import { isNative } from "@/constants/platform";
+import { NativeSidebarOpenTap } from "@/mobile-panels/presentation";
 import { useHasWindowChromeObstruction, useOwnsWindowChromeCorner } from "@/utils/desktop-window";
 import {
   extraMutedIconColorMapping,
@@ -58,18 +60,24 @@ function SidebarMenuToggleButton({
   const { t } = useTranslation();
   const isOpen = usePanelStore((state) => selectIsAgentListOpen(state, { isCompact: isMobile }));
   const toggleAgentListForLayout = usePanelStore((state) => state.toggleAgentListForLayout);
+  const showMobileAgentList = usePanelStore((state) => state.showMobileAgentList);
+  const usesNativeTap = isNative && isMobile;
   const toggleShortcutKeys = useMemo(
     () => (getShortcutOs() === "mac" ? ["mod", "B"] : ["mod", "."]),
     [],
   );
 
   const handlePress = useCallback(() => {
-    toggleAgentListForLayout({ isCompact: isMobile });
-  }, [toggleAgentListForLayout, isMobile]);
+    if (usesNativeTap) {
+      if (usePanelStore.getState().mobilePanel.target !== "agent-list") showMobileAgentList();
+    } else {
+      toggleAgentListForLayout({ isCompact: isMobile });
+    }
+  }, [showMobileAgentList, toggleAgentListForLayout, isMobile, usesNativeTap]);
 
   const accessibilityState = useMemo(() => ({ expanded: isOpen }), [isOpen]);
 
-  return (
+  const button = (
     <HeaderToggleButton
       onPress={handlePress}
       tooltipLabel={t("shell.menu.toggleSidebar")}
@@ -80,7 +88,7 @@ function SidebarMenuToggleButton({
       style={resolvedStyle}
       accessible
       accessibilityRole="button"
-      accessibilityLabel={isOpen ? t("shell.menu.close") : t("shell.menu.open")}
+      accessibilityLabel={isOpen && !usesNativeTap ? t("shell.menu.close") : t("shell.menu.open")}
       accessibilityState={accessibilityState}
     >
       {isMobile ? (
@@ -94,6 +102,7 @@ function SidebarMenuToggleButton({
       )}
     </HeaderToggleButton>
   );
+  return usesNativeTap ? <NativeSidebarOpenTap>{button}</NativeSidebarOpenTap> : button;
 }
 
 export function SidebarMenuToggle({ style, ...props }: SidebarMenuToggleProps = {}) {

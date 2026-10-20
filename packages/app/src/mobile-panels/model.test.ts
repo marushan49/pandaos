@@ -78,6 +78,69 @@ class MobilePanelsScenario {
 }
 
 describe("mobile panel ownership", () => {
+  it("opens from a native tap while the JavaScript acknowledgement is delayed", () => {
+    const initial = createMobilePanelMotionState({ target: "agent", revision: 0 });
+    const tapped = transitionMobilePanel(initial, { type: "sidebar.open" });
+    expect(tapped.animationTarget).toBe("agent-list");
+    expect(tapped.commit).toEqual({ startedRevision: 0, target: "agent-list" });
+    expect(tapped.state.target).toBe("agent");
+
+    const reached = transitionMobilePanel(tapped.state, {
+      type: "position.changed",
+      position: -1,
+    }).state;
+    expect(isMobilePanelActive(reached, "agent-list")).toBe(false);
+    const accepted = transitionMobilePanel(reached, {
+      type: "command",
+      selection: { target: "agent-list", revision: 1 },
+    });
+    expect(accepted.animationTarget).toBeUndefined();
+    expect(
+      isMobilePanelActive(
+        transitionMobilePanel(accepted.state, { type: "position.changed", position: -1 }).state,
+        "agent-list",
+      ),
+    ).toBe(true);
+  });
+
+  it("reopens immediately when a native tap interrupts closing to the workspace", () => {
+    const closing = transitionMobilePanel(
+      createMobilePanelMotionState({ target: "agent-list", revision: 7 }),
+      { type: "command", selection: { target: "agent", revision: 8 } },
+    ).state;
+    const tapped = transitionMobilePanel(closing, { type: "sidebar.open" });
+    expect(tapped.animationTarget).toBe("agent-list");
+    expect(tapped.commit).toEqual({ startedRevision: 8, target: "agent-list" });
+    expect(
+      transitionMobilePanel(tapped.state, {
+        type: "command",
+        selection: { target: "agent-list", revision: 9 },
+      }).animationTarget,
+    ).toBeUndefined();
+  });
+
+  it("does not duplicate a pending tap and lets a newer command take over", () => {
+    const tapped = transitionMobilePanel(
+      createMobilePanelMotionState({ target: "agent", revision: 0 }),
+      { type: "sidebar.open" },
+    ).state;
+    expect(transitionMobilePanel(tapped, { type: "sidebar.open" })).toEqual({ state: tapped });
+    const explorer = transitionMobilePanel(tapped, {
+      type: "command",
+      selection: { target: "file-explorer", revision: 1 },
+    });
+    expect(explorer.animationTarget).toBe("file-explorer");
+    expect(explorer.state.target).toBe("file-explorer");
+  });
+
+  it("leaves an active swipe in control when a native tap is requested", () => {
+    const dragging = transitionMobilePanel(
+      createMobilePanelMotionState({ target: "agent", revision: 0 }),
+      { type: "gesture.begin", origin: "agent" },
+    ).state;
+    expect(transitionMobilePanel(dragging, { type: "sidebar.open" })).toEqual({ state: dragging });
+  });
+
   it("publishes activity only after motion settles", () => {
     const initial = createMobilePanelMotionState({ target: "agent", revision: 0 });
     const dragging = transitionMobilePanel(initial, {

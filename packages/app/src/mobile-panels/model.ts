@@ -49,6 +49,7 @@ function settleMobilePanelAtPosition(
 
 export type MobilePanelEvent =
   | { type: "command"; selection: MobilePanelSelection }
+  | { type: "sidebar.open" }
   | { type: "gesture.begin"; origin: MobilePanelView }
   | {
       type: "gesture.finish";
@@ -69,11 +70,26 @@ export function createMobilePanelMotionState(
   };
 }
 
+function requestSidebarOpen(state: MobilePanelMotionState): MobilePanelTransition {
+  "worklet";
+  if (state.gesture || state.target !== "agent" || state.motionTarget === "agent-list") {
+    return { state };
+  }
+  return {
+    animationTarget: "agent-list",
+    commit: { startedRevision: state.revision, target: "agent-list" },
+    state: { ...state, motionTarget: "agent-list" },
+  };
+}
+
 export function transitionMobilePanel(
   state: MobilePanelMotionState,
   event: MobilePanelEvent,
 ): MobilePanelTransition {
   "worklet";
+  if (event.type === "sidebar.open") {
+    return requestSidebarOpen(state);
+  }
   if (event.type === "command") {
     if (event.selection.revision <= state.revision) {
       return { state };

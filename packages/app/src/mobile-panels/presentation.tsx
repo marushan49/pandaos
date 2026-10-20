@@ -7,6 +7,16 @@ import { WindowChromeRootRegion } from "@/utils/desktop-window";
 import { usePanelStore, type MobilePanelView } from "@/stores/panel-store";
 import { getMobilePanelFrame } from "./model";
 import { useIsMobilePanelActive, useMobilePanelsRuntime } from "./provider";
+import { useOpenAgentListTapGesture } from "./gestures";
+
+export function NativeSidebarOpenTap({ children }: { children: ReactNode }) {
+  const gesture = useOpenAgentListTapGesture();
+  return (
+    <GestureDetector gesture={gesture}>
+      <View collapsable={false}>{children}</View>
+    </GestureDetector>
+  );
+}
 
 type OverlayPanel = Exclude<MobilePanelView, "agent">;
 

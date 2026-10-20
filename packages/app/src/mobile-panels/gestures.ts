@@ -34,6 +34,24 @@ function useRevisionCommit(action: () => void) {
   );
 }
 
+export function useOpenAgentListTapGesture() {
+  const { requestAgentListOpen, leftOpenGestureRef } = useMobilePanelsRuntime();
+  const showMobileAgentList = usePanelStore((state) => state.showMobileAgentList);
+  const commit = useRevisionCommit(showMobileAgentList);
+
+  return useMemo(
+    () =>
+      Gesture.Tap()
+        .requireExternalGestureToFail(leftOpenGestureRef)
+        .onEnd((_event, success) => {
+          if (!success) return;
+          const request = requestAgentListOpen();
+          if (request) scheduleOnRN(commit, request.startedRevision);
+        }),
+    [commit, leftOpenGestureRef, requestAgentListOpen],
+  );
+}
+
 export function useOpenAgentListGesture(enabled: boolean) {
   const {
     beginGesture,

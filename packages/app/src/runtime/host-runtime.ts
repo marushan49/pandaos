@@ -92,6 +92,9 @@ import { projectIconCache } from "@/projects/icon-cache";
 import { nativePerformanceTrace } from "@/performance/native-trace";
 import { revokePushNotifications } from "@/push-notifications";
 import { createAppWebSocketFactory } from "./websocket-factory";
+import { getFocusedAgentId, useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
+import { isWorkspaceRootAgent } from "@/subagents/workspace-root-policy";
+import { pickAttentionAgent } from "@/utils/agent-attention";
 
 export type HostRuntimeConnectionStatus = "idle" | "connecting" | "online" | "offline" | "error";
 export type PairingNavigationTarget = "openProject" | "hostRoot" | "hostSettings";
@@ -1666,6 +1669,7 @@ export class HostRuntimeStore {
         void this.directorySyncByServer
           .get(profile.serverId)
           ?.restoreCachedDirectory()
+          .then(() => this.preloadRecentTimelines(profile.serverId))
           .catch(() => undefined);
       }
     } catch (error) {
@@ -1678,6 +1682,35 @@ export class HostRuntimeStore {
           console.error("[HostRuntime] Failed to persist host registry", error),
         );
       }
+    }
+  }
+
+  private async preloadRecentTimelines(serverId: string): Promise<void> {
+    const replica = this.timelineReplicaByServer.get(serverId);
+    const session = useSessionStore.getState().sessions[serverId];
+    if (!replica || !session) return;
+    const agents = [...session.agents.values()]
+      .filter(
+        (agent) =>
+          !agent.archivedAt &&
+          isWorkspaceRootAgent(agent, session.agents.get(agent.parentAgentId ?? "")),
+      )
+      .sort((left, right) => right.lastActivityAt.getTime() - left.lastActivityAt.getTime());
+    const workspaceIds = new Set<string>();
+    for (const agent of agents) {
+      const workspaceId = agent.workspaceId;
+      if (!workspaceId || workspaceIds.has(workspaceId)) continue;
+      workspaceIds.add(workspaceId);
+      await delay(0);
+      if (this.timelineReplicaByServer.get(serverId) !== replica) return;
+      const workspaceAgents = [...session.agents.values()].filter(
+        (candidate) => candidate.workspaceId === workspaceId,
+      );
+      const layout =
+        useWorkspaceLayoutStore.getState().layoutByWorkspace[`${serverId}:${workspaceId}`];
+      const agentId = pickAttentionAgent(workspaceAgents) ?? getFocusedAgentId(layout) ?? agent.id;
+      await replica.prepare(agentId).catch(() => undefined);
+      if (workspaceIds.size === 5) return;
     }
   }
 

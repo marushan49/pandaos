@@ -77,7 +77,11 @@ definition, no longer eligible to begin.
 ## Integration rules
 
 - Callers request semantic targets through `panel-store`; they never write shared values.
-- Gesture behavior comes from the four explicit hooks in `mobile-panels/gestures.ts`.
+- Gesture behavior comes from the explicit hooks in `mobile-panels/gestures.ts`.
+- The compact native menu button opens through a UI-thread tap, like the sidebar swipe. It starts
+  motion before its revision-checked React acknowledgement, including when it interrupts closing.
+  Its ordinary press/accessibility fallback requests the same target idempotently, so the two
+  callbacks cannot toggle the drawer twice. The sidebar's close control owns dismissal.
 - A focused interactive surface may block panel-opening gestures through
   `useBlockMobilePanelOpenGestures`. Register only while the conflicting interaction is active and
   unregister when the surface is hidden or unfocused. The blocker never disables gestures that close
@@ -103,6 +107,10 @@ definition, no longer eligible to begin.
   offscreen; only the shared position and its derived native styles move during a drag.
 - Hidden tabs and workspaces use `RetainedPanel`. It owns a non-collapsible native root, visibility,
   pointer events, and the active signal consumed by `useRetainedPanelActive`.
+- Native retains the current and previous workspace. Keeping every visited tree increased Hermes
+  and Fabric work with prior usage; evicting on every switch rebuilt even the chat just left. Keep
+  this bounded and preserve retained roots when returning. Do not insert a mount-only spinner for
+  content whose data is already available.
 - Panels whose gesture wrapper already owns visibility use `RetainedPanelActivity` to provide the
   same active signal without adding another layout root. Persistent animations, timers, polling, and
   shared clocks must subscribe to that signal and stop when their final visible consumer leaves.
