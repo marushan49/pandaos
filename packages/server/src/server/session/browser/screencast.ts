@@ -16,12 +16,12 @@ export const SCREENCAST_MAX_FPS = 30;
 interface ScreencastPreset {
   maxFps: number;
   jpegQuality: number;
-  /** Chromium downscales frames wider than this; saves bytes on a phone on cellular. */
   maxWidth?: number;
+  maxHeight?: number;
 }
 
 export const SCREENCAST_PRESETS: Record<BrowserScreencastQuality, ScreencastPreset> = {
-  smooth: { maxFps: SCREENCAST_MAX_FPS, jpegQuality: 60 },
+  smooth: { maxFps: SCREENCAST_MAX_FPS, jpegQuality: 60, maxWidth: 1920, maxHeight: 1920 },
   sharp: { maxFps: SCREENCAST_MAX_FPS, jpegQuality: 90 },
   saver: { maxFps: 10, jpegQuality: 50, maxWidth: 960 },
 };
@@ -164,6 +164,7 @@ export class BrowserScreencastSession {
         browserId,
         jpegQuality: preset.jpegQuality,
         ...(preset.maxWidth ? { maxWidth: preset.maxWidth } : {}),
+        ...(preset.maxHeight ? { maxHeight: preset.maxHeight } : {}),
         onFrame: (frame) => pacer.push(frame),
         onEnd: () => {
           owner.emit({ type: "browser.screencast.ended", payload: { browserId } });

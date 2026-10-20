@@ -550,6 +550,7 @@ export class DaemonPlaywrightHost {
     browserId: string;
     jpegQuality?: number;
     maxWidth?: number;
+    maxHeight?: number;
     onFrame: (frame: ScreencastFrame) => void;
     onEnd: () => void;
   }): Promise<() => Promise<void>> {
@@ -592,6 +593,7 @@ export class DaemonPlaywrightHost {
         format: "jpeg",
         quality: input.jpegQuality ?? SCREENCAST_JPEG_QUALITY,
         ...(input.maxWidth ? { maxWidth: input.maxWidth } : {}),
+        ...(input.maxHeight ? { maxHeight: input.maxHeight } : {}),
       });
     } catch (error) {
       await stop();

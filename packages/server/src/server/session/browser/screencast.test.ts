@@ -200,8 +200,7 @@ describe("BrowserScreencastSession", () => {
     await subscribe("tab-default");
     await subscribe("tab-saver", "saver");
 
-    expect(streams[0]).toMatchObject({ jpegQuality: 70 });
-    expect(streams[0]).not.toHaveProperty("maxWidth");
+    expect(streams[0]).toMatchObject({ jpegQuality: 60, maxWidth: 1920, maxHeight: 1920 });
     expect(streams[1]).toMatchObject({ jpegQuality: 50, maxWidth: 960 });
   });
 
