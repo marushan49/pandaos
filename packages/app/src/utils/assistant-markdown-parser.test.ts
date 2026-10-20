@@ -31,6 +31,48 @@ describe("createAssistantMarkdownParser", () => {
     expect(childTypes("[Mail](out/a.eml)")).not.toContain("file_card");
   });
 
+  it.each([
+    ["**Darf ich das [Android-Update](/tmp/update.apk) installieren?**", 1],
+    ["*Before **[Report](/tmp/report.pdf)** after*", 1],
+    ["~~Before [Film](/tmp/movie.mp4) after~~", 1],
+    ["**[One](/tmp/one.pdf) and [Two](/tmp/two.pdf)**", 2],
+    ["**![Film](/tmp/movie.mp4)**", 1],
+  ])("keeps media cards outside inline formatting: %s", (source, count) => {
+    const children = createAssistantMarkdownParser().parse(source, {})[1]!.children!;
+    const stack: string[] = [];
+    let cards = 0;
+    for (const token of children) {
+      if (token.type === "file_card" || token.type === "video") {
+        expect(stack).toEqual([]);
+        cards++;
+      }
+      if (token.nesting === 1) stack.push(token.tag);
+      if (token.nesting === -1) expect(stack.pop()).toBe(token.tag);
+    }
+    expect(stack).toEqual([]);
+    expect(cards).toBe(count);
+  });
+
+  it.each([false, true])("preserves bold text around a card with streaming=%s", (streaming) => {
+    const children = createAssistantMarkdownParser({ streaming }).parse(
+      "**Darf ich das [Android-Update](/tmp/update.apk) installieren?**",
+      {},
+    )[1]!.children!;
+    const stack: string[] = [];
+    const text: { content: string; formatting: string[] }[] = [];
+    for (const token of children) {
+      if (token.nesting === 1) stack.push(token.tag);
+      if (token.nesting === -1) stack.pop();
+      if (token.type === "text" && token.content) {
+        text.push({ content: token.content, formatting: [...stack] });
+      }
+    }
+    expect(text).toEqual([
+      { content: "Darf ich das ", formatting: ["strong"] },
+      { content: " installieren?", formatting: ["strong"] },
+    ]);
+  });
+
   it("keeps image links, code and partial video destinations unchanged", () => {
     const parser = createAssistantMarkdownParser({ streaming: true });
     const sources = [

@@ -50,6 +50,25 @@ export function createAssistantMarkdownParser({ streaming = false } = {}): Markd
         );
         children.splice(index, end - index + 1, card);
       }
+      const inlineStack: typeof children = [];
+      const normalized: typeof children = [];
+      for (const token of children) {
+        if (token.type === "video" || token.type === "file_card") {
+          for (let index = inlineStack.length - 1; index >= 0; index--) {
+            const open = inlineStack[index]!;
+            normalized.push(new state.Token(open.type.replace(/_open$/, "_close"), open.tag, -1));
+          }
+          normalized.push(token);
+          for (const open of inlineStack) {
+            normalized.push(Object.assign(new state.Token(open.type, open.tag, 1), open));
+          }
+          continue;
+        }
+        if (token.nesting === 1) inlineStack.push(token);
+        if (token.nesting === -1) inlineStack.pop();
+        normalized.push(token);
+      }
+      block.children = normalized;
     }
   });
 
