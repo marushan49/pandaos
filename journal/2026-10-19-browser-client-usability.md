@@ -66,4 +66,4 @@ Marushan bedient den Host-Browser nur vom Mac und vom Android-Handy aus; der Zot
 - Grenze: Zeigen zwei Geräte gleichzeitig denselben Host-Tab, wechselt die Größe höchstens alle 5 s zum jeweils anderen Gerät.
 - Release `~/.local/share/pandaos-releases/dcfa10307-stream-fit`: Live-Schnappschuss `rollout-2026-10-20/source` plus nur diese zwei Commits. Electron-Oberfläche für den Mac unter `.dev/stream-fit/electron`.
 - 17:47 Build Queue #1696 grün. Mac: nur `app-dist` getauscht, `index.html` SHA-256 `13296fd3…d9891` gleich Kandidat, `codesign` geprüft, App läuft. Sicherung `rollout-backups/stream-fit-20261020-174702`.
-- Geplanter Zotac-Neustart auf `dcfa10307-stream-fit` freigegeben (20.10.) und gestartet.
+- 17:48 Geplanter Zotac-Neustart auf `dcfa10307-stream-fit` (freigegeben 20.10.) gesund: Dienst aktiv, `pandaos-live` zeigt auf den Release, Web-UI liefert `index-eb7f4a0a…`, Chromium-Revision vorhanden, beide Sessions fortgesetzt. Nicht geprüft: Bedienung im Mac-Fenster (keine Bildschirmaufnahme über SSH).
