@@ -1252,24 +1252,27 @@ export class DaemonPlaywrightHost {
         profile: DEFAULT_VERIFY_PROFILE,
       });
       for (const key of request.cookies?.removed ?? []) {
-        await context.clearCookies(key);
+        if (!isDeviceBoundCookie(key)) await context.clearCookies(key);
       }
       const nowSeconds = Date.now() / 1000;
       const upserts = (request.cookies?.upserts ?? []).filter(
-        (cookie) => cookie.expires === -1 || cookie.expires > nowSeconds,
+        (cookie) =>
+          !isDeviceBoundCookie(cookie) && (cookie.expires === -1 || cookie.expires > nowSeconds),
       );
       if (upserts.length > 0) await context.addCookies(upserts);
       if (request.cookies) await this.saveSessionCookies(context);
-      const cookies = (await context.cookies()).map((cookie) => ({
-        name: cookie.name,
-        value: cookie.value,
-        domain: cookie.domain,
-        path: cookie.path,
-        expires: cookie.expires,
-        httpOnly: cookie.httpOnly,
-        secure: cookie.secure,
-        sameSite: cookie.sameSite,
-      }));
+      const cookies = (await context.cookies())
+        .filter((cookie) => !isDeviceBoundCookie(cookie))
+        .map((cookie) => ({
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain,
+          path: cookie.path,
+          expires: cookie.expires,
+          httpOnly: cookie.httpOnly,
+          secure: cookie.secure,
+          sameSite: cookie.sameSite,
+        }));
       const version = cookieVersion(cookies);
       return {
         history,
@@ -1781,7 +1784,7 @@ export class DaemonPlaywrightHost {
     for (const [context, userDataDir] of this.contextProfileDirs) {
       await this.applyImportedCookies({ context, userDataDir, store });
     }
-    const applied = cookies.filter((cookie) => !isGoogleAccountCookie(cookie));
+    const applied = cookies.filter((cookie) => !isDeviceBoundCookie(cookie));
     return {
       cookieCount: applied.length,
       domainCount: new Set(applied.map((cookie) => cookie.domain.replace(/^\./, ""))).size,
@@ -1995,7 +1998,7 @@ export class DaemonPlaywrightHost {
     const markerPath = path.join(input.userDataDir, IMPORTED_COOKIES_MARKER);
     const applied = await readFile(markerPath, "utf8").catch(() => null);
     if (applied === input.store.version) return;
-    const cookies = input.store.cookies.filter((cookie) => !isGoogleAccountCookie(cookie));
+    const cookies = input.store.cookies.filter((cookie) => !isDeviceBoundCookie(cookie));
     try {
       await input.context.addCookies(cookies);
     } catch {
@@ -2031,9 +2034,24 @@ async function waitForPaint(page: Page): Promise<void> {
   );
 }
 
-function isGoogleAccountCookie(cookie: BrowserImportCookie): boolean {
+const DEVICE_BOUND_SIGN_IN_DOMAINS = [
+  "google.com",
+  "youtube.com",
+  "microsoftonline.com",
+  "live.com",
+  "microsoft.com",
+  "cloud.microsoft",
+  "office.com",
+  "office365.com",
+  "outlook.com",
+  "sharepoint.com",
+];
+
+function isDeviceBoundCookie(cookie: { domain: string }): boolean {
   const host = cookie.domain.replace(/^\./, "");
-  return host === "google.com" || host.endsWith(".google.com");
+  return DEVICE_BOUND_SIGN_IN_DOMAINS.some(
+    (domain) => host === domain || host.endsWith(`.${domain}`),
+  );
 }
 
 function ok(requestId: string, result: CommandResult): BrowserToolsResponsePayload {

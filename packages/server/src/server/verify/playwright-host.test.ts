@@ -668,6 +668,36 @@ describe.skipIf(!BROWSER_AVAILABLE)(
       return { browserId: created.result.browserId, url: created.result.url };
     }
 
+    it("keeps Google and Microsoft sign-in cookies out of the profile sync", async () => {
+      const cookie = (name: string, domain: string) => ({
+        name,
+        value: "1",
+        domain,
+        path: "/",
+        expires: -1,
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax" as const,
+      });
+      const result = await host!.syncProfile({
+        cookies: {
+          upserts: [
+            cookie("sync_probe", "127.0.0.1"),
+            cookie("SID", ".google.com"),
+            cookie("ESTSAUTH", ".login.microsoftonline.com"),
+            cookie("OIDC", "outlook.office.com"),
+          ],
+          removed: [],
+        },
+        wantCookies: true,
+      });
+      const names = (result.cookies ?? []).map((entry) => entry.name);
+      expect(names).toContain("sync_probe");
+      expect(names).not.toContain("SID");
+      expect(names).not.toContain("ESTSAUTH");
+      expect(names).not.toContain("OIDC");
+    });
+
     it("signs already open and later launched profiles in with imported cookies", async () => {
       const early = await openReport("early");
       expect(new URL(early.url).pathname).toBe("/login");
