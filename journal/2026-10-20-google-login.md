@@ -7,3 +7,4 @@
 - Prüfung: `playwright-host.test.ts -t "imported cookies"` grün, Lint, Format und Typecheck im Commit-Hook grün.
 - Release `~/.local/share/pandaos-releases/cd7b2153e-google-login`: Kopie von `dcfa10307-stream-fit` plus nur dieser Commit, Build Queue #1706 grün (`.dev/google-login/`). Nur der Server hat sich geändert, die Web-UI ist unverändert.
 - Grenze: Google braucht einmal einen direkten Login im Host-Browser (Passwort und 2FA). Autofill füllt das gespeicherte Passwort nur nach einem eigenen Klick ins Passwortfeld.
+- 18:34 Geplanter Neustart auf `cd7b2153e-google-login` gesund: Dienst aktiv, `pandaos-live` zeigt auf den Release, `dist` enthält den Filter, Chromium 1208 vorhanden, Host-Browser startet und kennt das Konto in der Kontoauswahl (abgemeldet bis zum direkten Login).
