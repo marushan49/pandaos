@@ -4,6 +4,7 @@ import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
 import {
   nextSnoozeWake,
   partitionSetAsideWorkspaces,
+  pruneProjectsToVisibleWorkspaces,
   snoozeUntilTomorrowMorning,
 } from "./sidebar-set-aside";
 
@@ -83,5 +84,32 @@ describe("snooze deadlines", () => {
   it("wakes at the nearest future deadline", () => {
     expect(nextSnoozeWake({ a: NOW - 5, b: NOW + 50, c: NOW + 10 }, NOW)).toBe(NOW + 10);
     expect(nextSnoozeWake({ a: NOW }, NOW)).toBeNull();
+  });
+});
+
+describe("pruneProjectsToVisibleWorkspaces", () => {
+  const projects = [
+    { viewKey: "busy", workspaces: [{ workspaceKey: "srv:failed" }, { workspaceKey: "srv:done" }] },
+    { viewKey: "quiet", workspaces: [{ workspaceKey: "srv:running" }] },
+    { viewKey: "empty", workspaces: [] },
+  ];
+  const visibleWorkspaceKeys = new Set(["srv:failed"]);
+
+  it("drops empty projects while the needs-you filter is on", () => {
+    const pruned = pruneProjectsToVisibleWorkspaces({
+      projects,
+      visibleWorkspaceKeys,
+      keepEmptyProjects: false,
+    });
+    expect(pruned).toEqual([{ viewKey: "busy", workspaces: [{ workspaceKey: "srv:failed" }] }]);
+  });
+
+  it("keeps empty projects when only background workspaces are hidden", () => {
+    const pruned = pruneProjectsToVisibleWorkspaces({
+      projects,
+      visibleWorkspaceKeys,
+      keepEmptyProjects: true,
+    });
+    expect(pruned.map((project) => project.viewKey)).toEqual(["busy", "empty"]);
   });
 });

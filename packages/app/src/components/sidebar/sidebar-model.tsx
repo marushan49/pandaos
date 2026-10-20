@@ -28,7 +28,11 @@ import { buildSidebarProjection } from "./sidebar-projection";
 import type { SidebarProjectIconTarget } from "@/utils/sidebar-project-row-model";
 import { filterWorkspacesByLabels, type SidebarWorkspaceGroup } from "./sidebar-labels";
 import { filterWorkspacesByProjects, resolveActiveProjectFilters } from "./sidebar-project-filter";
-import { nextSnoozeWake, partitionSetAsideWorkspaces } from "./sidebar-set-aside";
+import {
+  nextSnoozeWake,
+  partitionSetAsideWorkspaces,
+  pruneProjectsToVisibleWorkspaces,
+} from "./sidebar-set-aside";
 import { useSidebarSnoozeEnabled } from "@/sidebar-order-sync/host";
 import {
   hasAuthoritativeWorkspaceLabelCatalog,
@@ -167,10 +171,6 @@ export function SidebarModelProvider({
     () => new Set(filteredWorkspaceEntriesByKey.keys()),
     [filteredWorkspaceEntriesByKey],
   );
-  // The two filters prune differently on purpose. The project filter is a membership test on the
-  // project itself, so a project you filtered TO survives even with no workspaces — it still owns
-  // a header row you can create your first workspace under. The label filter can only ask about
-  // workspaces, so a project it empties has nothing left to show.
   const filteredProjects = useMemo(() => {
     let projects = list.projects;
     if (hasActiveProjectFilter) {
@@ -189,13 +189,10 @@ export function SidebarModelProvider({
       });
     }
     if (hasActiveLabelFilter || needsYouOnly || !showBackground) {
-      projects = projects.flatMap((project) => {
-        const workspaces = project.workspaces.filter((workspace) =>
-          visibleWorkspaceKeys.has(workspace.workspaceKey),
-        );
-        return workspaces.length > 0 || (!hasActiveLabelFilter && project.workspaces.length === 0)
-          ? [{ ...project, workspaces }]
-          : [];
+      projects = pruneProjectsToVisibleWorkspaces({
+        projects,
+        visibleWorkspaceKeys,
+        keepEmptyProjects: !hasActiveLabelFilter && !needsYouOnly,
       });
     }
     return projects;

@@ -63,3 +63,21 @@ export function partitionSetAsideWorkspaces(input: {
   }
   return { visible, setAside, needsYouCount };
 }
+
+export function pruneProjectsToVisibleWorkspaces<
+  P extends { workspaces: readonly { workspaceKey: string }[] },
+>(input: {
+  projects: readonly P[];
+  visibleWorkspaceKeys: ReadonlySet<string>;
+  keepEmptyProjects: boolean;
+}): P[] {
+  return input.projects.flatMap((project) => {
+    const workspaces = project.workspaces.filter((workspace) =>
+      input.visibleWorkspaceKeys.has(workspace.workspaceKey),
+    );
+    if (workspaces.length > 0 || (input.keepEmptyProjects && project.workspaces.length === 0)) {
+      return [{ ...project, workspaces }];
+    }
+    return [];
+  });
+}
