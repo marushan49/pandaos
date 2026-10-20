@@ -112,7 +112,7 @@ function daemonPort() {
 }
 
 function systemctl(...args) {
-  const result = spawnSync("systemctl", ["--user", ...args], { encoding: "utf8", timeout: 60_000 });
+  const result = spawnSync("systemctl", ["--user", ...args], { encoding: "utf8", timeout: 180_000 });
   return { ok: result.status === 0, output: `${result.stdout}${result.stderr}`.trim() };
 }
 
