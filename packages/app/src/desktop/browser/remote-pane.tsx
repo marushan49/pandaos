@@ -110,6 +110,7 @@ interface RemoteGestureState {
 const FRAME_REFRESH_MS = 1_000;
 const SCROLL_FRAME_REFRESH_MS = 250;
 const RESIZE_SETTLE_MS = 150;
+const RESIZE_REASSERT_MS = 5_000;
 
 const ThemedKeyboard = withUnistyles(Keyboard);
 const ThemedExternalLink = withUnistyles(ExternalLink);
@@ -831,18 +832,25 @@ function RemoteBrowserPane({
     markRemoteBrowserClosed(current);
     void execute({ command: "close_tab", args: { browserId: current } }).catch(() => undefined);
   }, [browserId, execute, updateBrowser]);
+  const lastResizeAtRef = useRef(0);
   useEffect(() => {
     const width = Math.round(viewportSize.width / zoom);
     const height = Math.round(viewportSize.height / zoom);
     if (!remoteBrowserId || width < 50 || height < 50) return;
-    const last = requestedSizeRef.current;
-    if (last && last.width === width && last.height === height) return;
+    const isSettled = () => {
+      const requested = requestedSizeRef.current;
+      const shown = frameRef.current;
+      if (requested?.width !== width || requested.height !== height) return false;
+      if (!shown || (shown.width === width && shown.height === height)) return true;
+      return Date.now() - lastResizeAtRef.current < RESIZE_REASSERT_MS;
+    };
+    if (isSettled()) return;
     if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
     resizeTimerRef.current = setTimeout(() => {
       resizeTimerRef.current = null;
-      const current = requestedSizeRef.current;
-      if (current && current.width === width && current.height === height) return;
+      if (isSettled()) return;
       requestedSizeRef.current = { width, height };
+      lastResizeAtRef.current = Date.now();
       enqueueRemoteOperation(async () => {
         await execute({
           command: "resize",
@@ -859,6 +867,7 @@ function RemoteBrowserPane({
   }, [
     enqueueRemoteOperation,
     execute,
+    frame,
     isCompact,
     supportsMobileViewport,
     zoom,
