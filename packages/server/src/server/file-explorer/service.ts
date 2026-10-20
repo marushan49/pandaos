@@ -165,8 +165,6 @@ export async function listDirectoryEntries({
           kind,
         });
       } catch (error) {
-        // Directories can contain dangling links (e.g. AGENTS.md -> CLAUDE.md).
-        // Skip entries whose targets disappeared instead of failing the whole listing.
         if (isMissingEntryError(error) || isOutsideWorkspaceError(error)) {
           return null;
         }

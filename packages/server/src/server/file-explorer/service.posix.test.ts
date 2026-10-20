@@ -19,7 +19,7 @@ describe.skipIf(isPlatform("win32"))("service POSIX-only", () => {
       await mkdir(path.join(root, "packages", "server"), { recursive: true });
       const serverDir = path.join(root, "packages", "server");
       await writeFile(path.join(serverDir, "README.md"), "# server\n", "utf-8");
-      await symlink("CLAUDE.md", path.join(serverDir, "AGENTS.md"));
+      await symlink("missing-target.md", path.join(serverDir, "AGENTS.md"));
 
       const result = await listDirectoryEntries({
         root,

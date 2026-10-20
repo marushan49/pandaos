@@ -3468,8 +3468,6 @@ class ClaudeAgentSession implements AgentSession {
       agents: this.defaults?.agents,
       canUseTool: this.handlePermissionRequest,
       pathToClaudeCodeExecutable: claudeBinary,
-      // Use Claude Code preset system prompt and load CLAUDE.md files
-      // Append provider-agnostic system prompts for agents.
       systemPrompt: {
         type: "preset",
         preset: "claude_code",
