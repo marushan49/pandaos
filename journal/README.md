@@ -17,3 +17,4 @@
 - [2026-10-14 content blocks](2026-10-14-content-blocks.md)
 
 - [2026-10-20 Jev Ultrafast integration](2026-10-20-jev-ultrafast.md)
+- [2026-10-21 browser where you are](2026-10-21-browser-where-you-are.md)

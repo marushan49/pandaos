@@ -22,7 +22,9 @@ export function getBrowserPaneKind(input: {
   remoteBrowserId: string | null;
   kind?: "local" | "host";
 }): "desktop" | "host" {
-  return input.isElectron && input.kind === "local" ? "desktop" : "host";
+  if (!input.isElectron) return "host";
+  if (input.kind) return input.kind === "local" ? "desktop" : "host";
+  return input.remoteBrowserId ? "host" : "desktop";
 }
 
 export function closedRemoteBrowserTabIds(input: {

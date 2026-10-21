@@ -10,8 +10,8 @@ import {
 import { duplicateRemoteBrowserRecordIds, getBrowserPaneKind } from "./remote-tab-records";
 
 describe("duplicateRemoteBrowserRecordIds", () => {
-  it("opens tabs on the host unless an Electron tab was moved to the local browser", () => {
-    expect(getBrowserPaneKind({ isElectron: true, remoteBrowserId: null })).toBe("host");
+  it("opens new Electron tabs locally and keeps attached or chosen host tabs on the host", () => {
+    expect(getBrowserPaneKind({ isElectron: true, remoteBrowserId: null })).toBe("desktop");
     expect(getBrowserPaneKind({ isElectron: true, remoteBrowserId: "host-tab" })).toBe("host");
     expect(getBrowserPaneKind({ isElectron: true, remoteBrowserId: null, kind: "host" })).toBe(
       "host",

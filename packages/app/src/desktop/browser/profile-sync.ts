@@ -22,6 +22,8 @@ const DEVICE_BOUND_SIGN_IN_DOMAINS = [
   "office365.com",
   "outlook.com",
   "sharepoint.com",
+  "apple.com",
+  "icloud.com",
 ];
 
 function isSyncableCookie(cookie: CookieKey): boolean {
