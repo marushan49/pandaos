@@ -165,6 +165,9 @@ export function SidebarModelProvider({
     snoozedWorkspaceUntil,
     workspaceEntriesByKey,
   ]);
+  useEffect(() => {
+    if (needsYouOnly && setAsidePartition.needsYouCount === 0) setNeedsYouOnly(false);
+  }, [needsYouOnly, setAsidePartition.needsYouCount]);
   const filteredWorkspaceEntriesByKey = setAsidePartition.visible;
   const setAsideWorkspaces = setAsidePartition.setAside;
   const visibleWorkspaceKeys = useMemo(

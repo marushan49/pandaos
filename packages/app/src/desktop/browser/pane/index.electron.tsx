@@ -1410,7 +1410,13 @@ export function BrowserPane({
   );
 
   useEffect(() => {
-    webviewRef.current?.setZoomFactor?.(zoom);
+    const webview = webviewRef.current;
+    if (zoom === 1 || !webview?.isConnected) return;
+    try {
+      webview.setZoomFactor?.(zoom);
+    } catch {
+      return;
+    }
   }, [zoom]);
 
   const openFind = useCallback(() => findRef.current?.open(), []);
