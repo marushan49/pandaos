@@ -439,6 +439,16 @@ export const ru: TranslationResources = {
     speak: {
       header: "Сказал",
     },
+    agentMessage: {
+      received: "Входящее сообщение",
+      finished: "Сеанс завершён",
+      errored: "Сеанс завершился с ошибкой",
+      permissionRequired: "Сеансу нужно разрешение",
+      closed: "Сеанс закрыт",
+      anotherSession: "другой сеанс",
+      show: "Показать сообщение от {{sender}}",
+      hide: "Скрыть сообщение от {{sender}}",
+    },
     activity: {
       details: "Подробности",
     },

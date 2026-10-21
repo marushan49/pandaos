@@ -436,6 +436,16 @@ export const ko: TranslationResources = {
     speak: {
       header: "말함",
     },
+    agentMessage: {
+      received: "수신 메시지",
+      finished: "세션 완료",
+      errored: "세션 실패",
+      permissionRequired: "세션 권한 필요",
+      closed: "세션 종료",
+      anotherSession: "다른 세션",
+      show: "{{sender}}의 메시지 보기",
+      hide: "{{sender}}의 메시지 숨기기",
+    },
     activity: {
       details: "세부 정보",
     },

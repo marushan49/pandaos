@@ -435,6 +435,16 @@ export const zhCN: TranslationResources = {
     speak: {
       header: "已朗读",
     },
+    agentMessage: {
+      received: "消息来源",
+      finished: "会话已完成",
+      errored: "会话失败",
+      permissionRequired: "会话需要权限",
+      closed: "会话已关闭",
+      anotherSession: "其他会话",
+      show: "显示来自 {{sender}} 的消息",
+      hide: "隐藏来自 {{sender}} 的消息",
+    },
     activity: {
       details: "详情",
     },

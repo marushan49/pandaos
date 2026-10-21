@@ -88,6 +88,22 @@ describe("tool call detail-level projection", () => {
     ]);
   });
 
+  it("keeps a received agent message as its own row between tool calls", () => {
+    const shell = (id: string) => toolCall(id, { type: "shell", command: `echo ${id}` });
+    const received = toolCall("2", { type: "plain_text", text: "Check main" });
+    if (received.payload.source !== "agent") throw new Error("expected agent tool call");
+    received.payload.data.agentMessage = {
+      event: "message",
+      sender: { id: "sender", title: "Xiaomi" },
+      text: "Check main",
+    };
+    const result = project({
+      level: "overview",
+      tail: [shell("1"), received, shell("3"), shell("4"), assistant("a1")],
+    });
+    expect(result.tail.map((item) => item.id)).toEqual(["1", "2", "3", "a1"]);
+  });
+
   it.each(["detailed", "overview"] as const)(
     "keeps pending approval tools out of %s presentation without removing their canonical position",
     (level) => {

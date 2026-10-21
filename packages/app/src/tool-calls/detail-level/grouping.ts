@@ -67,8 +67,10 @@ export function isGroupableToolCall(item: StreamItem): item is ToolCallItem {
   if (item.kind !== "tool_call") {
     return false;
   }
+  if (item.payload.source === "agent" && item.payload.data.agentMessage) {
+    return false;
+  }
   const descriptor = describeToolCall(item);
-  // A handoff card waits for the user, so it must stay visible instead of folding into a run.
   return (
     descriptor.detail.type !== "plan" &&
     descriptor.name.trim().toLowerCase() !== "speak" &&

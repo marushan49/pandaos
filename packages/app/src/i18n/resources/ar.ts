@@ -435,6 +435,16 @@ export const ar: TranslationResources = {
     speak: {
       header: "تكلم",
     },
+    agentMessage: {
+      received: "رسالة واردة من",
+      finished: "انتهت الجلسة",
+      errored: "فشلت الجلسة",
+      permissionRequired: "الجلسة تحتاج إلى إذن",
+      closed: "أُغلقت الجلسة",
+      anotherSession: "جلسة أخرى",
+      show: "عرض الرسالة من {{sender}}",
+      hide: "إخفاء الرسالة من {{sender}}",
+    },
     activity: {
       details: "تفاصيل",
     },

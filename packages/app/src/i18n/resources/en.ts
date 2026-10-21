@@ -432,6 +432,16 @@ export const en = {
     speak: {
       header: "Spoke",
     },
+    agentMessage: {
+      received: "Received message from",
+      finished: "Session finished",
+      errored: "Session failed",
+      permissionRequired: "Session needs permission",
+      closed: "Session closed",
+      anotherSession: "another session",
+      show: "Show message from {{sender}}",
+      hide: "Hide message from {{sender}}",
+    },
     activity: {
       details: "Details",
     },

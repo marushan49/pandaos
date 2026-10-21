@@ -439,6 +439,16 @@ export const ptBR: TranslationResources = {
     speak: {
       header: "Falou",
     },
+    agentMessage: {
+      received: "Mensagem recebida de",
+      finished: "Sessão concluída",
+      errored: "A sessão falhou",
+      permissionRequired: "A sessão precisa de permissão",
+      closed: "Sessão fechada",
+      anotherSession: "outra sessão",
+      show: "Mostrar mensagem de {{sender}}",
+      hide: "Ocultar mensagem de {{sender}}",
+    },
     activity: {
       details: "Detalhes",
     },

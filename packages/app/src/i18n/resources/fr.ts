@@ -438,6 +438,16 @@ export const fr: TranslationResources = {
     speak: {
       header: "Prononcé",
     },
+    agentMessage: {
+      received: "Message reçu de",
+      finished: "Session terminée",
+      errored: "Échec de la session",
+      permissionRequired: "La session demande une autorisation",
+      closed: "Session fermée",
+      anotherSession: "une autre session",
+      show: "Afficher le message de {{sender}}",
+      hide: "Masquer le message de {{sender}}",
+    },
     activity: {
       details: "Détails",
     },

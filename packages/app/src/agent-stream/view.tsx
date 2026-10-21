@@ -102,6 +102,7 @@ import {
 import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
 import { readBrowserHandoffToolCall } from "@/desktop/browser/handoff";
 import { BrowserHandoffCard } from "@/desktop/browser/handoff-card";
+import { AgentMessageRow } from "@/components/agent-message-row";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { useForkAgent } from "@/hooks/use-fork-agent";
 import { isWeb } from "@/constants/platform";
@@ -812,6 +813,17 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             );
           }
 
+          if (data.agentMessage) {
+            return (
+              <AgentMessageRow
+                message={data.agentMessage}
+                serverId={resolvedServerId}
+                agentId={agentId}
+                isLastInSequence={isLastInSequence}
+              />
+            );
+          }
+
           const handoffCall =
             data.status === "failed" ? null : readBrowserHandoffToolCall(data.name, data.detail);
           if (handoffCall && context.workspaceId) {
@@ -860,6 +872,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         );
       },
       [
+        agentId,
         context.cwd,
         context.workspaceId,
         resolvedServerId,

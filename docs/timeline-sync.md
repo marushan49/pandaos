@@ -273,8 +273,11 @@ also the projected call ID, so a provider echo cannot create a second row. Sende
 do not imply local ownership or authorization. Capture the sender title at delivery: archived or
 removed senders must remain understandable without a live directory lookup.
 
-The optional `agentMessage` payload carries event, sender, and delivered text. Shared client
-presentation (`protocol/agent-message-display`) owns its heading and expanded details. The daemon
+The optional `agentMessage` payload carries event, sender, and delivered text. The app timeline draws
+it as its own row (`packages/app/src/components/agent-message-row.tsx`), modeled on Claude Desktop's
+received-message row: a muted verb, the sender title, and the body collapsed behind a chevron. The
+title opens the sender session when the client knows that agent. The row never folds into a tool-call
+group. `protocol/agent-message-display` stays the heading for other tool-call surfaces. The daemon
 must not construct UI labels or prepend sender labels to the semantic message body. The existing
 `tool_call` / `plain_text` envelope is a compatibility adapter: older clients still parse the row and
 expand its body. New clients use the typed payload, never infer the event from a tool name or parse

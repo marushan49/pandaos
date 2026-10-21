@@ -440,6 +440,16 @@ export const es: TranslationResources = {
     speak: {
       header: "Habló",
     },
+    agentMessage: {
+      received: "Mensaje recibido de",
+      finished: "Sesión terminada",
+      errored: "La sesión falló",
+      permissionRequired: "La sesión necesita permiso",
+      closed: "Sesión cerrada",
+      anotherSession: "otra sesión",
+      show: "Mostrar mensaje de {{sender}}",
+      hide: "Ocultar mensaje de {{sender}}",
+    },
     activity: {
       details: "Detalles",
     },

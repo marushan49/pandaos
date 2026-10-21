@@ -440,6 +440,16 @@ export const ja: TranslationResources = {
     speak: {
       header: "読み上げ済み",
     },
+    agentMessage: {
+      received: "メッセージの送信元",
+      finished: "セッション完了",
+      errored: "セッション失敗",
+      permissionRequired: "セッションが許可を要求",
+      closed: "セッション終了",
+      anotherSession: "別のセッション",
+      show: "{{sender}} からのメッセージを表示",
+      hide: "{{sender}} からのメッセージを隠す",
+    },
     activity: {
       details: "詳細",
     },
