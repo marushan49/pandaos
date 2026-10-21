@@ -1961,6 +1961,83 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
     }
   }
 
+  const registerStartSessionTool = () => {
+    if (!callerAgentId) return;
+    registerTool(
+      "start_session",
+      {
+        title: "Start session",
+        description:
+          "Start a separate chat (session) in your workspace for a new task, so it gets its own tab and sidebar row instead of growing this conversation. Use it when the user's latest message names work that builds on nothing done, found or decided in this session, or when the user asks you to split off or make a session for something. Unless the user explicitly asked for a separate session, first ask once with your question tool, offering the choices 'New session' and 'Do it here', and call start_session only when they choose New session; otherwise do the task here. When unsure whether a request is new work, treat it as a continuation and do it here. The session runs in the same workspace and folder (no new worktree) with your provider, model, thinking and mode, and starts with the brief as its first message. Write the brief self-contained: goal, relevant files and findings, constraints, and what done means. The session is not your subagent and you are not notified when it finishes.",
+        inputSchema: {
+          title: z
+            .string()
+            .trim()
+            .min(1)
+            .max(80)
+            .describe(
+              "Short session name shown in the sidebar, for example 'Fix Xiaomi unlock check'.",
+            ),
+          brief: z
+            .string()
+            .trim()
+            .min(1)
+            .describe("Self-contained first message for the new session."),
+        },
+        outputSchema: {
+          agentId: z.string(),
+          workspaceId: z.string().optional(),
+        },
+      },
+      async (input: { title: string; brief: string }) => {
+        const caller = resolveCallerAgent();
+        if (!caller?.workspaceId) {
+          throw new Error(`Caller agent ${callerAgentId} has no current workspace`);
+        }
+        const model = caller.config.model;
+        if (!model) {
+          throw new Error("Your session has no model to inherit; use create_agent instead");
+        }
+        const { snapshot } = await createAgentCommand(
+          {
+            agentManager,
+            agentStorage,
+            logger: childLogger,
+            paseoHome: options.paseoHome,
+            worktreesRoot: options.worktreesRoot,
+            terminalManager,
+            providerSnapshotManager,
+            createPaseoWorktree: options.createPaseoWorktree,
+          },
+          {
+            kind: "mcp",
+            provider: `${caller.provider}/${model}`,
+            title: input.title,
+            initialPrompt: input.brief,
+            config: resolveInheritedProviderConfig(caller.provider),
+            cwd: caller.cwd,
+            workspaceId: caller.workspaceId,
+            thinking: caller.config.thinkingOptionId,
+            mode: caller.currentModeId ?? caller.config.modeId,
+            promptFailure: "throw",
+            notifyOnFinish: false,
+            detached: true,
+            callerAgentId,
+            callerContext,
+          },
+        );
+        return {
+          content: [],
+          structuredContent: ensureValidJson({
+            agentId: snapshot.id,
+            ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
+          }),
+        };
+      },
+    );
+  };
+  registerStartSessionTool();
+
   const PROMPTED_AGENT_NOTIFICATION_GUIDANCE =
     "You will get notified when the prompted agent finishes, errors, or needs permission. Do not poll for status; continue with other work until the notification arrives.";
 

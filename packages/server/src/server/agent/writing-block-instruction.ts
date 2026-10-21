@@ -39,8 +39,10 @@ export const BROWSER_TAKEOVER_INSTRUCTION = `When \`browser_goal\` or \`browser_
 
 export const TIME_ENTRY_INSTRUCTION = `Never book, submit, or correct time entries (HOURS, Zoho, or any time tracking) on your own, whatever earlier authorization, ledger, or estimate exists. When work for a day needs booking, ask the user first: how many hours to enter for that date. Enter exactly the duration they answer, then read it back. Without an answer nothing is booked.`;
 
+export const SESSION_SPLIT_INSTRUCTION = `When the user's latest message starts a new task that builds on nothing done, found or decided in this chat, ask once with your question tool, before any other tool call, whether to run it in its own session, with the choices "New session" and "Do it here". On "New session", call the Paseo tool \`start_session\` (load it by name if it is deferred) with a short title and a self-contained brief, tell the user in one line that the session started, and end your turn. On "Do it here", do the task in this chat. Skip the question when the user already said where to do it, and for follow-ups, the next iteration, or acting on what you just investigated or suggested; when unsure, it is a continuation.`;
+
 export function composeDaemonAppendSystemPrompt(userPrompt: string): string {
   const trimmed = userPrompt.trim();
-  const base = `${TESTING_ENGINE_INSTRUCTION}\n\n${CODE_COMMENT_INSTRUCTION}\n\n${WRITING_BLOCK_INSTRUCTION}\n\n${QUESTION_LIFECYCLE_INSTRUCTION}\n\n${SYSTEM_ONE_INSTRUCTION}\n\n${TAB_LIFECYCLE_INSTRUCTION}\n\n${BROWSER_TAKEOVER_INSTRUCTION}\n\n${TIME_ENTRY_INSTRUCTION}`;
+  const base = `${TESTING_ENGINE_INSTRUCTION}\n\n${CODE_COMMENT_INSTRUCTION}\n\n${WRITING_BLOCK_INSTRUCTION}\n\n${QUESTION_LIFECYCLE_INSTRUCTION}\n\n${SYSTEM_ONE_INSTRUCTION}\n\n${TAB_LIFECYCLE_INSTRUCTION}\n\n${BROWSER_TAKEOVER_INSTRUCTION}\n\n${TIME_ENTRY_INSTRUCTION}\n\n${SESSION_SPLIT_INSTRUCTION}`;
   return trimmed ? `${base}\n\n${trimmed}` : base;
 }

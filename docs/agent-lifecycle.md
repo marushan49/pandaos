@@ -95,6 +95,8 @@ Agents can launch other agents via the agent-scoped `create_agent` MCP tool. Age
 - **Subagents** — exist as part of the creating agent's work, appear in that agent's subagent track, and are archived with it.
 - **Detached agents** — stand on their own after an explicit detach transition, do not appear in the former parent's subagent track, and are not archived with it.
 
+`start_session` is the agent-scoped way to create a detached root agent in the caller's workspace: same folder, provider, model, thinking and mode, with the brief as first prompt. The daemon prompt tells agents to ask "New session" or "Do it here" first when a message starts unrelated work, and to call it only on "New session". It is the PandaOS counterpart of Claude desktop's `start_session` offer.
+
 Parent archive detaches a subagent instead of archiving it when either condition holds:
 
 - The child belongs to another workspace.
@@ -228,6 +230,8 @@ Agent lifecycle status stays literal: a parent agent is `idle` when its own turn
 Workspace status is an aggregate activity signal computed **per `workspaceId`**. Ownership is never derived from `cwd` — many workspaces may share one directory, and same-`cwd` siblings do not clump under one status. Root agents and cross-workspace subagents contribute their normal state bucket to their own workspace. Same-workspace descendants contribute `running` to the nearest ancestor in that workspace; their non-running attention, permission, and error states stay in the parent's subagents track. This makes a cross-workspace subagent behave like a detached agent for workspace visibility and status without removing its parent relationship.
 
 Running provider-native subagents contribute `running` to the workspace owned by their parent agent. Their completed, failed, and canceled states stay in the parent's subagents track.
+
+A workspace with more than one root agent shows its later root agents as session rows under the workspace row in the sidebar, at most the three newest. The oldest root agent is the workspace row itself. Pressing a session row opens that agent's tab in the same workspace.
 
 A finished workspace can be marked unread after it has been reviewed. The daemon restores
 `finished` attention on its newest eligible workspace-root agent without sending a new completion
