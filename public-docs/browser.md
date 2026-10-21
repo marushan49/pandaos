@@ -42,9 +42,11 @@ The tools are part of the [Paseo MCP toolset](/docs/mcp), so **Enable Paseo tool
 
 > Browser tools let agents access and control Paseo browser tabs, including logged-in browser state. Only enable this for agents you trust.
 
-## Host-native browser
+## Where a tab lives
 
-Browser tabs are hosted by the Paseo daemon on the machine where your workspace runs. The app shows a remote viewport and forwards clicks, keyboard input, scrolling, hover, and long-press drags, so Mac, Android, and the web client can use the same Linux browser profile. The desktop app remains a compatibility fallback for older daemons. Handoff changes who controls input; the page and profile stay on the host before, during, and after it.
+The browser runs where you are. In the desktop app, new tabs and tabs an agent opens use the app's own browser; the agent reaches them through the daemon, so typing and scrolling are local and Chrome's own prompts stay visible. The page menu can move a tab to the host stream, and tabs moved there stay there. Android and the web client use tabs hosted by the daemon on the workspace machine, shown as a remote viewport with forwarded clicks, keyboard input, scrolling, hover, and long-press drags. `browser_test` recipes always run in the daemon's browser. A tab the desktop app hosts is not visible on the phone. Handoff changes who controls input; the page and profile stay on the tab's host before, during, and after it.
+
+Sign-in cookies for Google, YouTube, Microsoft and Apple stay on the device that signed in; the profile sync carries every other site between the desktop app and the host.
 
 ## Import and backup
 
@@ -89,7 +91,7 @@ opener; canceling a handoff returns control without closing its tab.
 
 While a `browser_goal` or `browser_test` run drives a tab, a status bar above the viewport shows the step, the phase, the chosen action with its accessibility target, and Jev's confidence; the browser tab shows a running dot. A recipe also shows its next step. Jev chooses its next step only after it looks at the page again, so a goal run shows **Re-check page** until it has chosen. Tap the bar for the step overview. Your input to the viewport is blocked during a run. **Take over** pauses the run after the current action and hands input back to you; **Resume** continues from a fresh snapshot of the page as you left it. The status stream carries only structured action data: no screenshots, filled values, or model reasoning.
 
-When an agent reaches a step only you can do — a login, a 2FA code, a CAPTCHA, a payment — it calls `browser_handoff` instead of asking for credentials in chat, and ends its turn. The chat shows a card with the agent's reason and **Open browser**, which opens the tab; on a phone it switches the view to the tab. A banner above the viewport repeats the reason. Until you press **Done** or **Cancel** there, the tab is yours: the agent cannot read or drive it, and every browser tool on it, including `browser_goal` and `browser_test` steps, returns an error. Done or Cancel sends the agent a message with the tab's current URL and title, shown as a note in the chat, and the card shows how the handoff ended. Closing the tab cancels the handoff.
+When an agent reaches a step only you can do — a login, a 2FA code, a CAPTCHA, a payment — it calls `browser_handoff` instead of asking for credentials in chat, and ends its turn. `browser_goal` hands the tab over by itself when the page shows a password field that no local credential slot covers. A handoff alerts like a permission request: a push notification, the needs-you mark on the workspace in the sidebar and on the tab. The chat shows a card with the agent's reason and **Open browser**, which opens the tab; on a phone it switches the view to the tab. A banner above the viewport repeats the reason. Until you press **Done** or **Cancel** there, the tab is yours: the agent cannot read or drive it, and every browser tool on it, including `browser_goal` and `browser_test` steps, returns an error. Done or Cancel sends the agent a message with the tab's current URL and title, shown as a note in the chat, and the card shows how the handoff ended. Closing the tab cancels the handoff.
 
 ## How an agent sees a page
 

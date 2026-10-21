@@ -71,21 +71,18 @@ function useBrowserPanelDescriptor(
   context: PanelDescriptorContext,
 ): PanelDescriptor {
   const browser = useBrowserStore((state) => state.browsersById[target.browserId] ?? null);
-  const activity = useBrowserActivity(
-    context.serverId,
-    context.workspaceId,
-    browser?.remoteBrowserId,
-  );
+  const automationBrowserId = browser?.remoteBrowserId ?? target.browserId;
+  const activity = useBrowserActivity(context.serverId, context.workspaceId, automationBrowserId);
   const failureConfirmed = useBrowserFailureConfirmed(
     context.serverId,
     context.workspaceId,
-    browser?.remoteBrowserId,
+    automationBrowserId,
     activity,
   );
   const handoff = useActiveBrowserHandoff(
     context.serverId,
     context.workspaceId,
-    browser?.remoteBrowserId,
+    automationBrowserId,
   );
   const loadingBucket = browser?.isLoading ? "running" : null;
   const runBucket = browserActivityStatusBucket(activity, failureConfirmed) ?? loadingBucket;
@@ -120,22 +117,24 @@ function BrowserPanel() {
   );
   const recordKind = useBrowserStore((state) => state.browsersById[target.browserId]?.kind);
 
-  const handoff = useActiveBrowserHandoff(serverId, workspaceId, remoteBrowserId ?? undefined);
-  const activity = useBrowserActivity(serverId, workspaceId, remoteBrowserId ?? undefined);
+  // Local Electron tabs are automation hosts under their own id; host tabs under the daemon's.
+  const automationBrowserId = remoteBrowserId ?? target.browserId;
+  const handoff = useActiveBrowserHandoff(serverId, workspaceId, automationBrowserId);
+  const activity = useBrowserActivity(serverId, workspaceId, automationBrowserId);
   const failureConfirmed = useBrowserFailureConfirmed(
     serverId,
     workspaceId,
-    remoteBrowserId,
+    automationBrowserId,
     activity,
   );
   const client = useHostRuntimeClient(serverId);
   const [handoffAction, setHandoffAction] = useState<BrowserHandoffAction | null>(null);
   const control = useCallback(
     (action: "pause" | "resume" | BrowserHandoffAction) => {
-      if (!client || !remoteBrowserId) return;
+      if (!client) return;
       if (action === "finish_handoff" || action === "cancel_handoff") setHandoffAction(action);
       void client
-        .controlBrowserActivity({ workspaceId, browserId: remoteBrowserId, action })
+        .controlBrowserActivity({ workspaceId, browserId: automationBrowserId, action })
         .catch((error) => {
           useBrowserStore.getState().updateBrowser(target.browserId, {
             lastError: error instanceof Error ? error.message : String(error),
@@ -144,7 +143,7 @@ function BrowserPanel() {
         })
         .finally(() => setHandoffAction(null));
     },
-    [client, remoteBrowserId, target.browserId, workspaceId],
+    [client, automationBrowserId, target.browserId, workspaceId],
   );
   const dismiss = useCallback(() => {
     if (activity) useBrowserActivityStore.getState().dismiss(serverId, activity);

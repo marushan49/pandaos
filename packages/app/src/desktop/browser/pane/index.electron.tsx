@@ -27,7 +27,6 @@ import {
   Monitor,
   MousePointer2,
   RotateCw,
-  Server,
   Smartphone,
   Tablet,
   Wrench,
@@ -86,6 +85,13 @@ import { DEFAULT_BROWSER_URL } from "@/desktop/browser/store/state";
 import { useBrowserHistoryStore } from "@/desktop/browser/store/history";
 import { resolveTypedInput } from "@/desktop/browser/suggestions";
 import { BrowserPasswordSaveBar } from "./password-save-bar";
+import { BrowserMenu } from "@/desktop/browser/browser-menu";
+import {
+  BrowserFind,
+  findInPageFunction,
+  type BrowserFindHandle,
+  type BrowserFindResult,
+} from "@/desktop/browser/find-bar";
 import { UrlSuggestionsPopover, useUrlSuggestions } from "./url-suggestions.electron";
 
 type ElectronWebview = HTMLElement & {
@@ -100,6 +106,7 @@ type ElectronWebview = HTMLElement & {
   getTitle?: () => string;
   isLoading?: () => boolean;
   executeJavaScript?: (code: string) => Promise<unknown>;
+  setZoomFactor?: (factor: number) => void;
   focus?: () => void;
   addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
   removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
@@ -617,6 +624,8 @@ export function BrowserPane({
   const isPresentedRef = useRef(isPresented);
   isPresentedRef.current = isPresented;
   const webviewRef = useRef<ElectronWebview | null>(null);
+  const findRef = useRef<BrowserFindHandle>(null);
+  const [zoom, setZoom] = useState(1);
   const webviewHostRef = useRef<HTMLDivElement | null>(null);
   const webviewClipRef = useRef<HTMLElement | null>(null);
   const urlInputRef = useRef<EditingTextInputHandle | null>(null);
@@ -1400,6 +1409,23 @@ export function BrowserPane({
     [browserId, updateBrowser],
   );
 
+  useEffect(() => {
+    webviewRef.current?.setZoomFactor?.(zoom);
+  }, [zoom]);
+
+  const openFind = useCallback(() => findRef.current?.open(), []);
+  const handleFind = useCallback(
+    async (input: { text: string; backwards: boolean; restart: boolean }) => {
+      const webview = webviewRef.current;
+      if (!webview) return { found: false, total: 0 };
+      const result = await executeWebviewJavaScript(webview, `(${findInPageFunction(input)})()`);
+      return result && typeof result === "object"
+        ? (result as BrowserFindResult)
+        : { found: false, total: 0 };
+    },
+    [],
+  );
+
   const handleToggleScreenshot = useCallback(() => {
     if (selectorActive) {
       cancelElementSelector();
@@ -1628,13 +1654,14 @@ export function BrowserPane({
               }
             />
           </ToolbarButton>
-          <ToolbarButton
-            label={t("workspace.browser.menu.openOnHost")}
-            onPress={handleOpenOnHost}
-            style={screenshotIconButtonStyle}
-          >
-            <Server size={16} color={theme.colors.foregroundMuted} />
-          </ToolbarButton>
+          <BrowserMenu
+            serverId={serverId}
+            compact={false}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            onFind={openFind}
+            onOpenOnHost={handleOpenOnHost}
+          />
         </View>
       </View>
       <UrlSuggestionsPopover
@@ -1658,6 +1685,7 @@ export function BrowserPane({
         style={webviewWrapStyle}
         testID={`browser-webview-clip-${browserId}`}
       >
+        <BrowserFind ref={findRef} active={isInteractive !== false} onFind={handleFind} />
         {createElement("div", {
           ref: setWebviewHostNode,
           style: webviewHostStyle,

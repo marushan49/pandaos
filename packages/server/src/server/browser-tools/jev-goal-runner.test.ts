@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { BrowserToolsExecuteInput } from "./broker.js";
 import type { BrowserToolsResponsePayload } from "./errors.js";
 import { JevBrowserGoalRunner, parseObservedElements } from "./jev-goal-runner.js";
-import type { BrowserActivityEvent } from "@getpaseo/protocol/browser-activity/rpc-schemas";
+import type {
+  BrowserActivityEvent,
+  BrowserHandoff,
+} from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import { BrowserActivityHub } from "./browser-activity.js";
 import type {
   TypeSafeChoiceAnswer,
@@ -660,6 +663,50 @@ describe("JevBrowserGoalRunner activity", () => {
       phase: "finished",
       result: { status: "failed", message: "Browser tab closed" },
     });
+  });
+
+  it("hands the tab to the user when the page asks for a password no local slot covers", async () => {
+    const broker = new GoalBroker();
+    const execute = broker.execute.bind(broker);
+    broker.execute = async (input) =>
+      input.command.command === "snapshot"
+        ? snapshotPayload(
+            '- textbox "Password" @e1\n  state @e1 {"editable":true,"clickable":true,"secret":true}\n- button "Continue" @e2',
+          )
+        : execute(input);
+    const handoffs: BrowserHandoff[] = [];
+    const hub = new BrowserActivityHub(
+      () => {},
+      (handoff) => handoffs.push(handoff),
+    );
+    const decisions = new ScriptedDecisions(["CLICK"]);
+    const runner = new JevBrowserGoalRunner({
+      broker,
+      decisionSource: decisions,
+      activity: hub,
+      handoff: { hub, onEnd: () => {} },
+    });
+
+    const result = await runner.run(
+      {
+        goal: "Sign in and reach Welcome",
+        browserId: BROWSER_ID,
+        values: { account: { text: "maru@example.com", description: "email" } },
+        verify: [{ text: "Welcome" }],
+      },
+      CONTEXT,
+    );
+
+    expect(result.status).toBe("blocked");
+    expect(result.message).toContain("handoffId=");
+    expect(decisions.requests).toHaveLength(0);
+    expect(broker.clicked).toBe(false);
+    expect(hub.activeHandoff(BROWSER_ID)).toMatchObject({
+      agentId: "agent-1",
+      workspaceId: "workspace-1",
+      reason: "Sign in needed to continue",
+    });
+    expect(handoffs.map((handoff) => handoff.status)).toEqual(["active"]);
   });
 });
 

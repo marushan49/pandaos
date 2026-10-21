@@ -777,8 +777,13 @@ export async function createPaseoDaemon(
   const browserActivity = new BrowserActivityHub(
     (payload) =>
       wsServer?.broadcast({ type: "session", message: { type: "browser.activity", payload } }),
-    (payload) =>
-      wsServer?.broadcast({ type: "session", message: { type: "browser.handoff", payload } }),
+    (payload) => {
+      wsServer?.broadcast({ type: "session", message: { type: "browser.handoff", payload } });
+      if (payload.status === "active") void wsServer?.notifyBrowserHandoff(payload);
+      void emitWorkspaceUpdatesExternal([payload.workspaceId]).catch((error: unknown) =>
+        logger.warn({ err: error }, "workspace update after browser handoff skipped"),
+      );
+    },
     new TabCloseGate({
       isViewed: (browserId) => verifyHost.isViewed(browserId),
       publish: (payload) =>

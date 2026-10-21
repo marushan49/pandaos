@@ -401,7 +401,10 @@ export class BrowserToolsBroker {
     | { ok: true; value: RegisteredBrowserHost }
     | { ok: false; payload: BrowserToolsResponsePayload } {
     if (command.command === "new_tab") {
-      const host = this.selectDaemonHost() ?? this.selectMostRecentlyRegisteredHost();
+      const host =
+        this.selectDesktopHost() ??
+        this.selectDaemonHost() ??
+        this.selectMostRecentlyRegisteredHost();
       return host
         ? { ok: true, value: host }
         : { ok: false, payload: this.noBrowserHostFailure(requestId) };
@@ -460,6 +463,15 @@ export class BrowserToolsBroker {
         message: `Browser tab ${browserId} is not associated with a connected browser automation host. Call browser_list_tabs and use one of the returned browserId values.`,
       }),
     };
+  }
+
+  /** The browser in front of the user: the most recently connected desktop app. */
+  private selectDesktopHost(): RegisteredBrowserHost | null {
+    let selected: RegisteredBrowserHost | null = null;
+    for (const [id, host] of this.clients) {
+      if (id !== DAEMON_BROWSER_HOST_ID) selected = host;
+    }
+    return selected;
   }
 
   /** The host that runs where the code does, when one is registered. */

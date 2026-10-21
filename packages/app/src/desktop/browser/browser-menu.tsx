@@ -8,6 +8,7 @@ import {
   Import as ImportIcon,
   MoreHorizontal,
   Search,
+  Server,
   Settings,
   ZoomIn,
   ZoomOut,
@@ -32,6 +33,7 @@ const ThemedImport = withUnistyles(ImportIcon);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedDownload = withUnistyles(Download);
 const ThemedMonitor = withUnistyles(Monitor);
+const ThemedServer = withUnistyles(Server);
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 const FIND_ICON = <ThemedSearch size={16} uniProps={mutedColorMapping} />;
@@ -41,6 +43,7 @@ const IMPORT_ICON = <ThemedImport size={16} uniProps={mutedColorMapping} />;
 const SETTINGS_ICON = <ThemedSettings size={16} uniProps={mutedColorMapping} />;
 const DOWNLOADS_ICON = <ThemedDownload size={16} uniProps={mutedColorMapping} />;
 const LOCAL_ICON = <ThemedMonitor size={16} uniProps={mutedColorMapping} />;
+const HOST_ICON = <ThemedServer size={16} uniProps={mutedColorMapping} />;
 
 export const BROWSER_ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 
@@ -57,6 +60,7 @@ export function BrowserMenu({
   onZoomChange,
   onFind,
   onOpenLocally,
+  onOpenOnHost,
 }: {
   serverId: string;
   compact: boolean;
@@ -64,6 +68,7 @@ export function BrowserMenu({
   onZoomChange: (zoom: number) => void;
   onFind: () => void;
   onOpenLocally?: () => void;
+  onOpenOnHost?: () => void;
 }) {
   const { t } = useTranslation();
   const openSettings = useCallback(() => {
@@ -131,6 +136,15 @@ export function BrowserMenu({
             testID="remote-browser-menu-open-locally"
           >
             {t("workspace.browser.menu.openLocally")}
+          </DropdownMenuItem>
+        ) : null}
+        {onOpenOnHost ? (
+          <DropdownMenuItem
+            leading={HOST_ICON}
+            onSelect={onOpenOnHost}
+            testID="remote-browser-menu-open-on-host"
+          >
+            {t("workspace.browser.menu.openOnHost")}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem

@@ -133,6 +133,10 @@ export class BrowserActivityHub {
     return this.handoffs.get(browserId)?.handoff ?? null;
   }
 
+  public activeHandoffs(): BrowserHandoff[] {
+    return [...this.handoffs.values()].map((entry) => entry.handoff);
+  }
+
   /** Active and recently ended handoffs, for subscribers that join late. */
   public currentHandoffs(): BrowserHandoff[] {
     return [...this.endedHandoffs, ...[...this.handoffs.values()].map((entry) => entry.handoff)];

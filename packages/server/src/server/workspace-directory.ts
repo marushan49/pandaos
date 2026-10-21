@@ -20,6 +20,7 @@ import {
   type TerminalActivity,
 } from "@getpaseo/protocol/terminal-activity";
 import type { ProviderSubagentDescriptor } from "./agent/provider-subagents/store.js";
+import type { BrowserHandoff } from "@getpaseo/protocol/browser-activity/rpc-schemas";
 
 const FETCH_WORKSPACES_SORT_KEYS = [
   "status_priority",
@@ -81,6 +82,7 @@ export interface WorkspaceDirectoryDeps {
   listTerminalActivityContributions(): Promise<
     Array<{ cwd: string; workspaceId?: string; activity: TerminalActivity | null }>
   >;
+  listBrowserHandoffs?(): BrowserHandoff[];
   isProviderVisibleToClient(provider: string): boolean;
   buildWorkspaceDescriptor(input: {
     workspace: PersistedWorkspaceRecord;
@@ -275,6 +277,11 @@ export class WorkspaceDirectory {
       terminalContributions,
       descriptorsByWorkspaceId,
     );
+    this.applyBrowserHandoffContributions(
+      this.deps.listBrowserHandoffs?.() ?? [],
+      descriptorsByWorkspaceId,
+      activityEntriesByWorkspaceId,
+    );
     this.applyProviderSubagentContributions({
       activeAgents,
       providerSubagentActivity,
@@ -436,6 +443,28 @@ export class WorkspaceDirectory {
       activityEntriesByWorkspaceId.set(workspaceId, entries);
     }
     return activityEntriesByWorkspaceId;
+  }
+
+  // A browser tab handed to the user is the agent waiting on them: needs_input.
+  private applyBrowserHandoffContributions(
+    handoffs: BrowserHandoff[],
+    descriptorsByWorkspaceId: Map<string, WorkspaceDescriptorPayload>,
+    activityEntriesByWorkspaceId: Map<string, WorkspaceBucketTimestampEntry[]>,
+  ): void {
+    for (const handoff of handoffs) {
+      if (handoff.status !== "active") continue;
+      const existing = descriptorsByWorkspaceId.get(handoff.workspaceId);
+      if (!existing) continue;
+      const bucket: WorkspaceStateBucket = "needs_input";
+      if (
+        getWorkspaceStateBucketPriority(bucket) < getWorkspaceStateBucketPriority(existing.status)
+      ) {
+        existing.status = bucket;
+      }
+      const entries = activityEntriesByWorkspaceId.get(handoff.workspaceId) ?? [];
+      entries.push({ bucket, changedAtIso: new Date(handoff.updatedAt).toISOString() });
+      activityEntriesByWorkspaceId.set(handoff.workspaceId, entries);
+    }
   }
 
   // Aggregate the workspace-level `statusEnteredAt` from its activity sources.

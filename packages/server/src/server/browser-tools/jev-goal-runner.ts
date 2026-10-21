@@ -142,6 +142,19 @@ interface JevBrowserGoalRunnerOptions {
   decisionSource?: TypeSafeDecisionSource;
   delay?: (milliseconds: number) => Promise<void>;
   activity?: BrowserActivityHub;
+  handoff?: {
+    hub: Pick<BrowserActivityHub, "startHandoff">;
+    onEnd: (handoff: BrowserHandoff) => void;
+  };
+}
+
+export const BROWSER_SIGN_IN_HANDOFF_REASON = "Sign in needed to continue";
+
+export class BrowserSignInRequiredError extends Error {
+  constructor() {
+    super("Password fields require a local credential slot; no action executed.");
+    this.name = "BrowserSignInRequiredError";
+  }
 }
 
 interface ObservedElement {
@@ -201,10 +214,12 @@ export class JevBrowserGoalRunner {
   private readonly decisionSource: TypeSafeDecisionSource;
   private readonly delay: (milliseconds: number) => Promise<void>;
   private readonly activity: BrowserActivityHub | undefined;
+  private readonly handoff: JevBrowserGoalRunnerOptions["handoff"];
 
   public constructor(options: JevBrowserGoalRunnerOptions) {
     this.broker = options.broker;
     this.activity = options.activity;
+    this.handoff = options.handoff;
     this.decisionSource = options.decisionSource ?? new TypeSafeSystemOneClient();
     this.delay =
       options.delay ??
@@ -264,8 +279,38 @@ export class JevBrowserGoalRunner {
         status: "failed",
         message: error instanceof Error ? error.message : String(error),
       });
+      const handedOff =
+        error instanceof BrowserSignInRequiredError
+          ? this.handOffForSignIn(browserId, context, usage)
+          : null;
+      if (handedOff) return handedOff;
       throw error;
     }
+  }
+
+  private handOffForSignIn(
+    browserId: string,
+    context: JevBrowserGoalContext,
+    usage: JevBrowserGoalUsage,
+  ): JevBrowserGoalResult | null {
+    if (!this.handoff || !context.agentId || !context.workspaceId) return null;
+    const started = this.handoff.hub.startHandoff({
+      workspaceId: context.workspaceId,
+      browserId,
+      agentId: context.agentId,
+      reason: BROWSER_SIGN_IN_HANDOFF_REASON,
+      onEnd: this.handoff.onEnd,
+    });
+    if (!started) return null;
+    return {
+      status: "blocked",
+      browserId,
+      url: "",
+      title: "",
+      message: `The page asks for a password that no local credential slot covers. Handed browser tab ${browserId} to the user (handoffId=${started.handoffId}). End your turn now and tell the user to sign in in the tab; you will receive a message when they finish or cancel.`,
+      steps: [],
+      usage,
+    };
   }
 
   private async captureScreenshot(
@@ -381,6 +426,7 @@ export class JevBrowserGoalRunner {
           lastModel,
         );
       }
+      if (pageNeedsUserSignIn(page, values)) throw new BrowserSignInRequiredError();
       activity.update({ phase: "deciding", step, action: null });
       const stateKey = `${page.url}\n${JSON.stringify(page.elements.map(({ ref: _ref, ...element }) => element))}`;
       const excluded = excludedActions.get(stateKey) ?? new Set<string>();
@@ -834,6 +880,17 @@ export class JevBrowserGoalRunner {
   }
 }
 
+/** A password field that no local credential slot can fill is the user's step, not Jev's. */
+function pageNeedsUserSignIn(
+  page: BrowserPage,
+  values: Record<string, ResolvedJevBrowserValue>,
+): boolean {
+  return (
+    page.elements.some((element) => element.state?.secret) &&
+    !Object.values(values).some((value) => !value.public)
+  );
+}
+
 function buildOperationPlan(params: {
   page: BrowserPage;
   values: Record<string, ResolvedJevBrowserValue>;
@@ -1240,7 +1297,7 @@ function selectAction(params: {
     throw new Error("TypeSafe selected an unknown value slot; no action executed.");
   }
   if (target.state?.secret && value.value.public) {
-    throw new Error("Password fields require a local credential slot; no action executed.");
+    throw new BrowserSignInRequiredError();
   }
   return {
     status: "selected",

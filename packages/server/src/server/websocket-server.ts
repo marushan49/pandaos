@@ -105,6 +105,7 @@ import { CLIENT_CAPS } from "@getpaseo/protocol/client-capabilities";
 
 import type { BrowserToolsBroker } from "./browser-tools/broker.js";
 import type { BrowserActivityHub } from "./browser-tools/browser-activity.js";
+import type { BrowserHandoff } from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import type { DaemonPlaywrightHost } from "./verify/playwright-host.js";
 import type { EvidenceStore } from "./verify/evidence-store.js";
 import type { DaemonRuntimeConfig } from "./session/daemon/daemon-session.js";
@@ -2742,6 +2743,30 @@ export class VoiceAssistantWebSocketServer {
       provider: agent.provider,
       reason: "finished",
       notification,
+      forcePush: true,
+    });
+  }
+
+  /** A browser handoff is the agent waiting for the user, so it alerts like a permission. */
+  async notifyBrowserHandoff(handoff: BrowserHandoff): Promise<void> {
+    const agent = this.agentManager.getAgent(handoff.agentId);
+    if (!agent) return;
+    await this.broadcastAgentAttention({
+      agentId: handoff.agentId,
+      provider: agent.provider,
+      reason: "permission",
+      notification: {
+        title: "Browser needs you",
+        body: handoff.reason,
+        data: {
+          serverId: this.serverId,
+          workspaceId: handoff.workspaceId,
+          agentId: handoff.agentId,
+          reason: "permission",
+          browserId: handoff.browserId,
+          handoffId: handoff.handoffId,
+        },
+      },
       forcePush: true,
     });
   }

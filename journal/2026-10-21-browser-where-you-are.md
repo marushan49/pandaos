@@ -31,4 +31,9 @@ Nicht im Umfang: Stream-Latenz für Android. Eigene Messung Relay gegen Mesh, ge
 
 ## Stand
 
-- Schritt 1 umgesetzt: `getBrowserPaneKind` öffnet neue Electron-Tabs lokal; `apple.com` und `icloud.com` sind gerätegebunden. Gezielte Tests folgen im Commit.
+- Schritt 1 (`de45dc133`): `getBrowserPaneKind` öffnet neue Electron-Tabs lokal; `apple.com` und `icloud.com` sind gerätegebunden.
+- Schritt 2: `broker.selectHostForCommand` nimmt für `new_tab` den zuletzt verbundenen Desktop-Host, sonst den Daemon (`selectDesktopHost`). `browser_test`, Rezepte und der Stream bleiben über `hostId` am Daemon. Die App schreibt `localhost`-URLs beim Öffnen schon auf den Zotac um (`rewriteLoopbackUrl` in `automation/handler.ts`).
+- Schritt 3: `panel.tsx` schlüsselt Aktivität, Handoff und Steuerung über `remoteBrowserId ?? browserId`; lokale Tabs zeigen damit Schrittleiste und Handoff-Leiste. Der lokale Tab hat das „…“-Menü mit Suchen (`findInPageFunction` über `executeJavaScript`), Zoom (`setZoomFactor`), Downloads, Import, Einstellungen und „Im Host-Browser öffnen“.
+- Schritt 4: `BrowserActivityHub.activeHandoffs()`; `WorkspaceDirectory` zählt aktive Handoffs als `needs_input` (Sidebar, Tab, Projektzeile). `bootstrap` ruft bei neuem Handoff `notifyBrowserHandoff` (Push, Dock, In-App-Alarm wie eine Freigabe) und stößt ein Workspace-Update an. Der Jev-Runner wirft `BrowserSignInRequiredError`, sobald die Seite ein Passwortfeld zeigt und kein lokaler `env`-Slot existiert; mit Handoff-Hub übergibt er den Tab mit Grund „Sign in needed to continue“ und meldet dem Agenten `blocked` mit `handoffId`.
+- Geprüft: Broker-, Runner-, Tool- und Workspace-Directory-Tests im Worktree grün (145 Tests, darunter der neue Sign-in-Handoff-Test und der umgedrehte Host-Vorrang). Typecheck und Lint laufen im Release-Build, weil der Worktree-Typecheck an `expo-two-way-audio` scheitert.
+- Build-Skript `/home/admin/projects/pandaos/.dev/browser-where-you-are/build.sh`: Kopie des Live-Release plus alle Dateien aus `629e88917..HEAD`, Drift-Prüfung gegen die Basis, Lint, Server-Build, Typecheck, Daemon-Web-UI, Electron-Export nach `.dev/browser-where-you-are/electron`.

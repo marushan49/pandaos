@@ -303,7 +303,7 @@ describe("BrowserToolsBroker", () => {
     });
   });
 
-  test("daemon browser host owns new tabs when it is connected", async () => {
+  test("the desktop app owns new tabs while it is connected, even when the daemon host joined later", async () => {
     const broker = createBroker();
     const appHost = new FakeBrowserHostClient("desktop-app");
     const daemonHost = new FakeBrowserHostClient("daemon-playwright");
@@ -316,9 +316,9 @@ describe("BrowserToolsBroker", () => {
       workspaceId: "workspace-1",
     });
 
-    expect(appHost.receivedRequests).toEqual([]);
-    expect(daemonHost.receivedRequests).toHaveLength(1);
-    daemonHost.resolveLatestWith(broker, {
+    expect(daemonHost.receivedRequests).toEqual([]);
+    expect(appHost.receivedRequests).toHaveLength(1);
+    appHost.resolveLatestWith(broker, {
       requestId: "req-1",
       ok: true,
       result: {

@@ -1295,6 +1295,7 @@ export class Session {
       listAgentPayloads: () => this.listAgentPayloads({ includeBackground: true }),
       listProviderSubagentActivity: async () => this.agentManager.listProviderSubagentActivity(),
       listTerminalActivityContributions: () => this.listTerminalActivityContributions(),
+      listBrowserHandoffs: () => this.browserActivity?.activeHandoffs() ?? [],
       isProviderVisibleToClient: (provider) => this.isProviderVisibleToClient(provider),
       buildWorkspaceDescriptor: (input) => this.buildWorkspaceDescriptor(input),
     });
