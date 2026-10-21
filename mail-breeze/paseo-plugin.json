@@ -1,0 +1,6 @@
+{
+  "id": "mail-breeze",
+  "requirements": {
+    "paseo": ">=0.11.2"
+  }
+}
