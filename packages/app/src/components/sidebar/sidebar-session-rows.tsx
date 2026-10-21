@@ -99,6 +99,10 @@ const SessionRow = memo(function SessionRow({
       onPointerEnter={isWeb ? handlePointerEnter : undefined}
       onPointerLeave={isWeb ? handlePointerLeave : undefined}
     >
+      <View style={styles.treeRail}>
+        {isLast ? null : <View style={styles.treeTrunk} />}
+        <View style={styles.treeElbow} />
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityState={accessibilityState}
@@ -107,10 +111,6 @@ const SessionRow = memo(function SessionRow({
         testID={`sidebar-session-row-${session.agentId}`}
         style={rowStyle}
       >
-        <View style={styles.treeRail}>
-          {isLast ? null : <View style={styles.treeTrunk} />}
-          <View style={styles.treeElbow} />
-        </View>
         <Text
           style={[styles.title, (isHovered || selected) && styles.titleActive]}
           numberOfLines={1}
@@ -126,12 +126,16 @@ const SessionRow = memo(function SessionRow({
 const styles = StyleSheet.create((theme) => ({
   container: {
     position: "relative",
+    flexDirection: "row",
+    paddingLeft: theme.spacing[2] + theme.spacing[4],
+    marginBottom: theme.spacing[0.5],
   },
   row: {
+    flex: 1,
+    minWidth: 0,
     minHeight: density.rowHeight,
-    marginBottom: theme.spacing[0.5],
     paddingVertical: theme.spacing[1],
-    paddingLeft: theme.spacing[2] + theme.spacing[4],
+    paddingLeft: theme.spacing[2],
     paddingRight: theme.spacing[3],
     borderRadius: theme.borderRadius.lg,
     flexDirection: "row",
@@ -142,8 +146,8 @@ const styles = StyleSheet.create((theme) => ({
   treeRail: {
     width: densityIconBox("md"),
     alignSelf: "stretch",
-    marginTop: -(theme.spacing[1] + theme.spacing[0.5]),
-    marginBottom: -(theme.spacing[1] + theme.spacing[0.5]),
+    marginTop: -theme.spacing[0.5],
+    marginBottom: -theme.spacing[0.5],
     flexShrink: 0,
   },
   treeTrunk: {
@@ -158,8 +162,8 @@ const styles = StyleSheet.create((theme) => ({
     position: "absolute",
     left: "50%",
     top: 0,
+    right: 0,
     height: "50%",
-    width: theme.spacing[2],
     borderLeftWidth: 1,
     borderBottomWidth: 1,
     borderColor: theme.colors.foregroundExtraMuted,
