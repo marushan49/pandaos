@@ -1605,6 +1605,83 @@ describe("turn lifecycle events", () => {
     );
   });
 
+  it("settles tool calls still running when the turn ends", () => {
+    const at = new Date("2025-01-01T12:00:00Z");
+    const toolStatuses = (items: StreamItem[]) =>
+      items.flatMap((item) =>
+        item.kind === "tool_call" && item.payload.source === "agent"
+          ? [item.payload.data.status]
+          : [],
+      );
+    let state = reduceStreamUpdate(
+      [],
+      canonicalToolTimeline({
+        provider: "claude",
+        callId: "dangling",
+        name: "Bash",
+        status: "running",
+      }),
+      at,
+    );
+    state = reduceStreamUpdate(
+      state,
+      canonicalToolTimeline({
+        provider: "claude",
+        callId: "plan",
+        name: "ExitPlanMode",
+        status: "running",
+        detail: { type: "plan", text: "Plan" },
+      }),
+      at,
+    );
+    assert.deepStrictEqual(toolStatuses(state), ["running", "running"]);
+
+    state = reduceStreamUpdate(state, { type: "turn_completed", provider: "claude" }, at);
+
+    assert.deepStrictEqual(toolStatuses(state), ["canceled", "running"]);
+  });
+
+  it("settles running tool calls from earlier turns during hydration", () => {
+    const at = new Date("2025-01-01T12:00:00Z");
+    const state = hydrateStreamState([
+      {
+        event: canonicalToolTimeline({
+          provider: "claude",
+          callId: "old",
+          name: "Bash",
+          status: "running",
+        }),
+        timestamp: at,
+      },
+      {
+        event: {
+          type: "timeline",
+          provider: "claude",
+          item: { type: "user_message", text: "next" },
+        },
+        timestamp: at,
+      },
+      {
+        event: canonicalToolTimeline({
+          provider: "claude",
+          callId: "live",
+          name: "Bash",
+          status: "running",
+        }),
+        timestamp: at,
+      },
+    ]);
+
+    assert.deepStrictEqual(
+      state.flatMap((item) =>
+        item.kind === "tool_call" && item.payload.source === "agent"
+          ? [item.payload.data.status]
+          : [],
+      ),
+      ["canceled", "running"],
+    );
+  });
+
   it("hydrates canonical timeline rows without synthetic turn rows", () => {
     const state = hydrateStreamState([
       {

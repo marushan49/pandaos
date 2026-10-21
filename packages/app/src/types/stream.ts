@@ -1029,6 +1029,21 @@ function finalizeActiveThoughts(state: StreamItem[]): StreamItem[] {
   return mutated ? nextState : state;
 }
 
+function settleRunningToolCalls(state: StreamItem[], endIndex: number): StreamItem[] {
+  let mutated = false;
+  const nextState = state.map((entry, index) => {
+    if (index >= endIndex || !isAgentToolCallItem(entry)) return entry;
+    const { data } = entry.payload;
+    if (data.status !== "running" || data.detail.type === "plan") return entry;
+    mutated = true;
+    return {
+      ...entry,
+      payload: { ...entry.payload, data: { ...data, status: "canceled" } },
+    } as AgentToolCallItem;
+  });
+  return mutated ? nextState : state;
+}
+
 export function streamTimelineItemIdentity(item: StreamItem): string | null {
   if (isAgentToolCallItem(item)) {
     return agentToolCallIdentity({
@@ -1609,11 +1624,12 @@ export function reduceStreamUpdate(
         ),
         event,
       );
-    case "thread_started":
-    case "turn_started":
     case "turn_completed":
     case "turn_failed":
     case "turn_canceled":
+      return settleRunningToolCalls(finalizeActiveThoughts(state), state.length);
+    case "thread_started":
+    case "turn_started":
     case "permission_requested":
     case "permission_resolved":
     case "attention_required":
@@ -1683,7 +1699,8 @@ export function hydrateStreamState(
     return reduceStreamUpdate(state, event, timestamp, { ...options, timelineCursor });
   }, []);
 
-  return finalizeActiveThoughts(hydrated);
+  const lastUserMessageIndex = hydrated.findLastIndex((item) => item.kind === "user_message");
+  return settleRunningToolCalls(finalizeActiveThoughts(hydrated), lastUserMessageIndex);
 }
 
 /**
