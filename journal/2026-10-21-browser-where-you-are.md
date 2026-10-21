@@ -52,3 +52,14 @@ Nicht im Umfang: Stream-Latenz für Android. Eigene Messung Relay gegen Mesh, ge
 - 12:17 Mac-Oberfläche `252f87f1…` installiert, App läuft, Sicherung `rollout-backups/browser-where-you-are-20261021-121711`.
 - Merge: `main` per Fast-Forward auf `a465688ae`; uncommittete GDELT-Änderungen an `bootstrap.ts` und `journal/README.md` vorher gesichert, Dreiwege-Merge ohne Konflikt, danach zeilengleich wiederhergestellt. Nicht gepusht.
 - Nicht bestätigt: Bedienung auf dem Mac, Registrierung der Mac-App als Browser-Host (der Daemon protokolliert sie nicht), Push bei Handoff. Bestehende Stream-Tabs bleiben im Stream bis „…“ → „In dieser App öffnen“.
+
+## Stream schneller (21.10., Nachmittag)
+
+- Rückmeldung: Der Zotac-Stream bleibt nötig, wenn ein Tab nur auf dem Zotac läuft, und ist zu langsam.
+- Befund, verifiziert: Host-Befehle sind schnell (Daemon-Log, Mittel: Scroll 18 ms, Hover 9 ms, Type 99 ms). Chromium liefert bei 1650×1200 CSS-Pixeln mit Pixeldichte 2 im Preset „Flüssig“ 231 KB pro Bild, beim Scrollen rund 5 MB/s; „Sparsam“ 67 KB (eigene Messung, `bench/frames.mjs`, Chromium 1208). Der Daemon lauscht nur auf `127.0.0.1`; der Mac verbindet sich nicht über SSH oder LAN mit dem Zotac.
+- Befund, abgeleitet: Der Mac erreicht den Zotac über den Relay (`relay.paseo.sh`, Fly.io). Belege: nur Loopback-Listen, `externalSessionKeys: 4` im Daemon-Log, keine LAN-Verbindung der Mac-App zum Zotac. Jeder Tastendruck und jedes Bild läuft damit über das Internet, Ende-zu-Ende verschlüsselt im Client. Nicht gemessen: die Relay-Latenz Ende zu Ende.
+- Direkter Weg gemessen: SSH-Tunnel Mac → Zotac, `GET /api/health` in 2 ms. Die App kann eine Verbindung „Remote SSH“ zum Host hinzufügen und wählt nach gemessener Latenz (`selectBestConnection`), zu Hause also SSH, unterwegs den Relay. Kein Daemon-Umbau, keine Freigabe des Ports ins Netz.
+- Umgesetzt (`7afafd4d5`): Der Daemon misst je Bild die Zeit bis zur Bestätigung des Viewers. Über 200 ms startet er das Chromium-Screencast mit der Bildgröße von „Sparsam“ neu und kehrt nach 15 s schneller Bestätigungen zurück; „Sparsam“ selbst bleibt unverändert. Im Client werden Zeichen, die während eines laufenden Befehls getippt werden, zu einem `type` zusammengefasst; jede andere Eingabe schließt den Block, die Reihenfolge bleibt.
+- Geprüft: 13 Screencast-Tests grün (zwei neue für den Stufenwechsel), Lint 0 Fehler, Release `stream-lean` gebaut (Server, Typecheck Server und App, Daemon-Web-UI, Electron), keine Drift der Dateien gegen die Basis. Im Bundle nachgelesen: Stufenwechsel, Sidebar-Fix, gebündeltes Tippen, Zoom-Schutz.
+- Nicht umgesetzt: Blob-URLs statt Base64 für Bilder im Electron-Renderer. Spart Rechenzeit, aber ohne Sichtprüfung des Bildwechsels zu riskant.
+- Android: Der Stufenwechsel wirkt sofort nach dem Daemon-Neustart, das gebündelte Tippen erst mit einer neuen APK.
