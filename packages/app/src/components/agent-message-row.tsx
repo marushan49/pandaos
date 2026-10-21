@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, type GestureResponderEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { AgentMessage } from "@getpaseo/protocol/agent-message";
@@ -46,9 +46,13 @@ export const AgentMessageRow = memo(function AgentMessageRow({
 
   const accessibilityState = useMemo(() => ({ expanded: open }), [open]);
   const toggle = useCallback(() => setOpen((previous) => !previous), []);
-  const openSender = useCallback(() => {
-    if (serverId) navigateToAgent({ serverId, agentId: senderId });
-  }, [serverId, senderId]);
+  const openSender = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation?.();
+      if (serverId) navigateToAgent({ serverId, agentId: senderId });
+    },
+    [serverId, senderId],
+  );
 
   return (
     <View
