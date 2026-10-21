@@ -15,6 +15,8 @@ function agent(input: {
   pendingPermissionCount?: number;
   archivedAt?: string | null;
   parentAgentId?: string | null;
+  createdAt?: string;
+  title?: string;
 }): Agent {
   return {
     serverId: "host-a",
@@ -32,7 +34,7 @@ function agent(input: {
             cancellationRequestId: null,
           }
         : { phase: "idle", cancellationRequestId: null }),
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    createdAt: new Date(input.createdAt ?? "2026-01-01T00:00:00.000Z"),
     updatedAt: new Date(input.updatedAt),
     lastUserMessageAt: null,
     lastActivityAt: new Date(input.updatedAt),
@@ -54,7 +56,7 @@ function agent(input: {
       input: {},
     })),
     persistence: null,
-    title: null,
+    title: input.title ?? null,
     cwd: "/repo",
     workspaceId: input.workspaceId,
     model: null,
@@ -68,6 +70,43 @@ function agent(input: {
 }
 
 describe("workspace agent activity index", () => {
+  it("lists later root chats of a workspace as session rows", () => {
+    const agents = new Map(
+      [
+        agent({
+          id: "first",
+          workspaceId: "w",
+          updatedAt: "2026-06-01T10:00:00.000Z",
+          createdAt: "2026-06-01T09:00:00.000Z",
+          title: "Car integration",
+        }),
+        agent({
+          id: "second",
+          workspaceId: "w",
+          status: "running",
+          updatedAt: "2026-06-01T10:05:00.000Z",
+          createdAt: "2026-06-01T09:30:00.000Z",
+          title: "Live activity",
+        }),
+        agent({
+          id: "child",
+          workspaceId: "w",
+          parentAgentId: "first",
+          updatedAt: "2026-06-01T10:06:00.000Z",
+        }),
+        agent({ id: "solo", workspaceId: "x", updatedAt: "2026-06-01T10:00:00.000Z" }),
+      ].map((entry) => [entry.id, entry]),
+    );
+
+    const index = buildWorkspaceAgentActivityIndex(agents);
+
+    expect(index.get("w")?.sessions).toEqual([
+      { agentId: "second", title: "Live activity", status: "running" },
+    ]);
+    expect(index.get("x")?.sessions).toBeUndefined();
+    expect(buildWorkspaceAgentActivityIndex(agents, index)).toBe(index);
+  });
+
   it("does not animate a workspace while its open turn waits for provider capacity", () => {
     const waiting = agent({
       id: "waiting",
@@ -163,6 +202,7 @@ describe("workspace agent activity index", () => {
             agentId: "permission",
             status: "needs_input",
             enteredAt: new Date("2026-06-01T10:01:00.000Z"),
+            sessions: [{ agentId: "permission", title: null, status: "needs_input" }],
           },
         ],
         [

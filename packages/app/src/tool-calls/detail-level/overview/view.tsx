@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Wrench } from "@/components/icons/ui-icons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDuration } from "@/utils/time";
+import { joinActivityLabels } from "@/tool-calls/activity";
 import { StyleSheet } from "react-native-unistyles";
 import { ExpandableBadge } from "@/components/message";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -67,6 +68,13 @@ function useOverviewLabel(group: OverviewToolCallGroup): string {
   const { t } = useTranslation();
   const showsDuration = !group.isLoading && group.durationMs >= MIN_REPORTED_DURATION_MS;
   const summary = useOverviewSummary(group.summary, !showsDuration);
+  const activity = useMemo(
+    () => joinActivityLabels(group.activities.map((key) => t(`toolCallGroup.activity.${key}`))),
+    [group.activities, t],
+  );
+  if (group.isLoading) {
+    return activity;
+  }
   if (!showsDuration) {
     return summary;
   }

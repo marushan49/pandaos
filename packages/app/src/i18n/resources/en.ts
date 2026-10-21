@@ -1398,6 +1398,9 @@ export const en = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "New chat",
+    },
     leitstand: {
       open: "Open dashboard",
       toggle: "Toggle dashboard",
@@ -2376,6 +2379,26 @@ export const en = {
     and: "and",
     workedFor: "Worked for {{duration}}",
     failed: "{{count}} failed",
+    activity: {
+      runningCommand: "Running command",
+      readingFiles: "Reading files",
+      editingFiles: "Editing files",
+      searching: "Searching",
+      fetching: "Fetching page",
+      delegating: "Delegating",
+      clicking: "Clicking",
+      typing: "Typing",
+      waiting: "Waiting",
+      capturingPage: "Capturing page",
+      readingPage: "Reading page",
+      openingPage: "Opening page",
+      scrolling: "Scrolling",
+      runningScript: "Running script",
+      drivingBrowser: "Driving browser",
+      usingBrowser: "Using the browser",
+      callingPandaos: "Calling PandaOS",
+      usingTools: "Using tools",
+    },
   },
   renameModal: {
     rename: "Rename",

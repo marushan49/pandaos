@@ -1380,6 +1380,9 @@ export const ko: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "새 채팅",
+    },
     leitstand: {
       open: "대시보드 열기",
       toggle: "대시보드 전환",
@@ -2345,6 +2348,26 @@ export const ko: TranslationResources = {
     and: "그리고",
     workedFor: "{{duration}} 동안 작업함",
     failed: "{{count}}개 실패",
+    activity: {
+      runningCommand: "명령 실행 중",
+      readingFiles: "파일 읽는 중",
+      editingFiles: "파일 편집 중",
+      searching: "검색 중",
+      fetching: "페이지 가져오는 중",
+      delegating: "위임 중",
+      clicking: "클릭 중",
+      typing: "입력 중",
+      waiting: "대기 중",
+      capturingPage: "페이지 캡처 중",
+      readingPage: "페이지 읽는 중",
+      openingPage: "페이지 여는 중",
+      scrolling: "스크롤 중",
+      runningScript: "스크립트 실행 중",
+      drivingBrowser: "브라우저 조작 중",
+      usingBrowser: "브라우저 사용 중",
+      callingPandaos: "PandaOS 호출 중",
+      usingTools: "도구 사용 중",
+    },
   },
   renameModal: {
     rename: "이름 변경",

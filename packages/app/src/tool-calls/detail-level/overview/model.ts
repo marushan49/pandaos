@@ -1,5 +1,6 @@
 import { isPaseoToolName } from "@getpaseo/protocol/tool-name-normalization";
 import { resolveToolCallOrigin, type ToolCallOrigin } from "../../origin";
+import { resolveToolActivity, type ToolActivity } from "../../activity";
 import { describeToolCall, type ToolCallRun } from "../grouping";
 
 const DIRECT_PASEO_TOOL_PREFIX = "paseo_";
@@ -21,6 +22,7 @@ export interface OverviewToolCallGroup {
   mode: "overview";
   run: ToolCallRun;
   summary: OverviewSummary;
+  activities: ToolActivity[];
   isLoading: boolean;
   durationMs: number;
 }
@@ -44,10 +46,12 @@ export function buildOverviewGroup(run: ToolCallRun): OverviewToolCallGroup {
   let failedCount = 0;
   let lastCallFailed = false;
   const origins = new Map<string, { origin: ToolCallOrigin; count: number }>();
+  const activities: ToolActivity[] = [];
 
   for (const call of run.calls) {
     const descriptor = describeToolCall(call);
     const normalizedName = descriptor.name.trim().toLowerCase();
+    activities.push(resolveToolActivity(descriptor));
     isLoading ||= descriptor.status === "running" || descriptor.status === "executing";
     lastCallFailed = descriptor.status === "failed";
     if (lastCallFailed) {
@@ -93,6 +97,7 @@ export function buildOverviewGroup(run: ToolCallRun): OverviewToolCallGroup {
     run,
     isLoading,
     summary,
+    activities,
     durationMs,
   };
 }

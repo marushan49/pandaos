@@ -35,18 +35,22 @@ describe("working footer activity", () => {
     const i18n = createInstance();
     await i18n.init({ lng: "en", resources: { en: { translation: en } } });
     const t = i18n.getFixedT("en");
-    expect(buildWorkingLabel(t, { ...turn, isWaiting: true }, false, "Browser", 0)).toBe("Waiting");
-    expect(resolveWorkingTool([tool], { ...turn, isWaiting: true })).toBeNull();
-    expect(buildWorkingLabel(t, turn, false, "Browser", 2)).toBe(
-      "Working, Browser, Subagents: 2 working",
+    expect(buildWorkingLabel(t, { ...turn, isWaiting: true }, false, "drivingBrowser", 0)).toBe(
+      "Waiting",
     );
+    expect(resolveWorkingTool([tool], { ...turn, isWaiting: true })).toBeNull();
+    expect(buildWorkingLabel(t, turn, false, "drivingBrowser", 2)).toBe(
+      "Driving browser, Subagents: 2 working",
+    );
+    expect(buildWorkingLabel(t, turn, false, null, 0)).toBe("Working");
+    expect(buildWorkingLabel(t, turn, false, "clicking", 0)).toBe("Clicking");
     expect(buildWorkingLabel(t, { ...turn, isActive: false }, false, null, 1)).toBe(
       "Subagents: 1 working",
     );
-    expect(buildWorkingLabel(t, turn, true, "Browser", 1)).toBe(
+    expect(buildWorkingLabel(t, turn, true, "drivingBrowser", 1)).toBe(
       "Needs input, Subagents: 1 working",
     );
-    expect(buildWorkingLabel(t, { ...turn, isCancelling: true }, false, "Browser", 0)).toBe(
+    expect(buildWorkingLabel(t, { ...turn, isCancelling: true }, false, "drivingBrowser", 0)).toBe(
       "Canceling agent",
     );
     expect(buildWorkingLabel(t, { ...turn, isActive: false }, false, null, 0)).toBe("");
@@ -58,7 +62,7 @@ describe("working footer activity", () => {
       text: "Still working",
       timestamp: startedAt,
     };
-    expect(resolveWorkingTool([tool, message], turn)).toBe("browser_test");
+    expect(resolveWorkingTool([tool, message], turn)).toBe("drivingBrowser");
     const steer: StreamItem = {
       kind: "user_message",
       id: "steer",
@@ -66,7 +70,7 @@ describe("working footer activity", () => {
       text: "Also check this",
       timestamp: startedAt,
     };
-    expect(resolveWorkingTool([tool, steer], turn)).toBe("browser_test");
+    expect(resolveWorkingTool([tool, steer], turn)).toBe("drivingBrowser");
     expect(resolveWorkingTool([tool], { ...turn, isActive: false })).toBeNull();
     expect(resolveWorkingTool([tool], { ...turn, isCancelling: true })).toBeNull();
   });
@@ -114,6 +118,6 @@ describe("working footer activity", () => {
         ],
         turn,
       ),
-    ).toBe("Browser");
+    ).toBe("usingTools");
   });
 });

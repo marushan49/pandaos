@@ -1402,6 +1402,9 @@ export const fr: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "Nouveau chat",
+    },
     leitstand: {
       open: "Ouvrir le tableau de bord",
       toggle: "Afficher/masquer le tableau de bord",
@@ -2383,6 +2386,26 @@ export const fr: TranslationResources = {
     and: "et",
     workedFor: "Travaillé pendant {{duration}}",
     failed: "{{count}} échoués",
+    activity: {
+      runningCommand: "Exécution d'une commande",
+      readingFiles: "Lecture de fichiers",
+      editingFiles: "Modification de fichiers",
+      searching: "Recherche",
+      fetching: "Récupération de la page",
+      delegating: "Délégation",
+      clicking: "Clic",
+      typing: "Saisie",
+      waiting: "Attente",
+      capturingPage: "Capture de la page",
+      readingPage: "Lecture de la page",
+      openingPage: "Ouverture de la page",
+      scrolling: "Défilement",
+      runningScript: "Exécution d'un script",
+      drivingBrowser: "Pilotage du navigateur",
+      usingBrowser: "Utilisation du navigateur",
+      callingPandaos: "Appel de PandaOS",
+      usingTools: "Utilisation d'outils",
+    },
   },
   renameModal: {
     rename: "Renommer",

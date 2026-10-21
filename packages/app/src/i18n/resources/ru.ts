@@ -1390,6 +1390,9 @@ export const ru: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "Новый чат",
+    },
     leitstand: {
       open: "Открыть панель",
       toggle: "Показать/скрыть панель",
@@ -2368,6 +2371,26 @@ export const ru: TranslationResources = {
     and: "и",
     workedFor: "Работал {{duration}}",
     failed: "Сбоев: {{count}}",
+    activity: {
+      runningCommand: "Выполнение команды",
+      readingFiles: "Чтение файлов",
+      editingFiles: "Правка файлов",
+      searching: "Поиск",
+      fetching: "Загрузка страницы",
+      delegating: "Делегирование",
+      clicking: "Нажатие",
+      typing: "Ввод текста",
+      waiting: "Ожидание",
+      capturingPage: "Снимок страницы",
+      readingPage: "Чтение страницы",
+      openingPage: "Открытие страницы",
+      scrolling: "Прокрутка",
+      runningScript: "Запуск скрипта",
+      drivingBrowser: "Управление браузером",
+      usingBrowser: "Работа с браузером",
+      callingPandaos: "Вызов PandaOS",
+      usingTools: "Работа с инструментами",
+    },
   },
   renameModal: {
     rename: "Переименовать",

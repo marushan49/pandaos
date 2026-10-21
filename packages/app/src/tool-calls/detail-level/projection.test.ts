@@ -280,6 +280,7 @@ describe("tool call detail-level projection", () => {
       run: expect.any(Object),
       isLoading: false,
       durationMs: 3000,
+      activities: ["readingFiles", "readingFiles", "runningCommand", "editingFiles"],
       summary: {
         editedFileCount: 1,
         commandCount: 1,

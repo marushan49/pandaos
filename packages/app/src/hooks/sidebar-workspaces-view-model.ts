@@ -11,7 +11,7 @@ import type {
 import { projectDisplayNameFromProjectId } from "@/utils/project-display-name";
 import { aggregateSidebarStateBuckets } from "@/utils/sidebar-agent-state";
 import { shortenPath } from "@/utils/shorten-path";
-import type { WorkspaceAgentActivity } from "@/utils/workspace-agent-activity";
+import type { WorkspaceAgentActivity, WorkspaceSessionRow } from "@/utils/workspace-agent-activity";
 import { resolveWorkspaceMapKeyByIdentity } from "@/utils/workspace-identity";
 import {
   collectAllPanes,
@@ -60,6 +60,7 @@ export interface SidebarWorkspaceEntry extends SidebarStatusWorkspacePlacement {
   archiveUnpushedCommitCount: number | null;
   scripts: WorkspaceDescriptor["scripts"];
   hasRunningScripts: boolean;
+  sessions?: readonly WorkspaceSessionRow[];
 }
 
 export interface SidebarProjectEntry {
@@ -258,10 +259,12 @@ export function createSidebarWorkspaceEntry(input: {
     archiveUnpushedCommitCount: input.workspace.gitRuntime?.aheadOfOrigin ?? null,
     scripts: input.workspace.scripts,
     hasRunningScripts: input.workspace.scripts.some((script) => script.lifecycle === "running"),
+    sessions: input.workspaceAgentActivity?.get(input.workspace.id)?.sessions ?? NO_SESSIONS,
   };
 }
 
 const EMPTY_WORKSPACE_LABELS: string[] = [];
+const NO_SESSIONS: readonly WorkspaceSessionRow[] = [];
 
 function deriveEffectiveWorkspaceStatus(input: {
   serverId: string;

@@ -1387,6 +1387,9 @@ export const ja: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "新しいチャット",
+    },
     leitstand: {
       open: "ダッシュボードを開く",
       toggle: "ダッシュボードの切り替え",
@@ -2355,6 +2358,26 @@ export const ja: TranslationResources = {
     and: "および",
     workedFor: "{{duration}}作業しました",
     failed: "{{count}}件失敗",
+    activity: {
+      runningCommand: "コマンドを実行中",
+      readingFiles: "ファイルを読み込み中",
+      editingFiles: "ファイルを編集中",
+      searching: "検索中",
+      fetching: "ページを取得中",
+      delegating: "委任中",
+      clicking: "クリック中",
+      typing: "入力中",
+      waiting: "待機中",
+      capturingPage: "ページをキャプチャ中",
+      readingPage: "ページを読み込み中",
+      openingPage: "ページを開いています",
+      scrolling: "スクロール中",
+      runningScript: "スクリプトを実行中",
+      drivingBrowser: "ブラウザを操作中",
+      usingBrowser: "ブラウザを使用中",
+      callingPandaos: "PandaOS を呼び出し中",
+      usingTools: "ツールを使用中",
+    },
   },
   renameModal: {
     rename: "名前を変更",

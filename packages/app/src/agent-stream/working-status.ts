@@ -1,4 +1,6 @@
 import type { StreamItem } from "@/types/stream";
+import { resolveToolActivity, type ToolActivity } from "@/tool-calls/activity";
+import { describeToolCall } from "@/tool-calls/detail-level/grouping";
 import type { TurnPresentation } from "@/timeline/turn-liveness";
 import type { TFunction } from "i18next";
 
@@ -6,7 +8,7 @@ export function buildWorkingLabel(
   t: TFunction,
   turn: TurnPresentation,
   needsInput: boolean,
-  tool: string | null,
+  activity: ToolActivity | null,
   subagentCount: number,
 ): string {
   const labels: string[] = [];
@@ -14,8 +16,7 @@ export function buildWorkingLabel(
   else if (turn.isCancelling) labels.push(t("composer.cancel.cancelingAgent"));
   else if (turn.isWaiting) labels.push(t("sidebar.status.done"));
   else if (turn.isActive) {
-    labels.push(t("sidebar.status.running"));
-    if (tool) labels.push(tool);
+    labels.push(activity ? t(`toolCallGroup.activity.${activity}`) : t("sidebar.status.running"));
   }
   if (subagentCount > 0) {
     labels.push(
@@ -28,7 +29,7 @@ export function buildWorkingLabel(
 export function resolveWorkingTool(
   items: readonly StreamItem[],
   turn: TurnPresentation,
-): string | null {
+): ToolActivity | null {
   if (!turn.isActive || turn.isCancelling || turn.isWaiting) return null;
   for (let index = items.length - 1; index >= 0; index--) {
     const item = items[index]!;
@@ -36,12 +37,9 @@ export function resolveWorkingTool(
     if (turn.turnId && item.turnId && item.turnId !== turn.turnId) continue;
     if (turn.startedAt && item.timestamp < turn.startedAt) continue;
     if (item.kind !== "tool_call") continue;
-    const { payload } = item;
-    if (payload.source === "agent" && payload.data.status === "running") {
-      return payload.data.detail.type === "shell" ? "Shell" : payload.data.name;
-    }
-    if (payload.source === "orchestrator" && payload.data.status === "executing") {
-      return payload.data.toolName;
+    const descriptor = describeToolCall(item);
+    if (descriptor.status === "running" || descriptor.status === "executing") {
+      return resolveToolActivity(descriptor);
     }
   }
   return null;

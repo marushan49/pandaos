@@ -1369,6 +1369,9 @@ export const ar: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "دردشة جديدة",
+    },
     leitstand: {
       open: "فتح لوحة التحكم",
       toggle: "إظهار/إخفاء لوحة التحكم",
@@ -2330,6 +2333,26 @@ export const ar: TranslationResources = {
     and: "و",
     workedFor: "عمل لمدة {{duration}}",
     failed: "فشل {{count}}",
+    activity: {
+      runningCommand: "جارٍ تشغيل أمر",
+      readingFiles: "جارٍ قراءة الملفات",
+      editingFiles: "جارٍ تعديل الملفات",
+      searching: "جارٍ البحث",
+      fetching: "جارٍ جلب الصفحة",
+      delegating: "جارٍ التفويض",
+      clicking: "جارٍ النقر",
+      typing: "جارٍ الكتابة",
+      waiting: "جارٍ الانتظار",
+      capturingPage: "جارٍ التقاط الصفحة",
+      readingPage: "جارٍ قراءة الصفحة",
+      openingPage: "جارٍ فتح الصفحة",
+      scrolling: "جارٍ التمرير",
+      runningScript: "جارٍ تشغيل نص برمجي",
+      drivingBrowser: "جارٍ التحكم في المتصفح",
+      usingBrowser: "جارٍ استخدام المتصفح",
+      callingPandaos: "جارٍ استدعاء PandaOS",
+      usingTools: "جارٍ استخدام الأدوات",
+    },
   },
   renameModal: {
     rename: "إعادة تسمية",

@@ -1410,6 +1410,9 @@ export const es: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "Chat nuevo",
+    },
     leitstand: {
       open: "Abrir panel",
       toggle: "Mostrar/ocultar panel",
@@ -2384,6 +2387,26 @@ export const es: TranslationResources = {
     and: "y",
     workedFor: "Trabajó durante {{duration}}",
     failed: "{{count}} fallidos",
+    activity: {
+      runningCommand: "Ejecutando comando",
+      readingFiles: "Leyendo archivos",
+      editingFiles: "Editando archivos",
+      searching: "Buscando",
+      fetching: "Obteniendo página",
+      delegating: "Delegando",
+      clicking: "Haciendo clic",
+      typing: "Escribiendo",
+      waiting: "Esperando",
+      capturingPage: "Capturando página",
+      readingPage: "Leyendo página",
+      openingPage: "Abriendo página",
+      scrolling: "Desplazando",
+      runningScript: "Ejecutando script",
+      drivingBrowser: "Controlando el navegador",
+      usingBrowser: "Usando el navegador",
+      callingPandaos: "Llamando a PandaOS",
+      usingTools: "Usando herramientas",
+    },
   },
   renameModal: {
     rename: "Rebautizar",

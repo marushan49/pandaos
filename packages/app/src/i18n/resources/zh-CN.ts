@@ -1361,6 +1361,9 @@ export const zhCN: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "新聊天",
+    },
     leitstand: {
       open: "打开仪表板",
       toggle: "切换仪表板",
@@ -2308,6 +2311,26 @@ export const zhCN: TranslationResources = {
     and: "并",
     workedFor: "已工作 {{duration}}",
     failed: "{{count}} 个失败",
+    activity: {
+      runningCommand: "正在运行命令",
+      readingFiles: "正在读取文件",
+      editingFiles: "正在编辑文件",
+      searching: "正在搜索",
+      fetching: "正在获取页面",
+      delegating: "正在委派",
+      clicking: "正在点击",
+      typing: "正在输入",
+      waiting: "正在等待",
+      capturingPage: "正在截取页面",
+      readingPage: "正在读取页面",
+      openingPage: "正在打开页面",
+      scrolling: "正在滚动",
+      runningScript: "正在运行脚本",
+      drivingBrowser: "正在操作浏览器",
+      usingBrowser: "正在使用浏览器",
+      callingPandaos: "正在调用 PandaOS",
+      usingTools: "正在使用工具",
+    },
   },
   renameModal: {
     rename: "重命名",

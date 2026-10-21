@@ -1400,6 +1400,9 @@ export const ptBR: TranslationResources = {
     },
   },
   sidebar: {
+    sessions: {
+      untitled: "Novo chat",
+    },
     leitstand: {
       open: "Abrir painel",
       toggle: "Alternar painel",
@@ -2368,6 +2371,26 @@ export const ptBR: TranslationResources = {
     and: "e",
     workedFor: "Trabalhou por {{duration}}",
     failed: "{{count}} falharam",
+    activity: {
+      runningCommand: "Executando comando",
+      readingFiles: "Lendo arquivos",
+      editingFiles: "Editando arquivos",
+      searching: "Pesquisando",
+      fetching: "Buscando página",
+      delegating: "Delegando",
+      clicking: "Clicando",
+      typing: "Digitando",
+      waiting: "Aguardando",
+      capturingPage: "Capturando página",
+      readingPage: "Lendo página",
+      openingPage: "Abrindo página",
+      scrolling: "Rolando",
+      runningScript: "Executando script",
+      drivingBrowser: "Controlando o navegador",
+      usingBrowser: "Usando o navegador",
+      callingPandaos: "Chamando o PandaOS",
+      usingTools: "Usando ferramentas",
+    },
   },
   renameModal: {
     rename: "Renomear",
