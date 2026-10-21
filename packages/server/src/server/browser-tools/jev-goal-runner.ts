@@ -142,19 +142,31 @@ interface JevBrowserGoalRunnerOptions {
   decisionSource?: TypeSafeDecisionSource;
   delay?: (milliseconds: number) => Promise<void>;
   activity?: BrowserActivityHub;
-  handoff?: {
-    hub: Pick<BrowserActivityHub, "startHandoff">;
-    onEnd: (handoff: BrowserHandoff) => void;
-  };
+  handoff?:
+    | {
+        hub: Pick<BrowserActivityHub, "startHandoff">;
+        onEnd: (handoff: BrowserHandoff) => void;
+      }
+    | undefined;
 }
 
 export const BROWSER_SIGN_IN_HANDOFF_REASON = "Sign in needed to continue";
 
 export class BrowserSignInRequiredError extends Error {
   constructor() {
-    super("Password fields require a local credential slot; no action executed.");
+    super(
+      `${BROWSER_SIGN_IN_HANDOFF_REASON}: the page asks for a password that no local credential slot covers; no action executed.`,
+    );
     this.name = "BrowserSignInRequiredError";
   }
+}
+
+const PASSWORD_FIELD_NAME = /passw|kennwort|passcode/i;
+
+/** Desktop snapshots carry no field state, so a password box is known only by its name. */
+function isSecretField(element: ObservedElement): boolean {
+  if (element.state) return element.state.secret === true;
+  return element.role === "textbox" && PASSWORD_FIELD_NAME.test(element.name);
 }
 
 interface ObservedElement {
@@ -330,6 +342,32 @@ export class JevBrowserGoalRunner {
     }
   }
 
+  private async settleObservedPage(params: {
+    page: BrowserPage;
+    input: JevBrowserGoalInput;
+    context: JevBrowserGoalContext;
+    activity: BrowserActivityReporter;
+    step: number;
+    values: Record<string, ResolvedJevBrowserValue>;
+    steps: JevBrowserGoalTraceEntry[];
+    lastModel: string | undefined;
+  }): Promise<JevBrowserGoalResult | null> {
+    const { page, input, context, activity, step, values, steps, lastModel } = params;
+    if (await this.passesAlready({ page, input, context, activity, step })) {
+      return resultFor(
+        "passed",
+        page,
+        steps,
+        steps.length === 0
+          ? "Verification checks already satisfied before any action."
+          : "Goal completed and verified.",
+        lastModel,
+      );
+    }
+    if (pageNeedsUserSignIn(page, values)) throw new BrowserSignInRequiredError();
+    return null;
+  }
+
   private async decideUntilDone(params: {
     input: JevBrowserGoalInput;
     context: JevBrowserGoalContext;
@@ -415,18 +453,17 @@ export class JevBrowserGoalRunner {
     };
 
     for (let step = 1; step <= maxSteps; step += 1) {
-      if (await this.passesAlready({ page, input, context, activity, step })) {
-        return resultFor(
-          "passed",
-          page,
-          steps,
-          steps.length === 0
-            ? "Verification checks already satisfied before any action."
-            : "Goal completed and verified.",
-          lastModel,
-        );
-      }
-      if (pageNeedsUserSignIn(page, values)) throw new BrowserSignInRequiredError();
+      const settled = await this.settleObservedPage({
+        page,
+        input,
+        context,
+        activity,
+        step,
+        values,
+        steps,
+        lastModel,
+      });
+      if (settled) return settled;
       activity.update({ phase: "deciding", step, action: null });
       const stateKey = `${page.url}\n${JSON.stringify(page.elements.map(({ ref: _ref, ...element }) => element))}`;
       const excluded = excludedActions.get(stateKey) ?? new Set<string>();
@@ -885,10 +922,7 @@ function pageNeedsUserSignIn(
   page: BrowserPage,
   values: Record<string, ResolvedJevBrowserValue>,
 ): boolean {
-  return (
-    page.elements.some((element) => element.state?.secret) &&
-    !Object.values(values).some((value) => !value.public)
-  );
+  return page.elements.some(isSecretField) && !Object.values(values).some((value) => !value.public);
 }
 
 function buildOperationPlan(params: {

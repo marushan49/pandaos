@@ -708,6 +708,30 @@ describe("JevBrowserGoalRunner activity", () => {
     });
     expect(handoffs.map((handoff) => handoff.status)).toEqual(["active"]);
   });
+
+  it("recognises a password box by name in desktop snapshots without field state", async () => {
+    const broker = new GoalBroker();
+    const execute = broker.execute.bind(broker);
+    broker.execute = async (input) =>
+      input.command.command === "snapshot"
+        ? snapshotPayload('- textbox "Password" [ref=@e1]\n- button "Continue" [ref=@e2]')
+        : execute(input);
+    const hub = new BrowserActivityHub(() => {});
+    const runner = new JevBrowserGoalRunner({
+      broker,
+      decisionSource: new ScriptedDecisions(["CLICK"]),
+      handoff: { hub, onEnd: () => {} },
+    });
+
+    const result = await runner.run(
+      { goal: "Sign in and reach Welcome", browserId: BROWSER_ID, verify: [{ text: "Welcome" }] },
+      CONTEXT,
+    );
+
+    expect(result.status).toBe("blocked");
+    expect(hub.activeHandoff(BROWSER_ID)?.reason).toBe("Sign in needed to continue");
+    expect(broker.clicked).toBe(false);
+  });
 });
 
 describe("parseObservedElements", () => {

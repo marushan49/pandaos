@@ -238,10 +238,7 @@ export function registerBrowserTools(options: RegisterBrowserToolsOptions): void
       try {
         const runner =
           options.goalRunner ??
-          new JevBrowserGoalRunner({
-            broker: options.broker,
-            ...(options.handoff ? { handoff: options.handoff } : {}),
-          });
+          new JevBrowserGoalRunner({ broker: options.broker, handoff: options.handoff });
         const result = await runner.run(input, context);
         return browserGoalToolResult(result, context);
       } catch (error) {

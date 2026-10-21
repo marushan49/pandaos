@@ -1284,7 +1284,7 @@ export function createPaseoToolCatalog(options: PaseoToolHostDependencies): Pase
         ? new JevBrowserGoalRunner({
             broker: browserBroker,
             activity: options.browserActivity,
-            ...(handoff ? { handoff } : {}),
+            handoff,
             decisionSource: createConfiguredSystemOneDecisionSource(
               options.paseoHome,
               options.daemonConfigStore,

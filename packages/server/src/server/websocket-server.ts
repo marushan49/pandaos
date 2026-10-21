@@ -2763,8 +2763,6 @@ export class VoiceAssistantWebSocketServer {
           workspaceId: handoff.workspaceId,
           agentId: handoff.agentId,
           reason: "permission",
-          browserId: handoff.browserId,
-          handoffId: handoff.handoffId,
         },
       },
       forcePush: true,
