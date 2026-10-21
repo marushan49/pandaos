@@ -22,3 +22,4 @@
 - [2026-10-21 activity labels and sessions](2026-10-21-activity-labels-sessions.md)
 - [2026-10-21 messages between sessions](2026-10-21-agent-message-row.md)
 - [2026-10-21 zoom shortcuts on the Mac](2026-10-21-zoom-shortcuts.md)
+- [2026-10-22 highlight of nested session rows](2026-10-22-nested-session-highlight.md)
