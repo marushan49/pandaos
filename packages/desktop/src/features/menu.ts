@@ -70,6 +70,9 @@ function buildApplicationMenuTemplate(
 ): Electron.MenuItemConstructorOptions[] {
   const isMac = process.platform === "darwin";
   const zoomEnabled = !capturing;
+  const zoomIn = withBrowserWindow((win) => {
+    win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 0.5);
+  });
 
   return [
     ...(isMac
@@ -119,11 +122,16 @@ function buildApplicationMenuTemplate(
       submenu: [
         {
           label: "Zoom In",
+          accelerator: "CmdOrCtrl+Plus",
+          enabled: zoomEnabled,
+          click: zoomIn,
+        },
+        {
+          label: "Zoom In",
           accelerator: "CmdOrCtrl+=",
           enabled: zoomEnabled,
-          click: withBrowserWindow((win) => {
-            win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 0.5);
-          }),
+          visible: false,
+          click: zoomIn,
         },
         {
           label: "Zoom Out",
@@ -228,17 +236,11 @@ export function setupApplicationMenu(options: ApplicationMenuOptions): void {
     contextMenu.popup({ window: win });
   });
 
-  // Disable the zoom accelerators while capturing a shortcut so combos like
-  // Cmd+- / Cmd+= reach the renderer instead of zooming the window.
   ipcMain.handle("paseo:menu:set-capturing-shortcut", (_event, capturing?: boolean) => {
     capturingShortcut = capturing === true;
     rebuildApplicationMenu();
   });
 
-  // If the renderer reloads mid-capture (e.g. Cmd+R) the renderer-side effect
-  // never gets to send `false`, so reset the flag from the main process when a
-  // main window finishes loading. Workspace browser webviews are not
-  // BrowserWindows, so they don't trigger this.
   app.on("browser-window-created", (_event, win) => {
     win.webContents.on("did-finish-load", () => {
       if (!capturingShortcut) return;
