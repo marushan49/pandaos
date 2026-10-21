@@ -1,6 +1,7 @@
 # PandaOS product journal
 
 - [Product context](product.md)
+- [2026-10-21 GDELT Aktien-Nachrichten](2026-10-21-gdelt-tracker.md)
 - [2026-10-09 image previews](2026-10-09-image-previews.md)
 
 - [2026-10-09 automatic recovery](2026-10-09-recovery-automatic.md)

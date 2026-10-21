@@ -27,8 +27,16 @@ export interface PluginSettings<Schema extends ZodType> {
   subscribe(listener: (state: PluginSettingsState<Schema>) => void | Promise<void>): PluginCleanup;
 }
 
+export interface PluginGenerateRequest {
+  prompt: string;
+  schema: Record<string, unknown>;
+  schemaName?: string;
+  images?: { data: string; mimeType: string }[];
+}
+
 export interface PluginServerContext extends PluginLifecycleRegistration {
   readonly dataDirectory?: string;
+  generate?(request: PluginGenerateRequest): Promise<unknown>;
   registerSettings<Schema extends ZodType>(
     definition: import("../settings.js").SettingsDefinition<Schema>,
   ): PluginSettings<Schema>;

@@ -30,6 +30,13 @@ export interface PluginUsageSourceMetadata {
   icon?: string;
 }
 
+export interface PluginGenerateInput {
+  prompt: string;
+  schema: Record<string, unknown>;
+  schemaName?: string;
+  images?: { data: string; mimeType: string }[];
+}
+
 export type PluginProcessRequest =
   | {
       type: "provider.status";
@@ -77,6 +84,8 @@ export type PluginProcessRequest =
     }
   | { type: "provider.close"; connectionId: string }
   | { type: "shutdown" }
+  | { type: "generate.result"; requestId: string; output: unknown }
+  | { type: "generate.error"; requestId: string; error: string }
   | { type: "paseo_frame"; data: string | Uint8Array; isBinary: boolean }
   | { type: "paseo_close" };
 
@@ -93,6 +102,7 @@ export type PluginProcessMessage =
   | { type: "result"; requestId: string; output: unknown }
   | { type: "error"; requestId: string; error: string }
   | { type: "fatal"; error: string }
+  | { type: "generate.request"; requestId: string; input: PluginGenerateInput }
   | {
       type: "provider.connected";
       connectionId: string;
@@ -249,6 +259,20 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
       .strict(),
     z.object({ type: z.literal("provider.close"), connectionId: z.string().min(1) }).strict(),
     z.object({ type: z.literal("shutdown") }).strict(),
+    z
+      .object({
+        type: z.literal("generate.result"),
+        requestId: z.string().min(1),
+        output: z.unknown(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("generate.error"),
+        requestId: z.string().min(1),
+        error: z.string(),
+      })
+      .strict(),
     z.object({ type: z.literal("paseo_frame"), ...frameFields }).strict(),
     z.object({ type: z.literal("paseo_close") }).strict(),
   ],
@@ -275,6 +299,27 @@ export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.dis
       .object({ type: z.literal("error"), requestId: z.string().min(1), error: z.string() })
       .strict(),
     z.object({ type: z.literal("fatal"), error: z.string() }).strict(),
+    z
+      .object({
+        type: z.literal("generate.request"),
+        requestId: z.string().min(1),
+        input: z
+          .object({
+            prompt: z.string().min(1).max(200_000),
+            schema: z.record(z.string(), z.unknown()),
+            schemaName: z.string().min(1).max(100).optional(),
+            images: z
+              .array(
+                z
+                  .object({ data: z.string().min(1), mimeType: z.string().regex(/^image\//) })
+                  .strict(),
+              )
+              .max(8)
+              .optional(),
+          })
+          .strict(),
+      })
+      .strict(),
     z
       .object({
         type: z.literal("provider.connected"),

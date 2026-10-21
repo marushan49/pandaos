@@ -166,6 +166,8 @@ Do not import `lucide-react-native`, `react-native-svg`, or DOM libraries. Set c
 
 Import `MediaView` from `@getpaseo/plugin/client/react-native` to display a base64 picture or video in the client. Pass `base64`, `mimeType`, `accessibilityLabel`, theme colors as `foreground` and `background`, and `onError(message)` to show decoder or cache failures. The viewer fills its parent. Pictures have zoom controls; videos have playback controls. Native videos use a temporary client cache directory that is removed when the viewer closes. Native Save or Share files stay in cache so receiving apps can read them after the dialog closes; a later save removes copies older than 24 hours. Call `saveMedia({ base64, mimeType, fileName })` to start a browser/desktop download or open the native Save or Share dialog. It returns `downloaded` for a dispatched browser download and `dialog` for a closed native dialog; neither proves the user saved the file. Codec support depends on the client. Both app and daemon must contain this SDK addition.
 
+Wrap content in `ImageDropZone` from `@getpaseo/plugin/client/react-native` to receive pictures. Pass `children`, `accessibilityLabel`, `onImages(images)` and optionally `onError(message)`, `disabled` and `style`. Pressing the zone opens the image picker on every platform; web and Electron also accept images dragged onto it. Each image arrives as `{ base64, mimeType }`; the host deletes its temporary copy afterwards. Older hosts export no `ImageDropZone`, so check that it is defined before rendering it.
+
 The bundled **Media viewer** plugin opens a workspace tab beside chats and the browser. Launch it from the tab row’s **+** menu or the workspace Command Center. It browses folders on that workspace’s host and transfers files through authenticated plugin RPCs in bounded chunks. It supports files up to 64 MiB without exposing a public media endpoint. Updated hosts include it even when optional plugins are disabled. `/media <absolute path>` opens a file in the media tab on the composer’s host while keeping the chat open. New agents receive usage instructions through the plugin’s creation hook.
 
 ### Cross-platform rules
@@ -542,6 +544,8 @@ inside the current daemon home, isolated by the installed plugin ID. It survives
 and daemon restart; removing the plugin removes this directory with its settings. Check that the
 optional property exists before using it and ask for a host update if it is unavailable. Do not
 infer the daemon home from your source checkout or write into another installation's data.
+
+`server.generate?.({ prompt, schema, schemaName?, images? })` runs one structured model call on the host and resolves with JSON matching the JSON Schema in `schema`. It uses the host's metadata generation providers (fast models first, then fallbacks), opens no workspace and leaves no agent behind. `images` takes up to 8 `{ data, mimeType }` base64 pictures. Each call counts against the provider account the host uses, so deduplicate and cap calls in polling code. Treat the result as untrusted and validate it. Check that `generate` exists; older hosts do not provide it.
 
 ## Submission checks
 

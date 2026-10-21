@@ -8,6 +8,7 @@ import {
 import type { UsageSourceRegistration } from "@getpaseo/plugin/server/usage";
 import type { SettingsDefinition, PluginRpcContract } from "@getpaseo/plugin";
 import type { PluginHandlerContext, PluginServerContribution } from "@getpaseo/plugin/server";
+import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +30,14 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+type GenerationReply = Extract<
+  PluginProcessRequest,
+  { type: "generate.result" | "generate.error" }
+>;
+
+function isGenerationReply(message: PluginProcessRequest): message is GenerationReply {
+  return message.type === "generate.result" || message.type === "generate.error";
+}
 export interface PluginWorkerChannel {
   send(message: PluginProcessMessage, callback?: () => void): void;
   onMessage(handler: (message: PluginProcessRequest) => void): () => void;
@@ -42,6 +51,10 @@ export function createPluginWorker(options: {
   const { channel, contribute } = options;
   let settingsStore: PluginSettingsStore | null = null;
   let dataDirectory: string | undefined;
+  const pendingGenerations = new Map<
+    string,
+    { resolve(output: unknown): void; reject(error: Error): void }
+  >();
   function registerSettings<Schema extends ZodType>(definition: SettingsDefinition<Schema>) {
     if (!settingsStore) throw new Error("Plugin settings storage is unavailable");
     const handlers = settingsStore.register(definition);
@@ -288,6 +301,12 @@ export function createPluginWorker(options: {
     if (dataDirectory) await mkdir(dataDirectory, { recursive: true, mode: 0o700 });
     const contributedCleanup = contribute({
       dataDirectory,
+      generate: (request) =>
+        new Promise((resolve, reject) => {
+          const requestId = randomUUID();
+          pendingGenerations.set(requestId, { resolve, reject });
+          send({ type: "generate.request", requestId, input: request });
+        }),
       supportsLifecycleEvent: hooks.supportsLifecycleEvent,
       supportsBeforeHookOrigin: hooks.supportsBeforeHookOrigin,
       handle: (contract, handler) =>
@@ -331,6 +350,9 @@ export function createPluginWorker(options: {
       ?.dispose()
       .catch((error) => console.error("Plugin API cleanup failed", error));
     hooks.close();
+    for (const pending of pendingGenerations.values())
+      pending.reject(new Error("Plugin is stopping"));
+    pendingGenerations.clear();
     for (const pending of pendingProviderConnections.values()) pending.tombstoned = true;
     const currentCleanup = cleanup;
     cleanup = null;
@@ -390,6 +412,13 @@ export function createPluginWorker(options: {
     }
   }
 
+  function settleGeneration(message: GenerationReply): void {
+    const pending = pendingGenerations.get(message.requestId);
+    pendingGenerations.delete(message.requestId);
+    if (message.type === "generate.result") pending?.resolve(message.output);
+    else pending?.reject(new Error(message.error));
+  }
+
   function handleMessage(rawMessage: unknown): void {
     const parsed = PluginProcessRequestSchema.safeParse(rawMessage);
     if (!parsed.success) {
@@ -425,6 +454,10 @@ export function createPluginWorker(options: {
     }
     if (message.type === "shutdown") {
       void shutdown();
+      return;
+    }
+    if (isGenerationReply(message)) {
+      settleGeneration(message);
       return;
     }
     if (stopping) {

@@ -75,15 +75,22 @@ export interface StructuredAgentGenerationOptions<T> {
   agentId?: string;
   persistSession?: boolean;
   prompt: string;
+  images?: readonly StructuredGenerationImage[];
   schema: z.ZodType<T> | JsonSchema;
   maxRetries?: number;
   schemaName?: string;
+}
+
+export interface StructuredGenerationImage {
+  data: string;
+  mimeType: string;
 }
 
 export interface StructuredAgentGenerationWithFallbackOptions<T> {
   manager: AgentManager;
   cwd: string;
   prompt: string;
+  images?: readonly StructuredGenerationImage[];
   schema: z.ZodType<T> | JsonSchema;
   providers: readonly StructuredGenerationProvider[];
   agentConfigOverrides?: Omit<
@@ -354,15 +361,36 @@ export async function getStructuredAgentResponse<T>(
 export async function generateStructuredAgentResponse<T>(
   options: StructuredAgentGenerationOptions<T>,
 ): Promise<T> {
-  const { manager, agentConfig, agentId, persistSession, prompt, schema, maxRetries, schemaName } =
-    options;
+  const {
+    manager,
+    agentConfig,
+    agentId,
+    persistSession,
+    prompt,
+    images,
+    schema,
+    maxRetries,
+    schemaName,
+  } = options;
   const agent = await manager.createAgent(agentConfig, agentId, {
     persistSession,
     workspaceId: undefined,
   });
   try {
     const caller: AgentCaller = async (nextPrompt) => {
-      const result = await manager.runAgent(agent.id, nextPrompt);
+      const result = await manager.runAgent(
+        agent.id,
+        images?.length
+          ? [
+              { type: "text", text: nextPrompt },
+              ...images.map((image) => ({
+                type: "image" as const,
+                data: image.data,
+                mimeType: image.mimeType,
+              })),
+            ]
+          : nextPrompt,
+      );
       if (typeof result.finalText === "string" && result.finalText.length > 0) {
         return result.finalText;
       }
@@ -402,6 +430,7 @@ export async function generateStructuredAgentResponseWithFallback<T>(
     manager,
     cwd,
     prompt,
+    images,
     schema,
     providers,
     agentConfigOverrides,
@@ -442,6 +471,7 @@ export async function generateStructuredAgentResponseWithFallback<T>(
       const result = await runStructured({
         manager,
         prompt,
+        images,
         schema,
         maxRetries,
         schemaName,

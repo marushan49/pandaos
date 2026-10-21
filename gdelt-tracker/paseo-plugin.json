@@ -1,0 +1,6 @@
+{
+  "id": "gdelt-tracker",
+  "name": "Aktien-Nachrichten",
+  "description": "GDELT-Nachrichten für eigene Positionen, Watchlist und Recherchethemen",
+  "requirements": { "paseo": ">=0.11.2" }
+}

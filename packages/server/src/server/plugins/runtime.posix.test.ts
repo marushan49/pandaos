@@ -1619,6 +1619,48 @@ export default function contribute(server: any) {
     await runtime.stopAll();
   });
 
+  it("runs a host model call for a plugin and returns its errors", async () => {
+    const directory = await createPlugin(
+      "model-call",
+      `import { defineRpc } from "@getpaseo/plugin";
+import { z } from "zod";
+const ask = defineRpc({ name: "ask", input: z.string(), output: z.unknown() });
+export default function contribute(server) {
+  server.handle(ask, (prompt) =>
+    server.generate({ prompt, schema: { type: "object" }, images: [{ data: "aGk=", mimeType: "image/png" }] }),
+  );
+  return () => {};
+}`,
+    );
+    const calls: unknown[] = [];
+    const runtime = createTestRuntime({
+      generate: async (pluginId, input) => {
+        calls.push({ pluginId, input });
+        if (input.prompt === "fail") throw new Error("No provider available");
+        return { answer: input.prompt.toUpperCase() };
+      },
+    });
+    try {
+      await runtime.startPlugin("model-call", directory);
+      await expect(runtime.invoke("model-call", "ask", "hello")).resolves.toEqual({
+        answer: "HELLO",
+      });
+      await expect(runtime.invoke("model-call", "ask", "fail")).rejects.toThrow(
+        "No provider available",
+      );
+      expect(calls[0]).toEqual({
+        pluginId: "model-call",
+        input: {
+          prompt: "hello",
+          schema: { type: "object" },
+          images: [{ data: "aGk=", mimeType: "image/png" }],
+        },
+      });
+    } finally {
+      await runtime.stopAll();
+    }
+  });
+
   it("keeps client and server modules in their target runtime", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "paseo-plugin-"));
     temporaryDirectories.push(directory);

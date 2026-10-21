@@ -2629,6 +2629,283 @@
             "name": "google-session-present"
           }
         ]
+      },
+      "gdelt-app-connected": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/",
+            "action": "navigate"
+          },
+          {
+            "action": "goal",
+            "goal": "Öffne den bestehenden Workspace pandaos. Erstelle und ändere keine Daten. Prüfe ob die App mit ihrem Host verbunden ist.",
+            "verify": [
+              {
+                "text": "pandaos"
+              }
+            ],
+            "maxSteps": 8
+          }
+        ]
+      },
+      "gdelt-watchlist-create": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_f1b031970c84b98f",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Position oder Thema hinzufügen"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Speichern"
+          },
+          {
+            "action": "wait-text",
+            "text": "Name (1–100 Zeichen)"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Name",
+            "value": "GDELT-Prüfeintrag"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "GDELT-Suche auf Englisch",
+            "value": "Nvidia"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Speichern"
+          },
+          {
+            "action": "wait-text",
+            "text": "Watchlist gespeichert."
+          },
+          {
+            "action": "assert-text",
+            "text": "GDELT-Prüfeintrag"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "gdelt-watchlist-created"
+          }
+        ]
+      },
+      "gdelt-watchlist-edit-search": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_f1b031970c84b98f",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "GDELT-Prüfeintrag bearbeitet"
+          },
+          {
+            "action": "assert-text",
+            "text": "Beobachten: Nvidia"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Bearbeiten"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Name",
+            "value": "GDELT-Prüfeintrag geprüft"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Speichern"
+          },
+          {
+            "action": "wait-text",
+            "text": "Watchlist gespeichert."
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Neu laden"
+          },
+          {
+            "action": "assert-text",
+            "text": "GDELT-Prüfeintrag geprüft"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Meldungen laden"
+          },
+          {
+            "action": "wait-text",
+            "text": "HTTP 429",
+            "timeoutMs": 30000
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "gdelt-watchlist-live-rate-limit"
+          }
+        ]
+      },
+      "gdelt-agent-context-result": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_f1b031970c84b98f?open=agent%3Af40dab62-63bf-445b-a41c-9dd4a3492a48",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "GDELT-KONTEXT-OK GDELT-Prüfeintrag geprüft"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "gdelt-agent-context-result"
+          }
+        ]
+      },
+      "gdelt-watchlist-remove-compact": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_f1b031970c84b98f",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "GDELT-Prüfeintrag geprüft"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Entfernen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Noch keine Einträge."
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zurücksetzen"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Neu laden"
+          },
+          {
+            "action": "assert-text",
+            "text": "Noch keine Einträge."
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "gdelt-compact-empty-cleaned"
+          }
+        ]
+      },
+      "gdelt-mobile-controls-create-remove": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/workspace/wks_f1b031970c84b98f",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Noch keine Einträge."
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zurücksetzen"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zuordnung: Eigene Position"
+          },
+          {
+            "action": "wait-text",
+            "text": "Recherchethema"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Recherchethema"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Name",
+            "value": "GDELT-Mobiltest"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "GDELT-Suche auf Englisch",
+            "value": "semiconductor"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Speichern"
+          },
+          {
+            "action": "wait-text",
+            "text": "Watchlist gespeichert."
+          },
+          {
+            "action": "assert-text",
+            "text": "Recherchethema: semiconductor"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Entfernen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Noch keine Einträge."
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "gdelt-mobile-final"
+          }
+        ]
       }
     }
   }

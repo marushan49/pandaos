@@ -31,6 +31,7 @@ import { readPluginManifest } from "./manifest.js";
 import type { PluginRequirements } from "@getpaseo/protocol/messages";
 import { assertPluginCompatibility } from "@getpaseo/protocol/plugin-requirements";
 import type {
+  PluginGenerateInput,
   PluginProcessMessage,
   PluginProcessRequest,
   PluginProviderMetadata,
@@ -130,6 +131,7 @@ interface PluginRuntimeDependencies {
   onSettingsChanged?: (pluginId: string, settingsId: string) => void;
   spawnChild?: () => PluginChild;
   sessionHost?: PluginPaseoSessionHost;
+  generate?: (pluginId: string, input: PluginGenerateInput) => Promise<unknown>;
 }
 
 interface PluginLogTail {
@@ -856,6 +858,30 @@ export class PluginRuntime {
     );
   }
 
+  private handleGenerate(
+    loaded: LoadedPlugin,
+    requestId: string,
+    input: PluginGenerateInput,
+  ): void {
+    const child = loaded.child;
+    if (!child) return;
+    const generate = this.dependencies.generate;
+    const result = generate
+      ? generate(loaded.id, input)
+      : Promise.reject(new Error("This host cannot run model calls for plugins."));
+    void result
+      .then(
+        (output) => send(child, { type: "generate.result", requestId, output }),
+        (error) => send(child, { type: "generate.error", requestId, error: describeError(error) }),
+      )
+      .catch((error) => {
+        this.logger.warn(
+          { err: error, pluginId: loaded.id },
+          "Failed to deliver plugin model result",
+        );
+      });
+  }
+
   private handleChildMessage(loaded: LoadedPlugin, message: PluginProcessMessage): void {
     if (message.type === "hooks.changed") {
       loaded.hooks = message.hooks;
@@ -863,6 +889,10 @@ export class PluginRuntime {
     }
     if (message.type === "settings.changed") {
       this.dependencies.onSettingsChanged?.(loaded.id, message.settingsId);
+      return;
+    }
+    if (message.type === "generate.request") {
+      this.handleGenerate(loaded, message.requestId, message.input);
       return;
     }
     if (message.type.startsWith("provider.")) {

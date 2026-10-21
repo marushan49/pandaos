@@ -60,6 +60,19 @@ export interface MediaViewProps {
   onError(message: string): void;
 }
 export declare const MediaView: ComponentType<MediaViewProps>;
+export interface DroppedImage {
+  base64: string;
+  mimeType: string;
+}
+export interface ImageDropZoneProps {
+  children: ReactNode;
+  accessibilityLabel: string;
+  onImages(images: DroppedImage[]): void;
+  onError?(message: string): void;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
+export declare const ImageDropZone: ComponentType<ImageDropZoneProps>;
 export interface SaveMediaInput {
   base64: string;
   mimeType: string;

@@ -14,6 +14,9 @@ import { constants, existsSync, unlinkSync } from "fs";
 import { open, rm, stat } from "fs/promises";
 import { randomUUID } from "node:crypto";
 import { getHostName } from "./host-name.js";
+import os from "node:os";
+import { generateStructuredAgentResponseWithFallback } from "./agent/agent-response-loop.js";
+import { resolveStructuredGenerationProviders } from "./agent/structured-generation-providers.js";
 import path from "node:path";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Logger } from "pino";
@@ -713,6 +716,27 @@ export async function createPaseoDaemon(
     }),
     builtinPlugins: resolveBuiltinPluginLoader(dependencies),
     settingsDirectory: path.join(config.paseoHome, "plugin-settings"),
+    generate: async (pluginId, input) => {
+      const cwd = os.homedir();
+      const providers = await resolveStructuredGenerationProviders({
+        cwd,
+        providerSnapshotManager,
+        daemonConfig: { metadataGeneration: daemonConfigStore.get().metadataGeneration },
+      });
+      return generateStructuredAgentResponseWithFallback({
+        manager: agentManager,
+        cwd,
+        prompt: input.prompt,
+        images: input.images,
+        schema: input.schema,
+        schemaName: input.schemaName ?? "PluginResponse",
+        maxRetries: 2,
+        providers,
+        persistSession: false,
+        logger,
+        agentConfigOverrides: { title: `Plugin ${pluginId}`, internal: true },
+      });
+    },
   });
 
   const serverId = getOrCreateServerId(config.paseoHome, { logger });

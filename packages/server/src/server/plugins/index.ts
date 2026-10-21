@@ -25,7 +25,7 @@ import { expandTilde } from "../../utils/path.js";
 import { runPluginBuild } from "./preparation.js";
 import { PluginRuntime } from "./runtime.js";
 import { BuiltinPluginLoader, type BuiltinPlugin } from "./builtin/index.js";
-import type { PluginProviderMetadata } from "./plugin-process-protocol.js";
+import type { PluginGenerateInput, PluginProviderMetadata } from "./plugin-process-protocol.js";
 import { readPluginProviderIcon } from "./provider-icon.js";
 import {
   type AgentUsageLookup,
@@ -62,6 +62,7 @@ interface PluginRuntimePort {
 
 interface PluginServiceDependencies {
   usageAgents?: AgentUsageLookup;
+  generate?: (pluginId: string, input: PluginGenerateInput) => Promise<unknown>;
   settingsDirectory?: string;
   runtime?: PluginRuntimePort;
   managedSources?: ManagedPluginSources;
@@ -112,6 +113,7 @@ export class PluginService {
       dependencies.runtime ??
       new PluginRuntime(logger, daemonVersion, {
         settingsDirectory: dependencies.settingsDirectory,
+        generate: dependencies.generate,
         onSettingsChanged: (pluginId, settingsId) => {
           for (const listener of this.settingsListeners) listener(pluginId, settingsId);
         },
