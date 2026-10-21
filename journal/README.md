@@ -21,3 +21,4 @@
 - [2026-10-21 browser where you are](2026-10-21-browser-where-you-are.md)
 - [2026-10-21 activity labels and sessions](2026-10-21-activity-labels-sessions.md)
 - [2026-10-21 messages between sessions](2026-10-21-agent-message-row.md)
+- [2026-10-21 zoom shortcuts on the Mac](2026-10-21-zoom-shortcuts.md)
