@@ -43,3 +43,12 @@ Nicht im Umfang: Stream-Latenz für Android. Eigene Messung Relay gegen Mesh, ge
 - Mac-Payload liegt unter `/tmp/pandaos-browser-where-you-are/app-dist` (`index.html` SHA-256 `82a4b6c2…def8e7`, gleich dem Export) mit `install-mac.sh` (Sicherung nach `rollout-backups/browser-where-you-are-<Zeit>`, Signatur, Neustart der App). Nicht installiert.
 - Offen bis zur Freigabe: `pandaos-planned-restart --release ~/.local/share/pandaos-releases/browser-where-you-are` (Dry-Run nennt 5 Sessions) und `bash /tmp/pandaos-browser-where-you-are/install-mac.sh` auf dem Mac. Danach vom Zotac prüfbar: Agent-`browser_new_tab` landet auf `hostKind "desktop app"`, Handoff setzt den Workspace auf `needs_input` und versucht den Push; Leisten, Menü und Push auf dem Mac bleiben bis zu Marushans Rückmeldung nicht bestätigt.
 - Build-Skript `/home/admin/projects/pandaos/.dev/browser-where-you-are/build.sh`: Kopie des Live-Release plus alle Dateien aus `629e88917..HEAD`, Drift-Prüfung gegen die Basis, Lint, Server-Build, Typecheck, Daemon-Web-UI, Electron-Export nach `.dev/browser-where-you-are/electron`.
+
+## Rollout 21.10.
+
+- 11:55 Geplanter Neustart auf `browser-where-you-are` gesund: Dienst aktiv, `pandaos-live` zeigt auf den Release, Web-UI 200 mit `index-5400cc5e…` aus dem Release, 3 Sessions fortgesetzt, eine ohne Antwort.
+- 11:53 Mac-Oberfläche installiert, danach Absturz „The WebView must be attached to the DOM“: der Zoom-Effekt rief `setZoomFactor` vor `dom-ready`. Sofort auf die Sicherung `rollout-backups/browser-where-you-are-20261021-115341` zurückgerollt. Fix `4de83862a`/`a465688ae`: Zoom nur an angehängter Webview, Fehler abgefangen. Zusätzlich schaltet sich der „need you“-Filter ab, wenn nichts mehr wartet (Rückmeldung: „0 need you“ über leeren Projekten).
+- Das Live-Release hat eine ältere Sidebar als `main`; die Filter-Korrektur ist dort direkt in `sidebar-model.tsx` eingesetzt, nicht als Kopie der `main`-Datei.
+- 12:17 Mac-Oberfläche `252f87f1…` installiert, App läuft, Sicherung `rollout-backups/browser-where-you-are-20261021-121711`.
+- Merge: `main` per Fast-Forward auf `a465688ae`; uncommittete GDELT-Änderungen an `bootstrap.ts` und `journal/README.md` vorher gesichert, Dreiwege-Merge ohne Konflikt, danach zeilengleich wiederhergestellt. Nicht gepusht.
+- Nicht bestätigt: Bedienung auf dem Mac, Registrierung der Mac-App als Browser-Host (der Daemon protokolliert sie nicht), Push bei Handoff. Bestehende Stream-Tabs bleiben im Stream bis „…“ → „In dieser App öffnen“.
