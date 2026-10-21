@@ -1,4 +1,4 @@
-import { resolveBrowserUrl, originalBrowserUrl } from "@/desktop/browser/tunnel";
+import { isHostLocalUrl, resolveBrowserUrl, originalBrowserUrl } from "@/desktop/browser/tunnel";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import { isLoopbackUrl } from "@/utils/host-loopback-url";
 import {
@@ -108,7 +108,11 @@ type ElectronWebview = HTMLElement & {
   executeJavaScript?: (code: string) => Promise<unknown>;
   setZoomFactor?: (factor: number) => void;
   focus?: () => void;
-  addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
+  addEventListener: (
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: AddEventListenerOptions,
+  ) => void;
   removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
 };
 
@@ -223,6 +227,10 @@ function getLoadUrlRejectionMessage(error: unknown, failedToLoadLabel: string): 
     return error.trim();
   }
   return failedToLoadLabel;
+}
+
+function webviewStartUrl(url: string, unsafeNavigationMessage: string | null): string {
+  return unsafeNavigationMessage || isHostLocalUrl(url) ? "about:blank" : url;
 }
 
 function getUnsafeNavigationMessage(
@@ -765,11 +773,14 @@ export function BrowserPane({
     const residentWebview = takeResidentBrowserWebview(browserId) as ElectronWebview | null;
     const webview = residentWebview ?? (document.createElement("webview") as ElectronWebview);
     webviewRef.current = webview;
+    const firstDomReady = new Promise<void>((resolve) => {
+      webview.addEventListener("dom-ready", () => resolve(), { once: true });
+    });
     if (!residentWebview) {
       prepareBrowserWebview(webview, {
         browserId,
         workspaceId,
-        initialUrl: "about:blank",
+        initialUrl: webviewStartUrl(initialUrlRef.current, initialUnsafeNavigationMessage),
       });
     }
     releaseResidentBrowserWebview(browserId, webview);
@@ -924,7 +935,9 @@ export function BrowserPane({
       });
     }
 
-    if (!residentWebview && !initialUnsafeNavigationMessage && client) {
+    const tunnelsInitialUrl =
+      !initialUnsafeNavigationMessage && isHostLocalUrl(initialUrlRef.current);
+    if (!residentWebview && tunnelsInitialUrl && client) {
       const loadInitialUrl = async () => {
         const url = await resolveBrowserUrl({
           client,
@@ -933,6 +946,7 @@ export function BrowserPane({
           browserId: browserRef.current?.remoteBrowserId ?? browserId,
           url: initialUrlRef.current,
         });
+        await firstDomReady;
         if (!disposed) await webview.loadURL?.(url);
       };
       void loadInitialUrl().catch((error) =>
