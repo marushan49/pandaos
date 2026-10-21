@@ -34,3 +34,8 @@ PandaOS drew the message as a tool call ("Message from X", bot icon). Between to
 
 - No German locale exists, so the app shows "Received message from", not "Nachricht erhalten von".
 - Sending side unchanged: the sender still sees `send_agent_prompt` as a tool call.
+
+## Rollout
+
+- Release `~/.local/share/pandaos-releases/agent-message-row`: live `activity-sessions` plus the app files from `5637811b2..a27d890b1`, no code drift, lint, app typecheck, daemon web UI, Electron export (`.dev/agent-message-row/build.sh`, `build.log`).
+- Mac payload staged at `/tmp/pandaos-agent-message-row` on the Mac (`index.html` `3783d002…`, tarball `742e7fea…`), installer with backup, re-sign and rollback. Mac still on `6860e983…`. Not installed: it quits and reopens PandaOS, so it waits for Marushan's go. No daemon restart needed for the Mac app.
