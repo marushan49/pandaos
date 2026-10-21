@@ -374,7 +374,9 @@ function RemoteBrowserPane({
     };
   }, [browserId, ensureRemoteTab, refreshFrame, serverId, syncRemoteTabs, workspaceId]);
 
+  const pendingTypeRef = useRef<{ browserId: string; text: string } | null>(null);
   const enqueueRemoteOperation = useCallback((operation: () => Promise<void>) => {
+    pendingTypeRef.current = null;
     commandQueueRef.current = commandQueueRef.current
       .then(() => (mountedRef.current ? operation() : undefined))
       .catch((caught: unknown) => {
@@ -441,15 +443,26 @@ function RemoteBrowserPane({
   const handleRemoteInputChange = useCallback(
     (text: string) => {
       const currentBrowserId = remoteBrowserIdRef.current;
-      if (currentBrowserId && text) {
-        queueInputCommand({
-          command: "type",
-          args: { browserId: currentBrowserId, text },
+      const pending = pendingTypeRef.current;
+      if (currentBrowserId && text && pending?.browserId === currentBrowserId) {
+        pending.text += text;
+      } else if (currentBrowserId && text) {
+        const typed = { browserId: currentBrowserId, text };
+        enqueueRemoteOperation(async () => {
+          if (pendingTypeRef.current === typed) pendingTypeRef.current = null;
+          if (!mountedRef.current) return;
+          setError(null);
+          await execute({
+            command: "type",
+            args: { browserId: typed.browserId, text: typed.text },
+          });
+          await refreshFrame();
         });
+        pendingTypeRef.current = typed;
       }
       remoteInputRef.current?.replaceText("");
     },
-    [queueInputCommand],
+    [enqueueRemoteOperation, execute, refreshFrame],
   );
 
   const queueFrameRefresh = useCallback(() => {

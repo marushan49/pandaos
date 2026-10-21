@@ -33,6 +33,46 @@ interface ScreencastPacerOptions<T> {
   send(frame: T, sequence: number): Promise<void>;
   minIntervalMs: number;
   maxUnacked: number;
+  onAckLatency?(latencyMs: number): void;
+}
+
+// ponytail: fixed thresholds on the ack round trip; a bandwidth estimate from frame bytes
+// over ack time would pick the tier per link instead of flipping between two.
+export const SCREENCAST_SLOW_ACK_MS = 200;
+export const SCREENCAST_FAST_ACK_MS = 80;
+const SCREENCAST_ADAPT_SAMPLES = 5;
+const SCREENCAST_RESTORE_AFTER_MS = 15_000;
+
+type LinkTier = "full" | "lean";
+
+/** Picks the lean tier while the viewer's acks come back slowly, the full one again once they are fast. */
+export class ScreencastLinkMonitor {
+  private average: number | null = null;
+  private samples = 0;
+  private tier: LinkTier = "full";
+  private tierSince = 0;
+
+  constructor(private readonly onChange: (tier: LinkTier) => void) {}
+
+  record(latencyMs: number, now: number): void {
+    this.average = this.average === null ? latencyMs : this.average * 0.7 + latencyMs * 0.3;
+    this.samples += 1;
+    if (this.samples < SCREENCAST_ADAPT_SAMPLES) return;
+    if (this.tier === "full" && this.average > SCREENCAST_SLOW_ACK_MS) this.switchTo("lean", now);
+    else if (
+      this.tier === "lean" &&
+      this.average < SCREENCAST_FAST_ACK_MS &&
+      now - this.tierSince >= SCREENCAST_RESTORE_AFTER_MS
+    )
+      this.switchTo("full", now);
+  }
+
+  private switchTo(tier: LinkTier, now: number): void {
+    this.tier = tier;
+    this.tierSince = now;
+    this.samples = 0;
+    this.onChange(tier);
+  }
 }
 
 /**
@@ -49,6 +89,7 @@ export class ScreencastPacer<T> {
   private stopped = false;
   private nextSendAt = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly sentAt = new Map<number, number>();
 
   constructor(private readonly options: ScreencastPacerOptions<T>) {}
 
@@ -65,6 +106,9 @@ export class ScreencastPacer<T> {
   ack(sequence: number): void {
     if (sequence <= this.acked || sequence > this.sent) return;
     this.acked = sequence;
+    const sentAt = this.sentAt.get(sequence);
+    for (const pending of this.sentAt.keys()) if (pending <= sequence) this.sentAt.delete(pending);
+    if (sentAt !== undefined) this.options.onAckLatency?.(Date.now() - sentAt);
     this.pump();
   }
 
@@ -91,6 +135,7 @@ export class ScreencastPacer<T> {
     this.latest = null;
     this.writing = true;
     this.sent += 1;
+    this.sentAt.set(this.sent, Date.now());
     this.nextSendAt = Date.now() + this.options.minIntervalMs;
     void this.options.send(frame, this.sent).finally(() => {
       this.writing = false;
@@ -133,9 +178,15 @@ export class BrowserScreencastSession {
     if (slot === null) return fail("No browser screencast slots available.");
 
     let stop: (() => Promise<void>) | null = null;
+    const lean = SCREENCAST_PRESETS.saver;
+    const adapts = preset.jpegQuality > lean.jpegQuality;
+    const monitor = new ScreencastLinkMonitor((tier) => {
+      void restart(tier === "lean" ? lean : preset);
+    });
     const pacer = new ScreencastPacer<ScreencastFrame>({
       minIntervalMs: 1000 / preset.maxFps,
       maxUnacked: SCREENCAST_MAX_UNACKED_FRAMES,
+      ...(adapts ? { onAckLatency: (latencyMs) => monitor.record(latencyMs, Date.now()) } : {}),
       send: (frame, sequence) =>
         owner.emitBinary(
           encodeBrowserScreencastFrame({
@@ -158,26 +209,43 @@ export class BrowserScreencastSession {
       `browser-screencast:${browserId}`,
     );
     this.streams.set(slot, { source: owner.source, pacer });
-    try {
-      stop = await host.startScreencast({
+    const onEnd = () => {
+      owner.emit({ type: "browser.screencast.ended", payload: { browserId } });
+      void owner.release();
+    };
+    const start = (params: ScreencastPreset) =>
+      host.startScreencast({
         workspaceId,
         browserId,
-        jpegQuality: preset.jpegQuality,
-        ...(preset.maxWidth ? { maxWidth: preset.maxWidth } : {}),
-        ...(preset.maxHeight ? { maxHeight: preset.maxHeight } : {}),
+        jpegQuality: params.jpegQuality,
+        ...(params.maxWidth ? { maxWidth: params.maxWidth } : {}),
+        ...(params.maxHeight ? { maxHeight: params.maxHeight } : {}),
         onFrame: (frame) => pacer.push(frame),
-        onEnd: () => {
-          owner.emit({ type: "browser.screencast.ended", payload: { browserId } });
-          void owner.release();
-        },
+        onEnd,
       });
+    const restart = async (params: ScreencastPreset) => {
+      if (owner.signal.aborted || !stop) return;
+      const previous = stop;
+      stop = null;
+      await previous();
+      if (owner.signal.aborted) return;
+      try {
+        const next = await start(params);
+        if (owner.signal.aborted) await next();
+        else stop = next;
+      } catch {
+        void owner.release();
+      }
+    };
+    try {
+      stop = await start(preset);
     } catch (error) {
       await owner.release();
       if (error instanceof BrowserToolsRequestError) return fail(error.message);
       throw error;
     }
     if (owner.signal.aborted) {
-      await stop();
+      await stop?.();
       return;
     }
     this.options.emit({

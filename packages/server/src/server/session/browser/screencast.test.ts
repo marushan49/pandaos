@@ -8,7 +8,12 @@ import { createBrowserToolsRequestError } from "../../browser-tools/errors.js";
 import type { SessionInboundMessage, SessionOutboundMessage } from "../../messages.js";
 import type { ScreencastFrame } from "../../verify/playwright-host.js";
 import { SessionDelivery } from "../owned-subscriptions/index.js";
-import { BrowserScreencastSession, SCREENCAST_MAX_FPS, ScreencastPacer } from "./screencast.js";
+import {
+  BrowserScreencastSession,
+  SCREENCAST_MAX_FPS,
+  ScreencastLinkMonitor,
+  ScreencastPacer,
+} from "./screencast.js";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -110,6 +115,21 @@ describe("ScreencastPacer", () => {
     pacer.stop();
     await vi.advanceTimersByTimeAsync(1_000);
     expect(sent.map((entry) => entry.frame)).toEqual(["a"]);
+  });
+});
+
+describe("ScreencastLinkMonitor", () => {
+  test("drops to the lean tier on slow acks and restores only after fast acks for a while", () => {
+    const tiers: string[] = [];
+    const monitor = new ScreencastLinkMonitor((tier) => tiers.push(tier));
+    for (let i = 0; i < 4; i += 1) monitor.record(400, i * 100);
+    expect(tiers).toEqual([]);
+    monitor.record(400, 500);
+    expect(tiers).toEqual(["lean"]);
+    for (let i = 0; i < 20; i += 1) monitor.record(20, 1_000 + i * 100);
+    expect(tiers).toEqual(["lean"]);
+    monitor.record(20, 16_000);
+    expect(tiers).toEqual(["lean", "full"]);
   });
 });
 
@@ -242,6 +262,37 @@ describe("BrowserScreencastSession", () => {
     screencast.handleFrame(ack!, viewer);
     const binary = wire.filter((entry) => entry.kind === "binary");
     expect(binary.at(-1)).toMatchObject({ frame: { sequence: 3, width: 802 } });
+  });
+
+  test("restarts Chromium's screencast with lean frames while the viewer acks slowly", async () => {
+    const { viewer, wire, streams, screencast, subscribe } = setup();
+    await subscribe("tab-slow");
+    for (let sequence = 1; sequence <= 5; sequence += 1) {
+      await vi.advanceTimersByTimeAsync(400);
+      const ack = decodeBrowserScreencastFrame(encodeBrowserScreencastAck({ slot: 0, sequence }));
+      screencast.handleFrame(ack!, viewer);
+      streams.at(-1)?.onFrame(frame(800 + sequence));
+    }
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(streams).toHaveLength(2);
+    expect(streams[0].stopped).toBe(true);
+    expect(streams[1]).toMatchObject({ jpegQuality: 50, maxWidth: 960 });
+    expect(wire.filter((entry) => entry.kind === "binary").length).toBeGreaterThan(5);
+  });
+
+  test("keeps the saver tier as it is", async () => {
+    const { viewer, streams, screencast, subscribe } = setup();
+    await subscribe("tab-saver", "saver");
+    for (let sequence = 1; sequence <= 6; sequence += 1) {
+      await vi.advanceTimersByTimeAsync(400);
+      const ack = decodeBrowserScreencastFrame(encodeBrowserScreencastAck({ slot: 0, sequence }));
+      screencast.handleFrame(ack!, viewer);
+      streams[0].onFrame(frame(800 + sequence));
+    }
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(streams).toHaveLength(1);
   });
 
   test("stops the tab screencast when the viewer releases its subscription", async () => {
