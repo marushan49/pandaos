@@ -3,8 +3,6 @@ import type { PressableStateCallbackType } from "react-native";
 import { Pressable, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
-import { GitBranch } from "@/components/icons/ui-icons";
-import { DensityIcon } from "@/components/ui/density-icon";
 import { WorkspaceStatusIndicator } from "@/components/sidebar/sidebar-workspace-row-content";
 import { isWeb } from "@/constants/platform";
 import type { SidebarWorkspaceEntry } from "@/hooks/sidebar-workspaces-view-model";
@@ -45,8 +43,9 @@ function SessionRowList({
   );
   return (
     <View>
-      {sessions.map((session) => (
+      {sessions.map((session, index) => (
         <SessionRow
+          isLast={index === sessions.length - 1}
           key={session.agentId}
           serverId={workspace.serverId}
           workspaceId={workspace.workspaceId}
@@ -64,12 +63,14 @@ const SessionRow = memo(function SessionRow({
   workspaceId,
   session,
   selected,
+  isLast,
   onPress,
 }: {
   serverId: string;
   workspaceId: string;
   session: WorkspaceSessionRow;
   selected: boolean;
+  isLast: boolean;
   onPress?: () => void;
 }) {
   const { t } = useTranslation();
@@ -106,12 +107,10 @@ const SessionRow = memo(function SessionRow({
         testID={`sidebar-session-row-${session.agentId}`}
         style={rowStyle}
       >
-        <View style={styles.statusRail} />
-        <DensityIcon
-          icon={GitBranch}
-          size="sm"
-          color={isHovered || selected ? "foreground" : "foregroundMuted"}
-        />
+        <View style={styles.treeRail}>
+          {isLast ? null : <View style={styles.treeTrunk} />}
+          <View style={styles.treeElbow} />
+        </View>
         <Text
           style={[styles.title, (isHovered || selected) && styles.titleActive]}
           numberOfLines={1}
@@ -140,9 +139,31 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[2],
     userSelect: "none",
   },
-  statusRail: {
+  treeRail: {
     width: densityIconBox("md"),
+    alignSelf: "stretch",
+    marginTop: -(theme.spacing[1] + theme.spacing[0.5]),
+    marginBottom: -(theme.spacing[1] + theme.spacing[0.5]),
     flexShrink: 0,
+  },
+  treeTrunk: {
+    position: "absolute",
+    left: "50%",
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: theme.colors.foregroundExtraMuted,
+  },
+  treeElbow: {
+    position: "absolute",
+    left: "50%",
+    top: 0,
+    height: "50%",
+    width: theme.spacing[2],
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.foregroundExtraMuted,
+    borderBottomLeftRadius: theme.borderRadius.md,
   },
   rowHovered: {
     backgroundColor: theme.colors.surfaceSidebarHover,
