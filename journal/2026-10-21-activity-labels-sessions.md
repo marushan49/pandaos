@@ -36,3 +36,12 @@ Second desktop finding, same build (`index.chunk-XE4x008H.js` and `index.chunk-C
 - Tests: 449 in the touched files green, typecheck app and server green, lint 0 errors.
 - Real app: web export against the live daemon through a local origin proxy (`127.0.0.1:43233`, the daemon rejects other origins with 403). Sidebar shows session rows with branch icon and status dot; the running tool group read "Capturing page" and was the only shimmering element on the page; finished groups read "Worked for 19s, ...". Screenshots: evidence `evr_a33e8ce8…`, `evr_4d91f4e1…`.
 - Not checked in the app: the three-row cap (built after the screenshot), `start_session` end to end (needs the daemon restart), narrow mobile width.
+
+## Follow-ups and release, 2026-10-21 evening
+
+- Marushan's second screenshot: Claude draws session rows as a tree (vertical line, rounded elbow per row). Session rows now draw that tree in `foregroundExtraMuted` instead of a branch icon (`7991bb85c`). Checked at 390 px width: tree visible, three Breeze rows (cap works), tap opens that chat in its workspace.
+- Advisor review: the session question must not fire on first prompts or automated runs (Breeze, schedules, heartbeats, agent prompts). Rule tightened (`253a8acd4`). Three idle chats opened in the preview: 0 shimmering elements.
+- Known limit: hydration also settles running calls before a mid-turn steer message; harmless, the call just stops shimmering.
+- Release `~/.local/share/pandaos-releases/activity-sessions`: live `stream-lean` plus the files from `d7781b7cc..HEAD`, no drift, lint, server build, typecheck server and app, daemon web UI, Electron export (`.dev/activity-sessions/build.sh`, `build.log`). Bundles contain `start_session`, the session rule, session rows and the activity labels. Dry run of the planned restart: two sessions get asked for a checkpoint.
+- Mac payload staged at `/tmp/pandaos-activity-sessions` on the Mac (`index.html` `6860e983…`, tarball `63102cac…`), installer `install-mac.sh` with backup, re-sign and rollback. Not installed.
+- Waiting for Marushan: go for `pandaos-planned-restart --release ~/.local/share/pandaos-releases/activity-sessions` and for the Mac install. After that, `start_session` can be tried end to end.
