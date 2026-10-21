@@ -1411,7 +1411,7 @@ export function BrowserPane({
 
   useEffect(() => {
     const webview = webviewRef.current;
-    if (zoom === 1 || !webview?.isConnected) return;
+    if (!webview?.isConnected) return;
     try {
       webview.setZoomFactor?.(zoom);
     } catch {
