@@ -121,9 +121,10 @@ export function mountBrowserProfileSync(client: DaemonClient, serverId: string):
   let synced: Map<string, DesktopProfileSyncCookie> | null = null;
   let hostVersion: string | undefined;
 
-  const supported = () =>
-    useSessionStore.getState().sessions[serverId]?.serverInfo?.features?.browserProfileSync ===
-    true;
+  const supported = () => {
+    const serverInfo = useSessionStore.getState().sessions[serverId]?.serverInfo;
+    return serverInfo?.features?.browserProfileSync === true && serverInfo.desktopManaged !== true;
+  };
 
   async function syncHistory() {
     const entries = useBrowserHistoryStore.getState().entriesByServerId[serverId] ?? [];
