@@ -4,7 +4,10 @@ import {
   SnapshotElementStateSchema,
   type SnapshotElementState,
 } from "../verify/ultrafast-snapshot.js";
-import type { BrowserActivityStep } from "@getpaseo/protocol/browser-activity/rpc-schemas";
+import type {
+  BrowserActivityStep,
+  BrowserHandoff,
+} from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import {
   NOOP_BROWSER_ACTIVITY,
   type BrowserActivityHub,
