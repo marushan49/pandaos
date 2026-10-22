@@ -1,12 +1,20 @@
-// A sidebar drop target names a workspace as "<serverId>|<workspaceId>". Lists mark their own
-// container so a drop inside the list stays a reorder.
 export const DROP_TARGET_ATTRIBUTE = "data-workspace-drop-target";
+export const PROJECT_DROP_TARGET_ATTRIBUTE = "data-project-drop-target";
 export const DRAG_LIST_ATTRIBUTE = "data-drag-list";
 
 export interface WorkspaceDropTarget {
   serverId: string;
   workspaceId: string;
 }
+
+export interface ProjectDropTarget {
+  serverId: string;
+  projectId: string;
+  cwd: string;
+  name: string;
+}
+
+export type SidebarDropTarget = WorkspaceDropTarget | ProjectDropTarget;
 
 export function encodeWorkspaceDropTarget(target: WorkspaceDropTarget): string {
   return `${target.serverId}|${target.workspaceId}`;
@@ -19,6 +27,38 @@ export function decodeWorkspaceDropTarget(
   const separator = value.indexOf("|");
   if (separator <= 0 || separator === value.length - 1) return null;
   return { serverId: value.slice(0, separator), workspaceId: value.slice(separator + 1) };
+}
+
+export function encodeProjectDropTarget(target: ProjectDropTarget): string {
+  return JSON.stringify([target.serverId, target.projectId, target.cwd, target.name]);
+}
+
+export function decodeProjectDropTarget(
+  value: string | null | undefined,
+): ProjectDropTarget | null {
+  if (!value) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length !== 4) return null;
+  const [serverId, projectId, cwd, name] = parsed as unknown[];
+  if (typeof serverId !== "string" || typeof projectId !== "string") return null;
+  if (typeof cwd !== "string" || typeof name !== "string") return null;
+  if (!serverId || !projectId || !cwd) return null;
+  return { serverId, projectId, cwd, name };
+}
+
+export function isWorkspaceDropTarget(target: SidebarDropTarget): target is WorkspaceDropTarget {
+  return "workspaceId" in target;
+}
+
+function decodeDropTarget(element: Element): SidebarDropTarget | null {
+  const workspace = element.getAttribute(DROP_TARGET_ATTRIBUTE);
+  if (workspace !== null) return decodeWorkspaceDropTarget(workspace);
+  return decodeProjectDropTarget(element.getAttribute(PROJECT_DROP_TARGET_ATTRIBUTE));
 }
 
 function pointerPoint(event: Event | null): { x: number; y: number } | null {
@@ -67,10 +107,6 @@ export function dragEndPoint(
   return start ? { x: start.x + delta.x, y: start.y + delta.y } : null;
 }
 
-/**
- * The workspace under the pointer, looking past the dragged row itself. A target inside
- * the list the drag started in is ignored: that drop is a reorder.
- */
 interface DropSearch {
   point: { x: number; y: number } | null;
   ownListId: string | null;
@@ -79,23 +115,22 @@ interface DropSearch {
 
 function findWorkspaceDropElement(
   input: DropSearch,
-): { element: Element; target: WorkspaceDropTarget } | null {
+): { element: Element; target: SidebarDropTarget } | null {
   const { point, ownListId, draggedNode } = input;
   if (!point || typeof document === "undefined" || !document.elementsFromPoint) return null;
   for (const element of document.elementsFromPoint(point.x, point.y)) {
     if (draggedNode?.contains(element)) continue;
-    const found = element.closest(`[${DROP_TARGET_ATTRIBUTE}]`);
+    const found = element.closest(`[${DROP_TARGET_ATTRIBUTE}],[${PROJECT_DROP_TARGET_ATTRIBUTE}]`);
     if (!found) continue;
     const list = found.closest(`[${DRAG_LIST_ATTRIBUTE}]`);
     if (ownListId && list?.getAttribute(DRAG_LIST_ATTRIBUTE) === ownListId) return null;
-    const target = decodeWorkspaceDropTarget(found.getAttribute(DROP_TARGET_ATTRIBUTE));
+    const target = decodeDropTarget(found);
     return target ? { element: found, target } : null;
   }
   return null;
 }
 
-export function findWorkspaceDropTarget(input: DropSearch): WorkspaceDropTarget | null {
-  // Sortable rows can move away on release; keep the target the pointer just highlighted.
+export function findWorkspaceDropTarget(input: DropSearch): SidebarDropTarget | null {
   if (
     highlighted?.isConnected &&
     highlightedDrop?.point?.x === input.point?.x &&
@@ -117,7 +152,7 @@ const DROP_FEEDBACK_CSS = `
 [${DROP_STATE_ATTRIBUTE}="landed"] { outline: 2px solid #188038; outline-offset: -2px; border-radius: 8px; background-color: rgba(24, 128, 56, 0.16); transition: background-color 0.3s; }
 `;
 let highlighted: Element | null = null;
-let highlightedDrop: (DropSearch & { target: WorkspaceDropTarget }) | null = null;
+let highlightedDrop: (DropSearch & { target: SidebarDropTarget }) | null = null;
 
 function ensureDropFeedbackStyles(): void {
   if (typeof document === "undefined" || document.getElementById("paseo-drop-feedback")) return;
@@ -133,9 +168,8 @@ export function clearWorkspaceDropHighlight(): void {
   highlightedDrop = null;
 }
 
-/** Marks the workspace under the pointer as a valid or refused drop while a drag moves. */
 export function highlightWorkspaceDropTarget(
-  input: DropSearch & { isValid: (target: WorkspaceDropTarget) => boolean },
+  input: DropSearch & { isValid: (target: SidebarDropTarget) => boolean },
 ): void {
   const found = findWorkspaceDropElement(input);
   if (found?.element !== highlighted) clearWorkspaceDropHighlight();

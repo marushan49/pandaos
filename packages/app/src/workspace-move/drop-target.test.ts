@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   beginWorkspaceDrag,
   endWorkspaceDrag,
+  decodeProjectDropTarget,
   decodeWorkspaceDropTarget,
   dragEndPoint,
+  encodeProjectDropTarget,
   encodeWorkspaceDropTarget,
   clearWorkspaceDropHighlight,
   findWorkspaceDropTarget,
@@ -17,6 +19,13 @@ describe("workspace drop targets", () => {
     expect(decodeWorkspaceDropTarget(encoded)).toEqual({ serverId: "srv_1", workspaceId: "wks_2" });
     expect(decodeWorkspaceDropTarget("nope")).toBeNull();
     expect(decodeWorkspaceDropTarget("|wks")).toBeNull();
+  });
+
+  it("round-trips a project with a path containing the separator", () => {
+    const project = { serverId: "srv_1", projectId: "prj_2", cwd: "/repo/a|b", name: "Repo" };
+    expect(decodeProjectDropTarget(encodeProjectDropTarget(project))).toEqual(project);
+    expect(decodeProjectDropTarget("srv_1|wks_2")).toBeNull();
+    expect(decodeProjectDropTarget(JSON.stringify(["srv_1", "", "/repo", "Repo"]))).toBeNull();
   });
 
   it("finds where the pointer ended from where the drag started", () => {
@@ -43,6 +52,37 @@ it("keeps the highlighted drop when sortable rows move on release, but not after
   } finally {
     clearWorkspaceDropHighlight();
     row.remove();
+    Reflect.deleteProperty(document, "elementsFromPoint");
+  }
+});
+
+it("resolves a session row inside a project block to its workspace, the rest of the block to the project", () => {
+  const block = document.createElement("div");
+  block.setAttribute(
+    "data-project-drop-target",
+    encodeProjectDropTarget({ serverId: "srv", projectId: "prj", cwd: "/repo", name: "Repo" }),
+  );
+  const header = document.createElement("div");
+  const sessions = document.createElement("div");
+  sessions.setAttribute("data-workspace-drop-target", "srv|wks_3");
+  const sessionRow = document.createElement("div");
+  sessions.appendChild(sessionRow);
+  block.append(header, sessions);
+  document.body.appendChild(block);
+  const hits = vi.fn(() => [sessionRow]);
+  Object.defineProperty(document, "elementsFromPoint", { configurable: true, value: hits });
+  const search = { point: { x: 1, y: 2 }, ownListId: null, draggedNode: null };
+  try {
+    expect(findWorkspaceDropTarget(search)).toEqual({ serverId: "srv", workspaceId: "wks_3" });
+    hits.mockReturnValue([header]);
+    expect(findWorkspaceDropTarget(search)).toEqual({
+      serverId: "srv",
+      projectId: "prj",
+      cwd: "/repo",
+      name: "Repo",
+    });
+  } finally {
+    block.remove();
     Reflect.deleteProperty(document, "elementsFromPoint");
   }
 });

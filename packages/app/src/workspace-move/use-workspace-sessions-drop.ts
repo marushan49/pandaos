@@ -2,17 +2,51 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/contexts/toast-context";
 import { confirmDialog } from "@/utils/confirm-dialog";
-import { flashLandedWorkspace, type WorkspaceDropTarget } from "./drop-target";
-import { describeWorkspaceMove, moveWorkspaceSessions } from "./move-sessions";
+import { flashLandedWorkspace, isWorkspaceDropTarget, type SidebarDropTarget } from "./drop-target";
+import {
+  createProjectWorkspace,
+  describeWorkspaceMove,
+  moveWorkspaceSessions,
+  workspaceOwnTitle,
+  workspaceProjectId,
+} from "./move-sessions";
+
+interface DraggedWorkspace {
+  serverId: string;
+  workspaceId: string;
+}
+
+function isOwnTarget(
+  item: DraggedWorkspace,
+  target: SidebarDropTarget,
+  ownWorkspaceIds: readonly string[],
+): boolean {
+  if (isWorkspaceDropTarget(target)) {
+    return target.workspaceId === item.workspaceId || ownWorkspaceIds.includes(target.workspaceId);
+  }
+  return (
+    target.serverId === item.serverId &&
+    workspaceProjectId(item.serverId, item.workspaceId) === target.projectId
+  );
+}
+
+function resolveTargetWorkspace(
+  item: DraggedWorkspace,
+  target: SidebarDropTarget,
+): Promise<string> {
+  if (isWorkspaceDropTarget(target)) return Promise.resolve(target.workspaceId);
+  return createProjectWorkspace({
+    target,
+    title: workspaceOwnTitle(item.serverId, item.workspaceId),
+  });
+}
 
 export function useWorkspaceSessionsDrop(ownWorkspaceIds: readonly string[] = []) {
   const { t } = useTranslation();
   const toast = useToast();
   return useCallback(
-    (item: { serverId: string; workspaceId: string }, target: WorkspaceDropTarget) => {
-      if (target.workspaceId === item.workspaceId || ownWorkspaceIds.includes(target.workspaceId)) {
-        return false;
-      }
+    (item: DraggedWorkspace, target: SidebarDropTarget) => {
+      if (isOwnTarget(item, target, ownWorkspaceIds)) return false;
       if (target.serverId !== item.serverId) {
         toast.error(t("sidebar.project.toasts.moveAcrossHosts"));
         return true;
@@ -20,8 +54,9 @@ export function useWorkspaceSessionsDrop(ownWorkspaceIds: readonly string[] = []
       const plan = describeWorkspaceMove({
         serverId: item.serverId,
         sourceWorkspaceId: item.workspaceId,
-        targetWorkspaceId: target.workspaceId,
+        target,
       });
+      if (plan.sessions === 0 && !isWorkspaceDropTarget(target)) return false;
       void (async () => {
         try {
           if (plan.sessions > 0) {
@@ -37,12 +72,13 @@ export function useWorkspaceSessionsDrop(ownWorkspaceIds: readonly string[] = []
             });
             if (!confirmed) return;
           }
+          const targetWorkspaceId = await resolveTargetWorkspace(item, target);
           const result = await moveWorkspaceSessions({
             serverId: item.serverId,
             sourceWorkspaceId: item.workspaceId,
-            targetWorkspaceId: target.workspaceId,
+            targetWorkspaceId,
           });
-          flashLandedWorkspace(target);
+          flashLandedWorkspace({ serverId: item.serverId, workspaceId: targetWorkspaceId });
           toast.show(
             t("sidebar.project.toasts.sessionsMovedTo", {
               count: result.moved,

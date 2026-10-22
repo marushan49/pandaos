@@ -43,8 +43,14 @@ import {
   findWorkspaceDropTarget,
   flashLandedWorkspace,
   highlightWorkspaceDropTarget,
+  isWorkspaceDropTarget,
 } from "@/workspace-move/drop-target";
-import { describeMove, moveSessionToWorkspace } from "@/workspace-move/move-sessions";
+import {
+  createProjectWorkspace,
+  describeMove,
+  moveSessionToWorkspace,
+  sessionTitle,
+} from "@/workspace-move/move-sessions";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { ResizeHandle } from "@/components/resize-handle";
 import {
@@ -543,7 +549,7 @@ export function SplitContainer({
           isValid: (target) =>
             activeTab?.target.kind === "agent" &&
             target.serverId === normalizedServerId &&
-            target.workspaceId !== normalizedWorkspaceId,
+            (!isWorkspaceDropTarget(target) || target.workspaceId !== normalizedWorkspaceId),
         });
       }
       const destinationPaneId =
@@ -657,28 +663,28 @@ export function SplitContainer({
         ownListId: null,
         draggedNode: null,
       });
-      if (!target || target.workspaceId === normalizedWorkspaceId) return false;
+      if (!target) return false;
+      if (isWorkspaceDropTarget(target) && target.workspaceId === normalizedWorkspaceId) {
+        return false;
+      }
       if (target.serverId !== normalizedServerId) {
         toast.error(t("sidebar.project.toasts.moveAcrossHosts"));
         return true;
       }
       const agentId = tab.target.agentId;
-      const names = describeMove({
-        serverId: normalizedServerId,
-        agentId,
-        targetWorkspaceId: target.workspaceId,
-      });
-      void moveSessionToWorkspace({
-        serverId: normalizedServerId,
-        agentId,
-        targetWorkspaceId: target.workspaceId,
-      })
-        .then(() => {
-          useWorkspaceLayoutStore.getState().closeTab(workspaceKey, tabId);
-          flashLandedWorkspace(target);
-          return toast.show(t("sidebar.project.toasts.sessionMovedTo", names));
-        })
-        .catch(() => toast.error(t("sidebar.project.toasts.moveSessionsFailed")));
+      const names = describeMove({ serverId: normalizedServerId, agentId, target });
+      void (async () => {
+        const targetWorkspaceId = isWorkspaceDropTarget(target)
+          ? target.workspaceId
+          : await createProjectWorkspace({
+              target,
+              title: sessionTitle(normalizedServerId, agentId),
+            });
+        await moveSessionToWorkspace({ serverId: normalizedServerId, agentId, targetWorkspaceId });
+        useWorkspaceLayoutStore.getState().closeTab(workspaceKey, tabId);
+        flashLandedWorkspace({ serverId: normalizedServerId, workspaceId: targetWorkspaceId });
+        toast.show(t("sidebar.project.toasts.sessionMovedTo", names));
+      })().catch(() => toast.error(t("sidebar.project.toasts.moveSessionsFailed")));
       return true;
     },
     [normalizedServerId, normalizedWorkspaceId, t, toast, uiTabs, workspaceKey],

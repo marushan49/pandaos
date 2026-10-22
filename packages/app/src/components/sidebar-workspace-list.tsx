@@ -83,7 +83,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ProjectLeadingVisual } from "@/components/sidebar/project-leading-visual";
 import { useToast } from "@/contexts/toast-context";
-import { encodeWorkspaceDropTarget } from "@/workspace-move/drop-target";
+import { encodeProjectDropTarget, encodeWorkspaceDropTarget } from "@/workspace-move/drop-target";
 import { useWorkspaceSessionsDrop } from "@/workspace-move/use-workspace-sessions-drop";
 import { getForgePresentation, normalizeForge } from "@/git/forge";
 import { toWorktreeArchiveRisk } from "@/git/worktree-archive-warning";
@@ -1573,8 +1573,23 @@ function workspaceDropTargetProps(serverId: string, workspaceId: string): object
   return { dataSet: { workspaceDropTarget: encodeWorkspaceDropTarget({ serverId, workspaceId }) } };
 }
 
-/** Dropping on a project lands in its first workspace, usually the main checkout. */
-function projectDropTargetProps(project: SidebarProjectEntry): object | null {
+function projectDropTargetProps(
+  project: SidebarProjectEntry,
+  newWorkspaceTarget: SidebarProjectHostTarget | null,
+  name: string,
+): object | null {
+  if (newWorkspaceTarget) {
+    return {
+      dataSet: {
+        projectDropTarget: encodeProjectDropTarget({
+          serverId: newWorkspaceTarget.serverId,
+          projectId: newWorkspaceTarget.projectId,
+          cwd: newWorkspaceTarget.iconWorkingDir,
+          name,
+        }),
+      },
+    };
+  }
   const first = project.workspaces[0];
   return first ? workspaceDropTargetProps(first.serverId, first.workspaceId) : null;
 }
@@ -1847,7 +1862,11 @@ function ProjectBlock({
       role="group"
       accessibilityLabel={displayName}
       style={projectChildren ? styles.projectBlockExpanded : undefined}
-      {...projectDropTargetProps(project)}
+      {...projectDropTargetProps(
+        project,
+        rowModel.trailingAction.kind === "new_workspace" ? rowModel.trailingAction.target : null,
+        displayName,
+      )}
     >
       <ProjectHeaderRow
         project={project}
