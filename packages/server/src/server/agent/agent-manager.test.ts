@@ -12903,7 +12903,9 @@ test("moveAgentToWorkspace keeps the session when the target shares the director
 
   expect(moved.workspaceId).toBe("ws-other");
   expect(moved.persistence?.sessionId).toBe(sessionId);
-  expect((await storage.get(agent.id))?.workspaceId).toBe("ws-other");
+  const stored = await storage.get(agent.id);
+  expect(stored?.workspaceId).toBe("ws-other");
+  expect(Date.parse(stored?.labels["pandaos.workspace.joined-at"] ?? "")).not.toBeNaN();
 });
 
 test("moveAgentToWorkspace restarts the same provider in the target directory", async () => {
@@ -12932,6 +12934,7 @@ test("moveAgentToWorkspace restarts the same provider in the target directory", 
   expect(moved.provider).toBe("codex");
   expect(moved.cwd).toBe(targetDir);
   expect(moved.workspaceId).toBe("ws-right");
+  expect(Date.parse(moved.labels["pandaos.workspace.joined-at"] ?? "")).not.toBeNaN();
   expect(codex.createdConfigs.at(-1)).toMatchObject({
     cwd: targetDir,
     model: "gpt-5.4",

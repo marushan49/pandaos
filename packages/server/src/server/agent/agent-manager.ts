@@ -2242,19 +2242,23 @@ export class AgentManager {
     if (existing.workspaceId === target.workspaceId) {
       return existing;
     }
+    const joined = { "pandaos.workspace.joined-at": new Date().toISOString() };
     if (existing.cwd === target.cwd) {
       existing.workspaceId = target.workspaceId;
+      existing.labels = applyLabelPatch(existing.labels, joined);
       await this.persistSnapshot(existing);
       this.notifyAgentState(agentId);
       return existing;
     }
-    return this.relaunchAgentSession(agentId, {
+    await this.relaunchAgentSession(agentId, {
       provider: existing.provider,
       modelId: existing.config.model ?? null,
       cwd: target.cwd,
       workspaceId: target.workspaceId,
       notice: `Moved to ${target.cwd}`,
     });
+    await this.writeLabels(agentId, joined);
+    return this.requireSessionAgent(agentId);
   }
 
   private async closeReloadedSession(session: AgentSession, agentId: string): Promise<void> {
