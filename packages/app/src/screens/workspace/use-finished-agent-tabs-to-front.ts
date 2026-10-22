@@ -13,6 +13,12 @@ export function useFinishedAgentTabsToFront(input: {
   workspaceId: string;
 }): void {
   const { serverId, workspaceId } = input;
+  const mainAgentId = useSessionStore((state) =>
+    selectWorkspaceMainAgentId(state.sessions[serverId]?.agents, workspaceId),
+  );
+  useEffect(() => {
+    if (mainAgentId) moveAgentTabToFront({ serverId, workspaceId, agentId: mainAgentId });
+  }, [mainAgentId, serverId, workspaceId]);
   useEffect(() => {
     if (!workspaceId) return undefined;
     const previousStatus = new Map<string, string>();
