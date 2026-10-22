@@ -2,23 +2,19 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Check, Clock } from "@/components/icons/ui-icons";
+import { Check } from "@/components/icons/ui-icons";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { SCRIM_WIDTH, TrailingActionScrim } from "@/components/ui/trailing-action-scrim";
 import { useWorkspaceDoneToggle } from "@/components/workspace-done-button";
 import { useToast } from "@/contexts/toast-context";
 import type { SidebarWorkspaceEntry } from "@/hooks/sidebar-workspaces-view-model";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
-import { useSidebarSnoozeEnabled } from "@/sidebar-order-sync/host";
 import { useIsActiveWorkspace } from "@/stores/navigation-active-workspace-store";
-import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
-import type { SidebarSurfaceBackdrop } from "@/styles/surface-backdrop";
 import { getStatusDotColor } from "@/utils/status-dot-color";
 import { STATUS_INDICATOR_FILLED_DOT_SIZE } from "@/utils/status-indicator-geometry";
 import { useSidebarModel } from "./sidebar-model";
-import { snoozeUntilTomorrowMorning, workspaceNeedsYou } from "./sidebar-set-aside";
+import { workspaceNeedsYou } from "./sidebar-set-aside";
 import { resolveSidebarWorkspacePrimaryLabel } from "./sidebar-workspace-title";
 
 const UNDO_WINDOW_MS = 5000;
@@ -52,7 +48,6 @@ function UndoToastContent({
 
 function useWorkspaceSetAsideActions(workspace: SidebarWorkspaceEntry): {
   onDone?: () => void;
-  onSnooze?: () => void;
 } {
   const { t } = useTranslation();
   const toast = useToast();
@@ -61,10 +56,8 @@ function useWorkspaceSetAsideActions(workspace: SidebarWorkspaceEntry): {
   } = useAppSettings();
   const client = useHostRuntimeClient(workspace.serverId);
   const doneToggle = useWorkspaceDoneToggle(workspace.serverId, workspace.workspaceId);
-  const snoozeEnabled = useSidebarSnoozeEnabled();
-  const setWorkspaceSnooze = useSidebarOrderStore((state) => state.setWorkspaceSnooze);
   const name = resolveSidebarWorkspacePrimaryLabel({ workspace, workspaceTitleSource });
-  const { workspaceKey, workspaceId } = workspace;
+  const { workspaceId } = workspace;
 
   const offerUndo = useCallback(
     (label: string, undo: () => void) => {
@@ -89,86 +82,49 @@ function useWorkspaceSetAsideActions(workspace: SidebarWorkspaceEntry): {
     });
   }, [client, name, offerUndo, t, toast, workspaceId]);
 
-  const onSnooze = useCallback(() => {
-    setWorkspaceSnooze(workspaceKey, snoozeUntilTomorrowMorning(new Date()));
-    offerUndo(t("sidebar.setAside.snoozedToast", { name }), () =>
-      setWorkspaceSnooze(workspaceKey, null),
-    );
-  }, [name, offerUndo, setWorkspaceSnooze, t, workspaceKey]);
-
   return {
     onDone:
       doneToggle && client && (!doneToggle.done || workspaceNeedsYou(workspace.statusBucket))
         ? onDone
         : undefined,
-    onSnooze: snoozeEnabled && !workspaceNeedsYou(workspace.statusBucket) ? onSnooze : undefined,
   };
-}
-
-function backdropFillStyle(backdrop: SidebarSurfaceBackdrop) {
-  if (backdrop === "surfaceSidebarHover") return styles.fillSidebarHover;
-  if (backdrop === "surfaceSidebarSelected") return styles.fillSidebarSelected;
-  if (backdrop === "surface2") return styles.fillSurface2;
-  return styles.fillSidebar;
 }
 
 export function SidebarWorkspaceSetAsideActions({
   workspace,
-  backdrop,
   visible,
   isTouchPlatform,
 }: {
   workspace: SidebarWorkspaceEntry;
-  backdrop: SidebarSurfaceBackdrop;
   visible: boolean;
   isTouchPlatform: boolean;
 }) {
   const { t } = useTranslation();
-  const { onDone, onSnooze } = useWorkspaceSetAsideActions(workspace);
+  const { onDone } = useWorkspaceSetAsideActions(workspace);
   const active = useIsActiveWorkspace(workspace.serverId, workspace.workspaceId);
   const [focused, setFocused] = useState(false);
   const handleFocus = useCallback(() => setFocused(true), []);
   const handleBlur = useCallback(() => setFocused(false), []);
-  if (!onDone && !onSnooze) return null;
+  if (!onDone) return null;
   if (isTouchPlatform && !active) return null;
   const shown = visible || focused;
   const buttonStyle = isTouchPlatform ? styles.touchAction : styles.hoverAction;
   const clusterStyle = isTouchPlatform
     ? styles.actions
-    : [styles.hoverCluster, backdropFillStyle(backdrop), !shown && styles.hoverClusterHidden];
+    : [styles.hoverCluster, !shown && styles.hoverClusterHidden];
   return (
     <View style={clusterStyle} pointerEvents={shown ? "auto" : "none"}>
-      {isTouchPlatform ? null : (
-        <View style={styles.hoverFade} pointerEvents="none">
-          <TrailingActionScrim backdrop={backdrop} />
-        </View>
-      )}
-      {onSnooze ? (
-        <Button
-          variant="ghost"
-          size="xs"
-          leftIcon={Clock}
-          onPress={onSnooze}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          style={buttonStyle}
-          accessibilityLabel={t("sidebar.setAside.snooze")}
-          testID={`sidebar-workspace-snooze-${workspace.workspaceKey}`}
-        />
-      ) : null}
-      {onDone ? (
-        <Button
-          variant="ghost"
-          size="xs"
-          leftIcon={Check}
-          onPress={onDone}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          style={buttonStyle}
-          accessibilityLabel={t("sidebar.setAside.done")}
-          testID={`sidebar-workspace-done-${workspace.workspaceKey}`}
-        />
-      ) : null}
+      <Button
+        variant="ghost"
+        size="xs"
+        leftIcon={Check}
+        onPress={onDone}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        style={buttonStyle}
+        accessibilityLabel={t("sidebar.setAside.done")}
+        testID={`sidebar-workspace-done-${workspace.workspaceKey}`}
+      />
     </View>
   );
 }
@@ -209,9 +165,6 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 0,
   },
   hoverCluster: {
-    position: "absolute",
-    top: 0,
-    right: theme.spacing[6],
     height: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -219,25 +172,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   hoverClusterHidden: {
     opacity: 0,
-  },
-  hoverFade: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: "100%",
-    width: SCRIM_WIDTH / 2,
-  },
-  fillSidebar: {
-    backgroundColor: theme.colors.surfaceSidebar,
-  },
-  fillSidebarHover: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
-  },
-  fillSidebarSelected: {
-    backgroundColor: theme.colors.surfaceSidebarSelected,
-  },
-  fillSurface2: {
-    backgroundColor: theme.colors.surface2,
   },
   hoverAction: {
     width: 26,

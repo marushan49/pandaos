@@ -1406,6 +1406,10 @@ export const ja: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} 件の入れ子のセッション",
+      collapsed_other: "{{count}} 件の入れ子のセッション",
+      expand: "入れ子のセッションを表示",
+      collapse: "入れ子のセッションを非表示",
       untitled: "新しいチャット",
     },
     leitstand: {

@@ -1416,6 +1416,10 @@ export const en = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} nested session",
+      collapsed_other: "{{count}} nested sessions",
+      expand: "Show nested sessions",
+      collapse: "Hide nested sessions",
       untitled: "New chat",
     },
     leitstand: {

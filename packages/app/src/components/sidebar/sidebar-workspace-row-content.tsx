@@ -3,6 +3,10 @@ import { Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { CircleAlert } from "@/components/icons/ui-icons";
 import { ProjectStatusIndicator } from "@/components/sidebar/project-leading-visual";
+import { SidebarSessionsToggle } from "@/components/sidebar/sidebar-sessions-toggle";
+import { SidebarWorkspaceSetAsideActions } from "@/components/sidebar/sidebar-set-aside-ui";
+import { isNative } from "@/constants/platform";
+import { useIsCompactFormFactor } from "@/constants/layout";
 import type { SidebarSurfaceBackdrop } from "@/styles/surface-backdrop";
 import {
   WorkspaceMetaRow,
@@ -111,27 +115,23 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
 }: {
   workspace: SidebarWorkspaceEntry;
   hostBadge?: HostBadgeModel | null;
-  /** Hoisted rows use their project icon as the leading visual because no project row contains them. */
   leadingProjectName?: string | null;
   leadingProjectIconDataUri?: string | null;
   serviceSummary?: WorkspaceServiceSummary | null;
-  /** The row's current background, so the project status badge can knock out of it. */
   backdrop: SidebarSurfaceBackdrop;
   isHovered: boolean;
   isLoading: boolean;
   isCreating?: boolean;
   shortcutNumber?: number | null;
   showShortcutBadge?: boolean;
-  /** Keep the empty leading slot when the workspace has no active status. */
   reserveIdleStatusIndicatorSpace?: boolean;
   children?: ReactNode;
 }) {
+  const isCompact = useIsCompactFormFactor();
   const {
     settings: { workspaceTitleSource },
   } = useAppSettings();
   const workspaceLabel = resolveSidebarWorkspacePrimaryLabel({ workspace, workspaceTitleSource });
-  // The workspace carries label names; their colors live in its host's catalog, so the row is
-  // where the two meet — the meta line is handed finished definitions.
   const labels = useWorkspaceLabelDefinitions(workspace.serverId, workspace.labels);
   const workspaceBranchTextStyle = useMemo(
     () => [
@@ -167,7 +167,17 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
             <Text style={workspaceBranchTextStyle} numberOfLines={1}>
               {workspaceLabel}
             </Text>
-            <View style={sidebarWorkspaceRowStyles.rowRight}>{children}</View>
+            <View style={sidebarWorkspaceRowStyles.rowRight}>
+              <SidebarWorkspaceSetAsideActions
+                workspace={workspace}
+                visible={!isCreating && (isHovered || isNative || isCompact)}
+                isTouchPlatform={isNative || isCompact}
+              />
+              {children}
+              {workspace.sessions?.length ? (
+                <SidebarSessionsToggle workspaceKey={workspace.workspaceKey} />
+              ) : null}
+            </View>
           </View>
           <WorkspaceMetaRow
             workspaceKey={workspace.workspaceKey}
@@ -201,10 +211,6 @@ export function WorkspaceStatusIndicator({
   loading?: boolean;
   reserveIdleSpace?: boolean;
 }) {
-  // Busy is the only status that moves, and it is the ring rather than a dot for the same
-  // reason it is a dot elsewhere: every status in the sidebar sits in this one slot, so busy
-  // has to fill it without displacing anything. A row starting up and a row working are both
-  // busy, so they share the ring and differ only in testID.
   if (loading) {
     return (
       <View style={styles.workspaceStatusDot} testID="workspace-status-indicator-loading">
@@ -238,10 +244,6 @@ export function WorkspaceStatusIndicator({
   }
 
   if (bucket === "done") {
-    // An idle row still gets a dot rather than an empty slot. Nested rows are marked as
-    // workspaces by indentation alone, and with nothing in the leading slot the rail has no
-    // edge to read against — a workspace carrying its own glyph starts looking like a project
-    // header. The dot is muted to half opacity so it holds the rail without reporting status.
     return reserveIdleSpace ? (
       <View style={styles.workspaceStatusDot} testID="workspace-status-indicator-done">
         <View style={styles.idleStatusDot} />
@@ -257,14 +259,6 @@ export function WorkspaceStatusIndicator({
 }
 
 export const sidebarWorkspaceRowStyles = StyleSheet.create((theme) => ({
-  // How far a workspace row sits inside the group header above it — a project row or a
-  // status group header. Both groupings share this one indent, so every grouped workspace row
-  // in the sidebar sits on the same rail regardless of how the list is grouped. Pinned rows
-  // are not grouped and stay flush.
-  //
-  // It is row padding rather than a margin on the list, because the row's hover and selected
-  // backgrounds have to keep spanning the group's full width. Indenting the container instead
-  // pulls the highlight in with the content and the row stops lining up with its header.
   rowIndented: {
     paddingLeft: theme.spacing[2] + theme.spacing[2],
   },
@@ -294,8 +288,6 @@ export const sidebarWorkspaceRowStyles = StyleSheet.create((theme) => ({
     lineHeight: 14,
   },
   hidden: { opacity: 0 },
-  // Stays position:relative at zero width so the absolutely-positioned kebab keeps
-  // anchoring to the same right edge whether or not the slot holds anything.
   trailingActionSlot: {
     position: "relative",
     minHeight: 20,
@@ -328,16 +320,6 @@ export function SidebarWorkspaceShortcutBadge({ number }: { number: number }) {
 
 export type SidebarWorkspaceTrailingPresentation = "visible" | "hidden" | "absent";
 
-/**
- * What the trailing slot shows for a row. Derived in one place because three row renderers
- * share it: the two project-mode rows and the status-mode row. The rule used to be copied
- * into each of them and immediately drifted — one call site kept hiding the diff after the
- * others stopped.
- *
- * The trailing content survives the kebab on hover and fades under the scrim instead of
- * blinking out. Touch has no hover, so its permanent kebab still hides the content outright
- * rather than scrimming an unhovered row whose background doesn't match the gradient.
- */
 export function resolveTrailingActionVisibility({
   workspace,
   trailing,
@@ -361,23 +343,14 @@ export function resolveTrailingActionVisibility({
 } {
   const hasTrailing = hasSidebarWorkspaceTrailing({ workspace, trailing });
   const showKebab = Boolean(hasArchiveAction && (isHovered || isTouchPlatform)) && !showShortcut;
-  // Touch permanently replaces the stats with the menu. Only temporary shortcut hints
-  // conceal content while retaining its width, so desktop rows do not shift.
   const hasContent = hasTrailing && !(hasArchiveAction && isTouchPlatform);
   let trailingPresentation: SidebarWorkspaceTrailingPresentation = "absent";
   if (hasContent) trailingPresentation = showShortcut ? "hidden" : "visible";
   return {
     trailingPresentation,
     showKebab,
-    // The scrim paints the row's own hover background, so it can only be drawn on a hovered
-    // row — over an unhovered one the gradient fades to the wrong color. That is also why
-    // touch, which shows the kebab without ever hovering, never gets one.
     showScrim: showKebab && isHovered,
     renderSlot: hasArchiveAction || hasTrailing,
-    // The slot only holds width for something that permanently sits in it. Trailing content
-    // does; the kebab only does on touch, where there is no hover for it to appear on and so
-    // no scrim to let it overlay the title. Everywhere else the width goes back to the title
-    // and the kebab fades in over its tail.
     reserveSlotWidth: hasContent || (hasArchiveAction && isTouchPlatform),
   };
 }
@@ -423,7 +396,6 @@ export function SidebarWorkspaceTrailingActionOverlay({
   children,
 }: {
   visible: boolean;
-  /** Fade the row into the kebab when something (the diff stat) is still rendered behind it. */
   scrimBackdrop?: SidebarSurfaceBackdrop;
   children: ReactNode;
 }) {
@@ -491,8 +463,6 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.foregroundExtraMuted,
     opacity: 0.3,
   },
-  // The title owns the first line outright now that the host, change request and CI moved
-  // to the meta row, so it takes the full width the trailing slot leaves behind.
   workspaceBranchText: {
     color: theme.colors.foreground,
     fontSize: densityFontSize(theme, "base"),

@@ -7,6 +7,7 @@ import {
   togglePinnedCollapsed,
   toggleProjectCollapsed,
   toggleWorkspaceGroupCollapsed,
+  toggleWorkspaceSessionsCollapsed,
 } from "@/stores/sidebar-collapsed-sections-store/state";
 
 function emptyState(): CollapsedProjectsState {
@@ -14,10 +15,27 @@ function emptyState(): CollapsedProjectsState {
     collapsedProjectKeys: new Set(),
     collapsedWorkspaceGroupKeys: new Set(),
     collapsedPinned: false,
+    collapsedSessionWorkspaceKeys: new Set(),
   };
 }
 
 describe("sidebar collapsed projects transitions", () => {
+  it("restores hidden sessions without changing another host or the workspace", () => {
+    const initial = emptyState();
+    const collapsed = toggleWorkspaceSessionsCollapsed(initial, "host-a:workspace-a");
+    const restored = mergePersistedCollapsedProjects(
+      serializeCollapsedProjects(collapsed),
+      emptyState(),
+    );
+    expect(restored.collapsedSessionWorkspaceKeys).toEqual(new Set(["host-a:workspace-a"]));
+    expect(restored.collapsedProjectKeys).toEqual(new Set());
+    expect(restored.collapsedSessionWorkspaceKeys.has("host-b:workspace-a")).toBe(false);
+    expect(
+      toggleWorkspaceSessionsCollapsed(restored, "host-a:workspace-a").collapsedSessionWorkspaceKeys
+        .size,
+    ).toBe(0);
+    expect(initial.collapsedSessionWorkspaceKeys.size).toBe(0);
+  });
   it("tracks collapsed project keys as a Set", () => {
     let state = emptyState();
 
@@ -35,12 +53,14 @@ describe("sidebar collapsed projects transitions", () => {
       collapsedProjectKeys: new Set(["project-a", "project-b"]),
       collapsedWorkspaceGroupKeys: new Set(["running"]),
       collapsedPinned: true,
+      collapsedSessionWorkspaceKeys: new Set(["host-a:workspace-a"]),
     };
 
     expect(serializeCollapsedProjects(state)).toEqual({
       collapsedProjectKeys: ["project-a", "project-b"],
       collapsedWorkspaceGroupKeys: ["running"],
       collapsedPinned: true,
+      collapsedSessionWorkspaceKeys: ["host-a:workspace-a"],
     });
   });
 

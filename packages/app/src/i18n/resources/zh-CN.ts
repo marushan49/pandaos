@@ -1380,6 +1380,10 @@ export const zhCN: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} 个嵌套会话",
+      collapsed_other: "{{count}} 个嵌套会话",
+      expand: "显示嵌套会话",
+      collapse: "隐藏嵌套会话",
       untitled: "新聊天",
     },
     leitstand: {

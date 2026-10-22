@@ -1399,6 +1399,10 @@ export const ko: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "중첩 세션 {{count}}개",
+      collapsed_other: "중첩 세션 {{count}}개",
+      expand: "중첩 세션 표시",
+      collapse: "중첩 세션 숨기기",
       untitled: "새 채팅",
     },
     leitstand: {

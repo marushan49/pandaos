@@ -1,5 +1,7 @@
 # PandaOS product journal
 
+- [2026-10-22 Sitzungen einklappen und Titelüberlagerung beheben](2026-10-22-sidebar-sessions.md)
+
 - [2026-10-22 Main-Zusammenführung und Worktreebereinigung](2026-10-22-main-worktrees.md)
 
 - [2026-10-20 generative interactive UI prototype](2026-10-20-generative-ui.md)

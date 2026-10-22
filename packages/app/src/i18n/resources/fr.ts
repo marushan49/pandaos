@@ -1421,6 +1421,10 @@ export const fr: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} session imbriquée",
+      collapsed_other: "{{count}} sessions imbriquées",
+      expand: "Afficher les sessions imbriquées",
+      collapse: "Masquer les sessions imbriquées",
       untitled: "Nouveau chat",
     },
     leitstand: {

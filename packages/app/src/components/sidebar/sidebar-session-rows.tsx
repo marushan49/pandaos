@@ -4,11 +4,13 @@ import { Pressable, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import { WorkspaceStatusIndicator } from "@/components/sidebar/sidebar-workspace-row-content";
+import { Button } from "@/components/ui/button";
 import { isWeb } from "@/constants/platform";
 import type { SidebarWorkspaceEntry } from "@/hooks/sidebar-workspaces-view-model";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { getFocusedAgentId } from "@/stores/workspace-layout-actions";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
+import { useSidebarCollapsedSectionsStore } from "@/stores/sidebar-collapsed-sections-store";
 import { density, densityFontSize, densityIconBox } from "@/styles/density";
 import { selectionTint } from "@/styles/with-alpha";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
@@ -19,8 +21,11 @@ export function useIsSessionRowFocused(
   workspace: SidebarWorkspaceEntry | null | undefined,
   isActiveWorkspace: boolean,
 ): boolean {
+  const collapsed = useSidebarCollapsedSectionsStore((state) =>
+    workspace ? state.collapsedSessionWorkspaceKeys.has(workspace.workspaceKey) : false,
+  );
   return useWorkspaceLayoutStore((state) => {
-    if (!isActiveWorkspace || !workspace?.sessions?.length) return false;
+    if (collapsed || !isActiveWorkspace || !workspace?.sessions?.length) return false;
     const focusedAgentId = getFocusedAgentId(state.layoutByWorkspace[workspace.workspaceKey]);
     return workspace.sessions.some((session) => session.agentId === focusedAgentId);
   });
@@ -33,8 +38,46 @@ export function SidebarSessionRows({
   workspace: SidebarWorkspaceEntry;
   onPress?: () => void;
 }) {
+  const collapsed = useSidebarCollapsedSectionsStore((state) =>
+    state.collapsedSessionWorkspaceKeys.has(workspace.workspaceKey),
+  );
   if (!workspace.sessions?.length) return null;
+  if (collapsed) {
+    return (
+      <CollapsedSessionRows
+        workspaceKey={workspace.workspaceKey}
+        count={workspace.sessions.length}
+      />
+    );
+  }
   return <SessionRowList workspace={workspace} sessions={workspace.sessions} onPress={onPress} />;
+}
+
+function CollapsedSessionRows({ workspaceKey, count }: { workspaceKey: string; count: number }) {
+  const { t } = useTranslation();
+  const toggle = useSidebarCollapsedSectionsStore(
+    (state) => state.toggleWorkspaceSessionsCollapsed,
+  );
+  const handlePress = useCallback(() => toggle(workspaceKey), [toggle, workspaceKey]);
+  return (
+    <View style={styles.container}>
+      <View style={styles.treeRail}>
+        <View style={styles.treeElbow} />
+      </View>
+      <Button
+        variant="ghost"
+        size="sm"
+        onPress={handlePress}
+        accessibilityHint={t("sidebar.sessions.expand")}
+        aria-expanded={false}
+        testID={`sidebar-sessions-summary-${workspaceKey}`}
+        style={styles.row}
+        textStyle={styles.summaryText}
+      >
+        {t("sidebar.sessions.collapsed", { count })}
+      </Button>
+    </View>
+  );
 }
 
 function SessionRowList({
@@ -161,8 +204,14 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.borderRadius.lg,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-start",
     gap: theme.spacing[2],
     userSelect: "none",
+  },
+  summaryText: {
+    color: theme.colors.foregroundMuted,
+    fontSize: densityFontSize(theme, "base"),
+    lineHeight: density.rowLineHeight,
   },
   treeRail: {
     width: densityIconBox("md"),
