@@ -13,7 +13,7 @@
 - Local, not worktree: the replaced first workspace is normally the main checkout, so the sessions' folder is the same as before; only the workspace changes. Sessions that change folder restart there, as before.
 - `e022b40f3` daemon: moving a session sets the label `pandaos.workspace.joined-at`, in both move branches (same folder, and relaunch in the new folder).
 - `82396c0a3`, `274a40487`, `7a0d7468b` app: the workspace's own session is the root session that joined it first (the label, else its creation time). Before, the oldest session won, so an older session moved in took over the workspace row and pushed the real one down as a session row. The sidebar and the tab row use the same rule. Its tab moves to the front when the workspace opens and stays first when other tabs move to the front (after a move, after a finished turn). In the desktop tab row a 1px `border` line follows it, centered in an extra `spacing[2]` gap that the tab width calculation reserves.
-- Known limits: sessions moved before the daemon update have no label and keep the creation-time rule. The compact tab switcher shows no divider. If the user drags another tab before the own tab, the divider follows the own tab and the next move or finished turn puts it back in front.
+- Known limits: sessions moved before the daemon update have no label and keep the creation-time rule. The compact tab switcher shows no divider. If the user drags another tab before the own tab, the divider follows the own tab, and reopening the workspace, the next move or a finished turn puts it back in front.
 - `use-workspace-sessions-drop.test.ts` failed before this change at import (`react-i18next` mock without `initReactI18next`); it now mocks partially.
 
 ## Verification
