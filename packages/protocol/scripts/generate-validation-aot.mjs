@@ -67,10 +67,34 @@ async function ensureZodAotDiscriminatedUnionOutputPatch() {
   await writeFile(discriminatedUnionPath, discriminatedUnionEmitter);
 }
 
-await Promise.all([
-  ensureZodAotRuntimeImportExtensionPatch(),
-  ensureZodAotDiscriminatedUnionOutputPatch(),
-]);
+async function ensureZodAotDiscriminatedUnionFunctionPatch() {
+  const emitter = await readFile(discriminatedUnionPath, "utf8");
+  if (emitter.includes('const branchName = g.temp("branch");')) {
+    return;
+  }
+
+  const before = "        ${g.visit(option, { input: objVar, output: objVar })}";
+  const after = "        ${objVar}=${branchName}(${objVar},${g.path},${g.issues});";
+  const branchBefore = "        const option = ir.options[index];\n        code += emit `";
+  const branchAfter = [
+    "        const option = ir.options[index];",
+    '        const branchName = g.temp("branch");',
+    '        const branch = g.visit(option, { input: "input", output: "output", path: "path", issues: "issues" });',
+    "        g.ctx.preamble.push(`function ${branchName}(input,path,issues){var output=input;${branch}return output;}`);",
+    "        code += emit `",
+  ].join("\n");
+  if (!emitter.includes(before) || !emitter.includes(branchBefore)) {
+    throw new Error("zod-aot discriminated-union emitter shape changed; update the function patch");
+  }
+  await writeFile(
+    discriminatedUnionPath,
+    emitter.replace(before, after).replace(branchBefore, branchAfter),
+  );
+}
+
+await ensureZodAotRuntimeImportExtensionPatch();
+await ensureZodAotDiscriminatedUnionOutputPatch();
+await ensureZodAotDiscriminatedUnionFunctionPatch();
 
 const [{ discoverSchemas }, { compileSchemas }, { generateCompiledFileContent }] =
   await Promise.all([

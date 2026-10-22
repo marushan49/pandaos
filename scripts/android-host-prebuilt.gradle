@@ -1,0 +1,46 @@
+allprojects { target ->
+  target.plugins.withId('com.facebook.react') {
+    if (target.name == 'app') {
+      target.afterEvaluate {
+        target.tasks.named('createBundleReleaseJsAndAssets') { task ->
+          def out = new File(System.getProperty('pandaos.android.bundle'))
+          def bytecode = new File(out, 'index.hbc')
+          task.inputs.dir(out)
+          task.outputs.upToDateWhen { false }
+          task.actions.clear()
+          task.doLast {
+            def hash = java.security.MessageDigest.getInstance('SHA-256').digest(bytecode.bytes).encodeHex().toString()
+            if (hash != new File(out, 'index.hbc.sha256').text.trim()) {
+              throw new GradleException('Prebuilt Hermes bytecode digest differs')
+            }
+            target.delete(task.resourcesDir.get().asFile)
+            target.copy {
+              from new File(out, 'assets')
+              into task.resourcesDir.get().asFile
+            }
+            target.copy {
+              from bytecode
+              into task.jsBundleDir.get().asFile
+              rename { 'index.android.bundle' }
+            }
+            target.copy {
+              from new File(out, 'packager.map')
+              into task.jsIntermediateSourceMapsDir.get().asFile
+              rename { 'index.android.bundle.packager.map' }
+            }
+            target.copy {
+              from new File(out, 'index.hbc.map')
+              into task.jsIntermediateSourceMapsDir.get().asFile
+              rename { 'index.android.bundle.compiler.map' }
+            }
+            target.copy {
+              from new File(out, 'composed.map')
+              into task.jsSourceMapsDir.get().asFile
+              rename { 'index.android.bundle.map' }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -14,6 +14,9 @@ def skiaPackage = new File(["node", "--print", "require.resolve('@shopify/react-
 android {
   namespace "sh.pandaos.diffprototype"
   defaultConfig {
+    ndk {
+      abiFilters(*(project.findProperty("reactNativeArchitectures")?.split(",") ?: ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]))
+    }
     externalNativeBuild {
       cmake {
         arguments "-DSKIA_PACKAGE=${skiaPackage.absolutePath}"

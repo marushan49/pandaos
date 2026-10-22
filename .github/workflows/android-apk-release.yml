@@ -5,7 +5,6 @@ on:
     tags:
       - "v*"
       - "android-v*"
-    # Rolling APK for the fixed download link; only app-relevant changes.
     branches:
       - main
     paths:
@@ -16,6 +15,7 @@ on:
       - "packages/plugin/**"
       - "packages/expo-two-way-audio/**"
       - "package-lock.json"
+      - "scripts/prebuild-android.mjs"
       - ".github/workflows/android-apk-release.yml"
   workflow_dispatch:
     inputs:
@@ -99,7 +99,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The dedicated release runner keeps generated native state warm.
           clean: false
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
@@ -121,35 +120,24 @@ jobs:
           registry-url: "https://npm.pkg.github.com"
           scope: "@boudra"
 
+      - name: Use guarded Android toolchain
+        shell: bash
+        run: |
+          source /usr/local/lib/pandaos-android-queue/env.sh
+          printf 'JAVA_HOME=%s\nANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\n' \
+            "$JAVA_HOME" "$ANDROID_HOME" "$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+
       - name: Install JS dependencies
-        run: node scripts/npm-retry.mjs ci
+        run: pandaos-android-queue -- node scripts/npm-retry.mjs ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          # Gradle User Home persists on the dedicated runner. Uploading it to
-          # GitHub would archive gigabytes after every release.
-          cache-disabled: true
 
       - name: Build app JavaScript dependencies
         timeout-minutes: 10
         shell: bash
         run: |
           set -euo pipefail
-          # build:app-deps is the exact set Metro resolves for the app bundle
-          # (highlight, client, plugin, expo-two-way-audio). Anything less
-          # fails bundling inside Gradle after tens of minutes.
-          npm run build:app-deps
-          # Fail in seconds instead of ~40 minutes into Gradle when a dist
-          # output is missing.
+          pandaos-android-queue -- npm run build:app-deps
           node scripts/verify-app-dist.mjs
 
       - name: Generate Android project
@@ -158,24 +146,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          fingerprint="$({
-            git ls-files -s \
-              package-lock.json \
-              packages/app/app.config.js \
-              packages/app/package.json \
-              packages/app/plugins \
-              packages/app/assets \
-              packages/app/native-release-version.js
-          } | sha256sum | cut -d' ' -f1)"
-
-          cd packages/app
-          if [[ -f "android/.paseo-prebuild-fingerprint" ]] && \
-             [[ "$(<"android/.paseo-prebuild-fingerprint")" == "$fingerprint" ]]; then
-            APP_VARIANT=production npx expo prebuild --platform android --non-interactive
-          else
-            APP_VARIANT=production npx expo prebuild --platform android --clean --non-interactive
-          fi
-          printf '%s\n' "$fingerprint" > "android/.paseo-prebuild-fingerprint"
+          pandaos-android-queue -- env APP_VARIANT=production node scripts/prebuild-android.mjs
 
       - name: Build Android APK
         timeout-minutes: 30
@@ -184,7 +155,7 @@ jobs:
           set -euo pipefail
           cd packages/app
           cd android
-          APP_VARIANT=production ./gradlew assembleRelease \
+          pandaos-android-queue -- env APP_VARIANT=production ./gradlew assembleRelease \
             -PreactNativeArchitectures=arm64-v8a \
             -x lint \
             -x lintVitalAnalyzeRelease \
@@ -192,8 +163,10 @@ jobs:
             -x generateReleaseLintModel \
             -x generateReleaseLintVitalModel \
             --build-cache \
-            --parallel \
-            --max-workers=4 \
+            --no-daemon \
+            --no-parallel \
+            --max-workers=1 \
+            -Pkotlin.compiler.execution.strategy=in-process \
             --console=plain \
             --stacktrace
 

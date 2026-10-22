@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Avoid Android release compiler memory stalls by splitting generated protocol validators.
+- Preserve native Android build outputs between unchanged local and CI builds.
+- Respect selected Android architectures in native diff builds.
+
 ## 0.11.2 - 2026-10-09
 
 ### Fixed

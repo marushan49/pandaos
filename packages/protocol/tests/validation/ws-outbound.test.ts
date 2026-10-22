@@ -62,6 +62,55 @@ async function compileInlineSchema(sourceSchema: string): Promise<GeneratedSchem
 }
 
 describe("WS outbound zod-aot validation", () => {
+  it("preserves nested union defaults and error paths across generated functions", async () => {
+    const schema = await compileInlineSchema(`
+const SourceSchema = z.object({
+  items: z.array(z.discriminatedUnion("type", [
+    z.object({ type: z.literal("enabled"), enabled: z.boolean().default(true) }),
+    z.object({ type: z.literal("label"), label: z.string() }),
+    z.object({
+      type: z.literal("nested"),
+      child: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("checked"), value: z.string().refine(value => value === "allowed") }),
+        z.object({ kind: z.literal("count"), count: z.number() }),
+      ]),
+    }),
+  ])),
+});
+`);
+    expect(
+      schema.safeParse({ items: [{ type: "enabled" }, { type: "label", label: "ok" }] }),
+    ).toEqual({
+      success: true,
+      data: {
+        items: [
+          { type: "enabled", enabled: true },
+          { type: "label", label: "ok" },
+        ],
+      },
+    });
+    expect(
+      schema.safeParse({ items: [{ type: "enabled" }, { type: "label", label: 42 }] }),
+    ).toMatchObject({
+      success: false,
+      error: { issues: [{ path: ["items", 1, "label"], code: "invalid_type" }] },
+    });
+    expect(schema.safeParse({ items: [{ type: "unknown" }] })).toMatchObject({
+      success: false,
+      error: { issues: [{ path: ["items", 0, "type"], code: "invalid_union" }] },
+    });
+    const nested = { items: [{ type: "nested", child: { kind: "checked", value: "allowed" } }] };
+    expect(schema.safeParse(nested)).toMatchObject({ success: true, data: nested });
+    expect(
+      schema.safeParse({
+        items: [{ type: "nested", child: { kind: "checked", value: "blocked" } }],
+      }),
+    ).toMatchObject({
+      success: false,
+      error: { issues: [{ path: ["items", 0, "child", "value"], code: "custom" }] },
+    });
+  });
+
   it("preserves accepted rich prompt blocks in generated outbound timeline validation", () => {
     const prompt = [
       { type: "text", text: "Reviewed request" },
@@ -328,6 +377,16 @@ const SourceSchema = z.object({
   it("emits runtime imports with .js extensions", async () => {
     const generated = await readFile(generatedWSOutboundPath, "utf8");
     expect(generated).toContain('from "../../validation/ws-outbound-schema-metadata.js"');
+  });
+
+  it("keeps generated functions small enough for Hermes compilation", async () => {
+    const generated = await readFile(generatedWSOutboundPath, "utf8");
+    const starts = [...generated.matchAll(/function\s+\w+\([^)]*\)\s*\{/g)].map(
+      (match) => match.index,
+    );
+    const ends = [...starts.slice(1), generated.length];
+    expect(starts.length).toBeGreaterThan(0);
+    expect(Math.max(...starts.map((start, index) => ends[index] - start))).toBeLessThan(1_000_000);
   });
 
   it("accepts a forge.search.response envelope", () => {

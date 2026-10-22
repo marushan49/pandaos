@@ -61,43 +61,73 @@ Gradle auto-fetches the platform/build-tools it needs once licenses are accepted
 
 ## Local build + install
 
-On a host with the Android queue installed, submit complete build commands through
-`pandaos-android-queue -- COMMAND` and preserve the injected toolchain environment.
-See [runtime recovery](runtime-recovery.md#add-the-linux-android-queue) for installation and coverage.
-
-From repo root:
+On the Zotac, use the persistent host builder:
 
 ```bash
-npm run android:development    # Debug build
-npm run android:production     # Release build
-npm run android:clear          # Remove generated Android project
+pandaos-android-build
+pandaos-android-build --source /path/to/pandaos-worktree --install=100.96.225.48:5555
+pandaos-android-build --source /path/to/pandaos-worktree --debug --install=100.96.225.48:5555
 ```
 
-For a production-ID release APK that local Android profiling tools can attach to:
+The bare command builds the canonical repository. Use `--source` for another checkout; an
+explicit release ref requires that checkout to contain the current build tooling. Unsupported
+older sources fail before changing the builder.
+
+The release builder stays at `.worktrees/android-build`; the debug builder stays at
+`.worktrees/android-build-debug`. Keep these paths: CMake and Gradle native outputs contain
+absolute paths, so a fresh worktree cannot reuse their task outputs by copying directories.
+Calling checkouts synchronize source into the builder without changing unchanged file timestamps.
+The builder preserves `node_modules`, generated Android files, Metro transforms and Gradle outputs.
+Gradle also uses the shared `~/.gradle` cache and `--build-cache`.
+
+The workflow submits the complete command through `pandaos-android-queue`, preserves its injected
+JDK/SDK, and runs Gradle serially without persistent daemons. Queue wait is reported separately
+from build time. A new dependency or native configuration can require a cold build. Routine JS
+changes preserve native outputs and Metro transforms. Do not run `clean` or delete the builder
+for an APK update. `android:clear` is an explicit recovery command.
+
+Release updates verify the APK signer before `adb install -r`. Debug updates use `installDebug`
+and the separate `sh.pandaos.debug` package. Existing package identity and first-install time
+must match after an update. The APK receipt is reusable only when source, configuration,
+actual APK hash and signer match; a failed build cannot promote an old APK.
+
+For JS-only development, install the debug client once, then use the existing Metro workflow
+from that source checkout:
+
+```bash
+pandaos-android-queue -- npm run dev:app
+```
+
+Connect the debug client to Metro and leave it running for Fast Refresh. On a physical Android
+device, `adb reverse tcp:8081 tcp:8081` lets the client reach Metro through `localhost:8081`.
+Metro holds a scheduler job while running. Save its job ID and cancel only that own job with
+`pandaos-android-queue cancel JOB_ID` before building another APK. Production app data stays
+in `sh.pandaos`; the debug client has its own data.
+
+On other development hosts, use the repository scripts from the root:
+
+```bash
+npm run android:development
+npm run android:production
+```
+
+For a production-ID release APK that Android profiling tools can attach to:
 
 ```bash
 PASEO_PROFILE_BUILD=1 npm run android:production
 ```
 
-This keeps the `sh.pandaos` package id, release Hermes bundle, and release optimizations. It adds
-`<profileable android:shell="true" />` and enables local Android trace markers for workspace mounts
-and daemon WebSocket traffic. The markers contain message types and sizes, never payload contents,
-and emit only while a system trace records the `sh.pandaos` app (`perfetto -a sh.pandaos ...`).
+This keeps the `sh.pandaos` package ID, release Hermes bundle and release optimizations. It adds
+`<profileable android:shell="true" />` and Android trace markers for workspace mounts and daemon
+WebSocket traffic. Markers contain message types and sizes, never payload contents, and emit
+only while a system trace records the app (`perfetto -a sh.pandaos ...`).
 
-Or from `packages/app`:
-
-```bash
-# Debug
-npx cross-env APP_VARIANT=development expo prebuild --platform android --clean --non-interactive
-npx cross-env APP_VARIANT=development expo run:android --variant=debug
-
-# Release
-npx cross-env APP_VARIANT=production expo prebuild --platform android --clean --non-interactive
-npx cross-env APP_VARIANT=production expo run:android --variant=release
-
-# Clear generated Android project
-rm -rf android
-```
+The development and production scripts build all app workspace dependencies before bundling.
+They share `scripts/prebuild-android.mjs` with the APK workflow. Its fingerprint reads current
+native configuration and plugin contents, including uncommitted files. Package scripts and
+local workspace version metadata do not invalidate it; dependency resolution and the app's
+native version do. `getAndroidPrebuildFingerprint` computes it without changing the marker.
+Use `android:clear` to force regeneration.
 
 ## Running on an emulator against a worktree daemon
 
@@ -216,7 +246,7 @@ Beta tags like `v0.1.1-beta.1` only trigger the GitHub APK workflow. They publis
 
 The GitHub release APK targets `arm64-v8a`. It is the direct-download build for modern physical Android devices; store and F-Droid builds keep their own architecture policies.
 
-The fork's APK job runs on the dedicated `paseo-android` runner on the Zotac. Its Gradle, Metro, and generated-native state persists across trusted tag and manual release builds. Native configuration inputs are fingerprinted; a change to the lockfile, app config, plugins, assets, or native version helper forces a clean Expo prebuild. The first build after such a change remains a cold build.
+The fork's APK job runs on the dedicated `paseo-android` runner on the Zotac. Its Gradle, Metro, and generated-native state persists across trusted tag and manual release builds. It uses the same prebuild fingerprint as local builds. The first build after a native configuration change remains a cold build.
 
 `android-v*` tags also trigger only the GitHub APK workflow — useful when you want to ship an APK without going through stores. The GitHub APK workflow supports `workflow_dispatch` with an existing `tag` input so you can rebuild without cutting a new tag.
 

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+parse_arguments() {
+  ref=""
+  source_path=""
+  arguments=()
+  while (($#)); do
+    case "$1" in
+      --source)
+        source_path="${2:?--source requires a checkout path}"
+        shift 2
+        ;;
+      --install)
+        arguments+=(--install 100.96.225.48:5555)
+        shift
+        ;;
+      --install=*)
+        serial="${1#--install=}"
+        [[ -n "$serial" ]] || { echo "--install= requires a serial" >&2; exit 2; }
+        arguments+=(--install "$serial")
+        shift
+        ;;
+      --builder|--keystore)
+        arguments+=("$1" "${2:?option requires a value}")
+        shift 2
+        ;;
+      --debug|--help)
+        arguments+=("$1")
+        shift
+        ;;
+      -*)
+        echo "Unknown argument: $1" >&2
+        exit 2
+        ;;
+      *)
+        ref="$1"
+        shift
+        ;;
+    esac
+  done
+  if [[ -z "$source_path" && -z "$ref" ]]; then
+    source_path="$repo"
+  fi
+}
+
+main() {
+  export PANDAOS_ANDROID_REQUESTED_AT="${PANDAOS_ANDROID_REQUESTED_AT:-$(date +%s)}"
+  repo="$HOME/projects/pandaos"
+
+  if ! /usr/bin/python3 -c 'from pathlib import Path; import runpy, sys; check = runpy.run_path(sys.argv[1])["in_build_cgroup"]; sys.exit(0 if check(Path("/proc/self/cgroup").read_text()) else 1)' "$repo/scripts/android-host-build.py"; then
+    exec /usr/local/bin/pandaos-android-queue -- "${BASH_SOURCE[0]}" "$@"
+  fi
+
+  parse_arguments "$@"
+  if [[ -z "$source_path" ]]; then
+    sha="$(git -C "$repo" rev-parse --short=9 --verify --end-of-options "$ref^{commit}")"
+    source_path="$HOME/.local/share/pandaos-releases/$sha"
+    [[ -d "$source_path" ]] || { echo "No release checkout for $ref: $source_path; use --source PATH" >&2; exit 1; }
+    [[ "$(git -C "$source_path" rev-parse HEAD)" == "$(git -C "$repo" rev-parse --verify --end-of-options "$ref^{commit}")" ]] || { echo "Release checkout does not match $ref" >&2; exit 1; }
+  fi
+  exec /usr/bin/python3 "$repo/scripts/android-host-build.py" --source "$source_path" "${arguments[@]}"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

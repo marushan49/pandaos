@@ -31,7 +31,10 @@ zod-aot is exact-pinned and young enough that compiler patches are treated as pa
 - discriminated-union branch output must propagate `.default()` fields
 - current sequential item routing must accept `tool_call`-like status branches
 - generated runtime imports must keep `.js` extensions for packaged Node ESM
+- union branches use separate generated functions and retain nested defaults and error paths
 - the generated WebSocket envelope accepts a minimal valid message and rejects a corrupted one
+
+Keep discriminated-union branches in separate generated functions. Inlining the entire outbound envelope produced a 13.9 MB function; Hermes alone crossed the Linux queue's 6 GiB soft limit. Raising Gradle's heap cannot fix that compiler input. The branch helpers share the issue array and carry the current path and parsed output, so extraction must preserve defaults and nested errors.
 
 ## Schema Purity
 
