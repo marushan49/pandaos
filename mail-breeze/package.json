@@ -1,0 +1,21 @@
+{
+  "name": "pandaos-mail-breeze",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsgo -p tsconfig.json --noEmit",
+    "test": "vitest run server/service.test.ts client/format.test.ts server/gmail.test.ts --bail=1"
+  },
+  "dependencies": {
+    "@getpaseo/client": "*",
+    "@getpaseo/plugin": "*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "@types/react": "*",
+    "typescript": "*",
+    "vitest": "*"
+  }
+}
