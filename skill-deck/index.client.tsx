@@ -1,14 +1,14 @@
 import type { PluginClientContext, PluginSidebarItemProps } from "@getpaseo/plugin/client";
 import { SidebarRow } from "@getpaseo/plugin/client/ui";
 import { useCallback } from "react";
-import { Tracker } from "./client/tracker.tsx";
+import { Deck } from "./client/deck.tsx";
 
 function SidebarItem({ currentScreen, openScreen }: PluginSidebarItemProps) {
   const open = useCallback(() => openScreen({ screenId: "main" }), [openScreen]);
   return (
     <SidebarRow
-      icon="ChartCandlestick"
-      label="Aktien"
+      icon="Library"
+      label="Plugins & Skills"
       active={currentScreen?.screenId === "main"}
       onPress={open}
     />
@@ -16,7 +16,7 @@ function SidebarItem({ currentScreen, openScreen }: PluginSidebarItemProps) {
 }
 
 export default function contribute(client: PluginClientContext) {
-  client.addScreen({ id: "main", title: "Aktien-Alerts", Component: Tracker });
-  client.addSidebarHeaderItem({ id: "main", title: "Aktien", Component: SidebarItem });
+  client.addScreen({ id: "main", title: "Plugins & Skills", Component: Deck });
+  client.addSidebarHeaderItem({ id: "main", title: "Plugins & Skills", Component: SidebarItem });
   return () => {};
 }

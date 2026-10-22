@@ -1,0 +1,6 @@
+{
+  "id": "skill-deck",
+  "name": "Plugins & Skills",
+  "description": "Skills und Plugins je Host, mit Quellen, Update-Prüfung und belegten Hinweisen",
+  "requirements": { "paseo": ">=0.11.2" }
+}
