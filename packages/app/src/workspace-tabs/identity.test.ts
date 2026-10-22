@@ -5,6 +5,16 @@ import {
   workspaceTabTargetsEqual,
 } from "./identity";
 
+describe("tasks tab identity", () => {
+  it("normalizes and reuses the workspace tasks target", () => {
+    const target = { kind: "tasks" } as const;
+    expect(normalizeWorkspaceTabTarget(target)).toEqual(target);
+    expect(buildDeterministicWorkspaceTabId(target)).toBe("tasks");
+    expect(workspaceTabTargetsEqual(target, { kind: "tasks" })).toBe(true);
+    expect(workspaceTabTargetsEqual(target, { kind: "files" })).toBe(false);
+  });
+});
+
 describe("New tab identity", () => {
   it("stays outside deterministic target identity", () => {
     const target = { kind: "new_tab" } as const;

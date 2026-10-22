@@ -177,6 +177,50 @@ function respondToScheduleRequest(
 
 const clients: DaemonClient[] = [];
 
+test.each([false, true])(
+  "browser activity skip requires explicit host capability=%s",
+  async (supported) => {
+    const mock = createMockTransport();
+    const client = new DaemonClient({
+      url: "ws://test",
+      clientId: "skip",
+      transportFactory: () => mock.transport,
+      reconnect: { enabled: false },
+    });
+    clients.push(client);
+    const connected = client.connect();
+    mock.triggerOpen({ features: { browserActivitySkip: supported } });
+    await connected;
+    const input = {
+      workspaceId: "ws",
+      browserId: "tab",
+      action: "skip",
+      runId: "run",
+      step: 3,
+    } satisfies Parameters<DaemonClient["controlBrowserActivity"]>[0];
+    if (!supported) {
+      await expect(client.controlBrowserActivity(input)).rejects.toThrow("Update the host");
+      expect(mock.sent).toHaveLength(0);
+      return;
+    }
+    const skipping = client.controlBrowserActivity(input);
+    const request = parseSentFrame(mock.sent[0]);
+    expect(request).toMatchObject({ type: "browser.activity.control.request", ...input });
+    mock.triggerMessage(
+      wrapSessionMessage({
+        type: "browser.activity.control.response",
+        payload: {
+          requestId: request.requestId,
+          workspaceId: "ws",
+          browserId: "tab",
+          applied: true,
+        },
+      }),
+    );
+    await expect(skipping).resolves.toMatchObject({ applied: true });
+  },
+);
+
 afterEach(async () => {
   await Promise.all(clients.map((client) => client.close()));
   clients.length = 0;

@@ -6,6 +6,10 @@ import type {
 import type { BrowserAutomationCommand } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import { BrowserActivityHub } from "./browser-activity.js";
 import type { BrowserToolsResponsePayload } from "./errors.js";
+import {
+  BrowserActivityControlRequestSchema,
+  BrowserActivityStepSchema,
+} from "@getpaseo/protocol/browser-activity/rpc-schemas";
 
 function createHub() {
   const events: BrowserActivityEvent[] = [];
@@ -14,6 +18,90 @@ function createHub() {
 }
 
 describe("BrowserActivityHub", () => {
+  it("queues skip only for a matching pending recipe step without changing the active action", () => {
+    const { hub, events } = createHub();
+    const steps = [
+      { operation: "navigate", status: "done" },
+      { operation: "click", status: "active" },
+      { operation: "assert-text", status: "pending" },
+    ] satisfies BrowserActivityEvent["steps"];
+    const run = hub.start({
+      workspaceId: "ws-1",
+      browserId: "tab-a",
+      kind: "recipe",
+      label: "test",
+      steps,
+    });
+    run.update({ phase: "executing", step: 2, action: steps[1] });
+    const runId = events[0]?.runId;
+    const request = {
+      workspaceId: "ws-1",
+      browserId: "tab-a",
+      runId,
+      step: 3,
+      action: "skip",
+    } satisfies Parameters<BrowserActivityHub["control"]>[0];
+    expect(hub.control({ ...request, runId: "stale" })).toBe(false);
+    expect(hub.control({ ...request, workspaceId: "ws-2" })).toBe(false);
+    expect(hub.control({ ...request, browserId: "tab-b" })).toBe(false);
+    expect(hub.control({ ...request, step: 2 })).toBe(false);
+    expect(hub.control({ ...request, step: 1 })).toBe(false);
+    expect(hub.control({ ...request, step: 4 })).toBe(false);
+    expect(hub.control(request)).toBe(true);
+    expect(hub.control(request)).toBe(true);
+    expect(events.at(-1)).toMatchObject({
+      phase: "executing",
+      step: 2,
+      action: { operation: "click", status: "active" },
+      steps: [{ status: "done" }, { status: "active" }, { status: "pending", skipRequested: true }],
+    });
+    run.update({ phase: "verifying", steps });
+    expect(events.at(-1)?.steps[2]?.skipRequested).toBe(true);
+    expect(run.takeSkip(2)).toBe(false);
+    expect(run.takeSkip(3)).toBe(true);
+    expect(run.takeSkip(3)).toBe(false);
+    run.finish({ status: "failed", message: "skipped", uncertain: true });
+    expect(hub.control(request)).toBe(false);
+    expect(run.takeSkip(3)).toBe(false);
+    const goal = hub.start({
+      workspaceId: "ws-1",
+      browserId: "tab-a",
+      kind: "goal",
+      label: "goal",
+      steps,
+    });
+    expect(hub.control({ ...request, runId: events.at(-1)?.runId })).toBe(false);
+    goal.finish({ status: "failed", message: "not skippable" });
+  });
+
+  it("keeps old step statuses parseable and accepts legacy activity controls", () => {
+    const legacyStep = BrowserActivityStepSchema.omit({ skipped: true, skipRequested: true });
+    expect(legacyStep.parse({ operation: "click", status: "failed", skipped: true })).toEqual({
+      operation: "click",
+      status: "failed",
+    });
+    expect(
+      BrowserActivityControlRequestSchema.parse({
+        type: "browser.activity.control.request",
+        requestId: "legacy",
+        workspaceId: "ws-1",
+        browserId: "tab-a",
+        action: "pause",
+      }),
+    ).toMatchObject({ action: "pause" });
+    expect(
+      BrowserActivityControlRequestSchema.parse({
+        type: "browser.activity.control.request",
+        requestId: "skip",
+        workspaceId: "ws-1",
+        browserId: "tab-a",
+        runId: "run",
+        step: 3,
+        action: "skip",
+      }),
+    ).toMatchObject({ action: "skip", runId: "run", step: 3 });
+  });
+
   it("applies takeover only to the run on the same workspace and browser", () => {
     const { hub, events } = createHub();
     hub.start({ workspaceId: "ws-1", browserId: "tab-a", kind: "goal", label: "Sign in" });

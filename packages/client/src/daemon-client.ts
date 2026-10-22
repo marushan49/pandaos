@@ -2441,11 +2441,20 @@ export class DaemonClient {
     };
   }
 
-  controlBrowserActivity(input: {
-    workspaceId: string;
-    browserId: string;
-    action: BrowserActivityControlRequest["action"];
-  }): Promise<CorrelatedResponsePayload<"browser.activity.control.response">> {
+  async controlBrowserActivity(
+    input: Pick<
+      BrowserActivityControlRequest,
+      "workspaceId" | "browserId" | "action" | "runId" | "step"
+    >,
+  ): Promise<CorrelatedResponsePayload<"browser.activity.control.response">> {
+    if (
+      input.action === "skip" &&
+      this.lastServerInfoMessage?.features?.browserActivitySkip !== true
+    ) {
+      throw new Error(
+        "This host does not support skipping recipe steps. Update the host to use this action.",
+      );
+    }
     return this.sendCorrelatedSessionRequest<"browser.activity.control.response">({
       message: { type: "browser.activity.control.request", ...input },
       responseType: "browser.activity.control.response",

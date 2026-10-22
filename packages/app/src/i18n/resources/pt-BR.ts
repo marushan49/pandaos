@@ -468,6 +468,7 @@ export const ptBR: TranslationResources = {
       otherPlaceholder: "Outro...",
     },
     todo: {
+      focusSession: "Focar sessão",
       title: "Tarefas",
       empty: "Nenhuma tarefa ainda.",
       tasksProgress: "{{completed}}/{{total}} tarefas",
@@ -698,6 +699,12 @@ export const ptBR: TranslationResources = {
         next: "Próxima",
         steps: "Etapas",
         noSteps: "Nenhuma etapa ainda",
+        skipStep: "Pular etapa {{step}}",
+        skipped: "Pulada · não verificada",
+        skipRequested: "Solicitação para pular",
+        controlStale: "Esta etapa ou execução já mudou.",
+        incomplete: "Execução incompleta: {{message}}",
+        incompleteSkipped: "Execução incompleta · etapas puladas",
         phase: {
           observing: "Observando",
           deciding: "Decidindo",

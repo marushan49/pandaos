@@ -3,6 +3,7 @@ import type { Agent } from "@/stores/session-store";
 import {
   buildWorkspaceAgentActivityIndex,
   selectWorkspaceMainAgentId,
+  selectWorkspacePlanAgentId,
 } from "./workspace-agent-activity";
 
 function agent(input: {
@@ -74,6 +75,19 @@ function agent(input: {
 }
 
 describe("workspace agent activity index", () => {
+  it("keeps the plan on the focused session or the workspace main session when another tool is focused", () => {
+    const agents = new Map(
+      [
+        agent({ id: "main", workspaceId: "ws", updatedAt: "2026-01-01" }),
+        agent({ id: "focused", workspaceId: "ws", updatedAt: "2026-01-02" }),
+        agent({ id: "foreign", workspaceId: "elsewhere", updatedAt: "2026-01-02" }),
+      ].map((item) => [item.id, item]),
+    );
+    expect(selectWorkspacePlanAgentId(agents, "ws", "focused")).toBe("focused");
+    expect(selectWorkspacePlanAgentId(agents, "ws", null)).toBe("main");
+    expect(selectWorkspacePlanAgentId(agents, "ws", "foreign")).toBe("main");
+    expect(selectWorkspacePlanAgentId(agents, "empty", "focused")).toBeNull();
+  });
   it("keeps the session a workspace started with as its main one when an older session moves in", () => {
     const agents = new Map(
       [

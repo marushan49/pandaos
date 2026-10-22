@@ -469,6 +469,7 @@ export const ja: TranslationResources = {
       otherPlaceholder: "その他...",
     },
     todo: {
+      focusSession: "セッションに移動",
       title: "タスク",
       empty: "タスクがまだありません。",
       tasksProgress: "{{completed}}/{{total}}タスク",
@@ -699,6 +700,12 @@ export const ja: TranslationResources = {
         next: "次",
         steps: "ステップ",
         noSteps: "まだステップはありません",
+        skipStep: "ステップ{{step}}をスキップ",
+        skipped: "スキップ済み・未確認",
+        skipRequested: "スキップを要求しました",
+        controlStale: "このステップまたは実行はすでに変更されています。",
+        incomplete: "実行は未完了です: {{message}}",
+        incompleteSkipped: "実行未完了・スキップしたステップあり",
         phase: {
           observing: "観察中",
           deciding: "判断中",

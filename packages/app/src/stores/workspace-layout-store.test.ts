@@ -238,6 +238,38 @@ function expectGroup(node: SplitNode): Extract<SplitNode, { kind: "group" }> {
 }
 
 describe("workspace-layout-store helpers", () => {
+  it("restores and reuses the tasks panel from local layout storage", async () => {
+    const workspaceKey = createWorkspaceKey();
+    const root = createPane({
+      id: "main",
+      tabIds: ["tasks"],
+      targetsByTabId: { tasks: { kind: "tasks" } },
+    });
+    await AsyncStorage.setItem(
+      "workspace-layout-state",
+      JSON.stringify({
+        version: 2,
+        state: { layoutByWorkspace: { [workspaceKey]: { root, focusedPaneId: "main" } } },
+      }),
+    );
+    const restored = createWorkspaceLayoutStore(createDeterministicWorkspaceLayoutIds());
+    await restored.persist.rehydrate();
+    expect(
+      collectAllTabs(restored.getState().layoutByWorkspace[workspaceKey].root).filter(
+        (tab) => tab.target.kind === "tasks",
+      ),
+    ).toEqual([createTab("tasks", { kind: "tasks" })]);
+    expect(
+      restored.getState().openTab({ workspaceKey, target: { kind: "tasks" }, intent: "reveal" }),
+    ).toBe("tasks");
+    expect(
+      collectAllTabs(restored.getState().layoutByWorkspace[workspaceKey].root).filter(
+        (tab) => tab.target.kind === "tasks",
+      ),
+    ).toHaveLength(1);
+    await AsyncStorage.removeItem("workspace-layout-state");
+  });
+
   it("seeds Files and Changes in the default Explorer sidebar", () => {
     const layout = createWorkspaceLayoutWithExplorerSidebar();
     const tabs = collectAllTabs(layout.root);

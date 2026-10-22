@@ -461,6 +461,7 @@ export const en = {
       otherPlaceholder: "Other...",
     },
     todo: {
+      focusSession: "Focus session",
       title: "Tasks",
       empty: "No tasks yet.",
       tasksProgress: "{{completed}}/{{total}} tasks",
@@ -709,6 +710,12 @@ export const en = {
         next: "Next",
         steps: "Steps",
         noSteps: "No steps yet",
+        skipStep: "Skip step {{step}}",
+        skipped: "Skipped · not checked",
+        skipRequested: "Skip requested",
+        controlStale: "This step or run has already changed.",
+        incomplete: "Run incomplete: {{message}}",
+        incompleteSkipped: "Run incomplete · skipped steps",
         phase: {
           observing: "Observing",
           deciding: "Deciding",

@@ -469,6 +469,7 @@ export const es: TranslationResources = {
       otherPlaceholder: "Otro...",
     },
     todo: {
+      focusSession: "Enfocar sesión",
       title: "Tareas",
       empty: "Aún no hay tareas.",
       tasksProgress: "{{completed}}/{{total}} tareas",
@@ -699,6 +700,12 @@ export const es: TranslationResources = {
         next: "Siguiente",
         steps: "Pasos",
         noSteps: "Aún no hay pasos",
+        skipStep: "Omitir paso {{step}}",
+        skipped: "Omitido · sin comprobar",
+        skipRequested: "Omisión solicitada",
+        controlStale: "Este paso o ejecución ya ha cambiado.",
+        incomplete: "Ejecución incompleta: {{message}}",
+        incompleteSkipped: "Ejecución incompleta · pasos omitidos",
         phase: {
           observing: "Observando",
           deciding: "Decidiendo",

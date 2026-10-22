@@ -464,6 +464,7 @@ export const zhCN: TranslationResources = {
       otherPlaceholder: "其他...",
     },
     todo: {
+      focusSession: "聚焦会话",
       title: "任务",
       empty: "还没有任务。",
       tasksProgress: "{{completed}}/{{total}} 项任务",
@@ -693,6 +694,12 @@ export const zhCN: TranslationResources = {
         next: "下一步",
         steps: "步骤",
         noSteps: "暂无步骤",
+        skipStep: "跳过步骤 {{step}}",
+        skipped: "已跳过 · 未检查",
+        skipRequested: "已请求跳过",
+        controlStale: "此步骤或运行已发生变化。",
+        incomplete: "运行未完成：{{message}}",
+        incompleteSkipped: "运行未完成 · 存在跳过的步骤",
         phase: {
           observing: "观察中",
           deciding: "决策中",

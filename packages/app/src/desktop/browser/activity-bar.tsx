@@ -2,24 +2,23 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { ChevronRight, X } from "@/components/icons/ui-icons";
+import { ChevronRight, Pause, Play, X } from "@/components/icons/ui-icons";
 import type {
   BrowserActivityControlRequest,
   BrowserActivityEvent,
-  BrowserActivityStep,
   BrowserHandoff,
 } from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import { AdaptiveModalSheet } from "@/components/adaptive-modal-sheet";
 import { Button } from "@/components/ui/button";
 import type { Theme } from "@/styles/theme";
 import {
-  describeBrowserActivityStep,
   describeNextBrowserActivityStep,
   formatBrowserActivityConfidence,
   isBrowserRunActive,
   summarizeBrowserActivity,
 } from "@/desktop/browser/activity";
 import { browserActivityTone } from "@/desktop/browser/activity-tone";
+import { BrowserActivitySteps } from "@/desktop/browser/activity-steps";
 
 interface BrowserActivityBarProps {
   activity: BrowserActivityEvent;
@@ -31,12 +30,6 @@ interface BrowserActivityBarProps {
 const ThemedChevronRight = withUnistyles(ChevronRight);
 const mutedColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 const SHEET_SNAP_POINTS = ["50%", "90%"];
-const STEP_MARKERS: Record<BrowserActivityStep["status"], string> = {
-  pending: "○",
-  active: "●",
-  done: "✓",
-  failed: "✕",
-};
 
 export function BrowserActivityBar({
   activity,
@@ -57,15 +50,6 @@ export function BrowserActivityBar({
   const meta = [phase, confidence].filter(Boolean).join(", ");
   const next = describeNextBrowserActivityStep(activity, t);
   const tone = browserActivityTone(activity, failureConfirmed);
-  // Steps carry no ids; a step's position in the run is its identity.
-  const stepRows = useMemo(() => {
-    const steps =
-      activity.kind === "goal" && activity.action && activity.phase !== "verifying"
-        ? [...activity.steps, activity.action]
-        : activity.steps;
-    return steps.map((step, position) => ({ step, position }));
-  }, [activity]);
-
   const openSteps = useCallback(() => setStepsOpen(true), []);
   const closeSteps = useCallback(() => setStepsOpen(false), []);
   const handleControl = useCallback(
@@ -82,11 +66,14 @@ export function BrowserActivityBar({
   const sheetFooter = useMemo(
     () =>
       active ? (
-        <Button variant="default" onPress={handleControl}>
-          {controlLabel}
-        </Button>
+        <Button
+          variant="default"
+          onPress={handleControl}
+          leftIcon={takenOver ? Play : Pause}
+          accessibilityLabel={controlLabel}
+        />
       ) : undefined,
-    [active, controlLabel, handleControl],
+    [active, controlLabel, handleControl, takenOver],
   );
 
   let dotStyle = styles.dotDone;
@@ -126,10 +113,10 @@ export function BrowserActivityBar({
           size="xs"
           variant="outline"
           onPress={handleControl}
+          leftIcon={takenOver ? Play : Pause}
+          accessibilityLabel={controlLabel}
           testID="browser-activity-control"
-        >
-          {controlLabel}
-        </Button>
+        />
       ) : (
         <Button
           size="xs"
@@ -158,30 +145,9 @@ export function BrowserActivityBar({
             <Text style={styles.value}>{next}</Text>
           </View>
         ) : null}
-        <View style={styles.section} accessibilityRole="list">
+        <View style={styles.section}>
           <Text style={styles.label}>{t("workspace.browser.activity.steps")}</Text>
-          {stepRows.length === 0 ? (
-            <Text style={styles.meta}>{t("workspace.browser.activity.noSteps")}</Text>
-          ) : null}
-          {stepRows.map(({ step, position }) => {
-            const description = describeBrowserActivityStep(step);
-            const status = t(`workspace.browser.activity.stepStatus.${step.status}`);
-            return (
-              <View
-                key={position}
-                accessible={true}
-                accessibilityLabel={`${position + 1}. ${status}: ${description}`}
-                style={styles.stepRow}
-              >
-                <Text style={step.status === "failed" ? styles.markerFailed : styles.marker}>
-                  {STEP_MARKERS[step.status]}
-                </Text>
-                <Text style={step.status === "pending" ? styles.stepPending : styles.stepText}>
-                  {description}
-                </Text>
-              </View>
-            );
-          })}
+          <BrowserActivitySteps activity={activity} />
         </View>
       </AdaptiveModalSheet>
     </View>
@@ -199,7 +165,6 @@ interface BrowserHandoffBarProps {
   onEnd: (action: BrowserHandoffAction) => void;
 }
 
-/** The user controls the tab; the agent waits until Done or Cancel. */
 export function BrowserHandoffBar({ handoff, pendingAction, onEnd }: BrowserHandoffBarProps) {
   const { t } = useTranslation();
   const finish = useCallback(() => onEnd("finish_handoff"), [onEnd]);
@@ -290,14 +255,4 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: theme.fontWeight.medium,
   },
   value: { color: theme.colors.foreground, fontSize: theme.fontSize.base },
-  stepRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: theme.spacing[2],
-    paddingVertical: theme.spacing[1],
-  },
-  marker: { width: 16, color: theme.colors.foregroundMuted, fontSize: theme.fontSize.base },
-  markerFailed: { width: 16, color: theme.colors.statusDanger, fontSize: theme.fontSize.base },
-  stepText: { flex: 1, color: theme.colors.foreground, fontSize: theme.fontSize.base },
-  stepPending: { flex: 1, color: theme.colors.foregroundMuted, fontSize: theme.fontSize.base },
 }));

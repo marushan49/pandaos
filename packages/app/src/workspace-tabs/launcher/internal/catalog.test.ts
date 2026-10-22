@@ -13,6 +13,7 @@ describe("getBuiltInLaunchOrder", () => {
       "pullRequest",
       "evidence",
       "insights",
+      "tasks",
     ]);
   });
 
@@ -27,6 +28,7 @@ describe("getBuiltInLaunchOrder", () => {
       "pullRequest",
       "evidence",
       "insights",
+      "tasks",
     ]);
   });
 });

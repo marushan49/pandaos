@@ -4073,6 +4073,7 @@ export const ServerInfoStatusPayloadSchema = z
         browserProfileImport: z.boolean().optional(),
         // COMPAT(browserActivity): added in v0.9.1, remove gate after 2027-03-25.
         browserActivity: z.boolean().optional(),
+        browserActivitySkip: z.boolean().optional(),
         // COMPAT(browserHandoff): added in v0.9.1, remove gate after 2027-03-27.
         browserHandoff: z.boolean().optional(),
         // COMPAT(browserTabClose): added in v0.11.1, remove gate after 2027-04-08.

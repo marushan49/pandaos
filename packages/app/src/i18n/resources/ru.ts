@@ -468,6 +468,7 @@ export const ru: TranslationResources = {
       otherPlaceholder: "Другой ответ...",
     },
     todo: {
+      focusSession: "Открыть сессию",
       title: "Задачи",
       empty: "Задач пока нет.",
       tasksProgress: "Задачи: {{completed}}/{{total}}",
@@ -699,6 +700,12 @@ export const ru: TranslationResources = {
         next: "Далее",
         steps: "Шаги",
         noSteps: "Шагов пока нет",
+        skipStep: "Пропустить шаг {{step}}",
+        skipped: "Пропущен · не проверен",
+        skipRequested: "Запрошен пропуск",
+        controlStale: "Этот шаг или запуск уже изменился.",
+        incomplete: "Запуск не завершён: {{message}}",
+        incompleteSkipped: "Запуск не завершён · есть пропущенные шаги",
         phase: {
           observing: "Наблюдение",
           deciding: "Решение",

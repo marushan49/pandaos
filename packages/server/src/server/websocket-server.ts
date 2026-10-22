@@ -1981,6 +1981,7 @@ export class VoiceAssistantWebSocketServer {
         ...(this.browserActivity
           ? {
               browserActivity: true,
+              browserActivitySkip: true,
               browserHandoff: true,
               browserTabClose: true,
               browserTunnel: true,

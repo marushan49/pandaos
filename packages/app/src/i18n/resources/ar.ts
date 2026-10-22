@@ -464,6 +464,7 @@ export const ar: TranslationResources = {
       otherPlaceholder: "آخر...",
     },
     todo: {
+      focusSession: "الانتقال إلى الجلسة",
       title: "المهام",
       empty: "لا توجد مهام حتى الآن.",
       tasksProgress: "{{completed}}/{{total}} مهام",
@@ -693,6 +694,12 @@ export const ar: TranslationResources = {
         next: "التالي",
         steps: "الخطوات",
         noSteps: "لا توجد خطوات بعد",
+        skipStep: "تخطي الخطوة {{step}}",
+        skipped: "تم التخطي · لم يتم التحقق",
+        skipRequested: "طُلب التخطي",
+        controlStale: "تغيرت هذه الخطوة أو عملية التشغيل بالفعل.",
+        incomplete: "التشغيل غير مكتمل: {{message}}",
+        incompleteSkipped: "التشغيل غير مكتمل · خطوات متخطاة",
         phase: {
           observing: "يراقب",
           deciding: "يقرر",

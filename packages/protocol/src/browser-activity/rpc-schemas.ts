@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Structured action data only: no values, screenshots, or model reasoning cross this boundary.
 export const BrowserActivityStepSchema = z.object({
   operation: z.string(),
   target: z.object({ role: z.string(), name: z.string() }).optional(),
@@ -9,6 +8,8 @@ export const BrowserActivityStepSchema = z.object({
   confidence: z.number().optional(),
   targetConfidence: z.number().optional(),
   status: z.enum(["pending", "active", "done", "failed"]),
+  skipRequested: z.boolean().optional(),
+  skipped: z.boolean().optional(),
 });
 
 export const BrowserActivityPhaseSchema = z.enum([
@@ -21,7 +22,6 @@ export const BrowserActivityPhaseSchema = z.enum([
   "finished",
 ]);
 
-// Every event is the full run state, so a late subscriber needs no history.
 export const BrowserActivityEventSchema = z.object({
   runId: z.string(),
   workspaceId: z.string(),
@@ -32,7 +32,6 @@ export const BrowserActivityEventSchema = z.object({
   step: z.number().int().nonnegative(),
   totalSteps: z.number().int().nonnegative().optional(),
   action: BrowserActivityStepSchema.optional(),
-  // Set only when the next step is known exactly; Jev decides after observing again.
   next: BrowserActivityStepSchema.optional(),
   steps: z.array(BrowserActivityStepSchema),
   pauseRequested: z.boolean(),
@@ -85,6 +84,8 @@ export const BrowserActivityControlRequestSchema = z.object({
   requestId: z.string(),
   workspaceId: z.string().min(1),
   browserId: z.string().min(1),
+  runId: z.string().min(1).optional(),
+  step: z.number().int().positive().optional(),
   action: z.enum([
     "pause",
     "resume",
@@ -92,6 +93,7 @@ export const BrowserActivityControlRequestSchema = z.object({
     "cancel_handoff",
     "keep_tab_open",
     "close_tab_now",
+    "skip",
   ]),
 });
 

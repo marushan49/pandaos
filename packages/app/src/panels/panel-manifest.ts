@@ -1,15 +1,11 @@
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 
-/** Where a tab renders: a split pane, the Explorer dock, or the compact workspace sheet. */
 export type PaneHost = "main" | "explorer" | "sheet";
 
-/** How a target behaves while it is shown in the compact workspace sheet. */
 export interface CompactSheetPolicy {
-  /** The sheet offers Open as tab, which moves the same tab into the focused pane. */
   openAsTab: boolean;
 }
 
-/** Facts about a target that live outside the layout, resolved lazily by the workspace. */
 export interface PanelTargetFacts {
   isWorkspaceRootAgent(agentId: string): boolean;
 }
@@ -24,14 +20,9 @@ type CompactSheetRule<K extends WorkspaceTabTarget["kind"]> =
 
 export interface PanelManifest<K extends WorkspaceTabTarget["kind"] = WorkspaceTabTarget["kind"]> {
   kind: K;
-  /** The sheet is never listed: a kind renders there exactly when it has a `compactSheet` rule. */
   supportedHosts: readonly Exclude<PaneHost, "sheet">[];
   showCloseButton: boolean;
   singleton: boolean;
-  /**
-   * On compact layouts, revealing this target opens it in the workspace sheet over the current
-   * tab instead of adding a tab. `null` keeps it in the tab strip.
-   */
   compactSheet: CompactSheetRule<K>;
   resourceKey(target: Extract<WorkspaceTabTarget, { kind: K }>): string;
 }
@@ -130,6 +121,14 @@ const manifests = {
     compactSheet: null,
     resourceKey: () => "insights",
   },
+  tasks: {
+    kind: "tasks",
+    supportedHosts: ["main", "explorer"],
+    showCloseButton: true,
+    singleton: true,
+    compactSheet: null,
+    resourceKey: () => "tasks",
+  },
   file: {
     kind: "file",
     supportedHosts: ["main", "explorer"],
@@ -148,7 +147,6 @@ const manifests = {
   },
   plugin: {
     kind: "plugin",
-    // Plugin targets are narrowed by the target-aware plugin panel capability resolver.
     supportedHosts: ["main", "explorer"],
     showCloseButton: true,
     singleton: false,

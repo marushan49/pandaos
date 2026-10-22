@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View } from "react-native";
 import { Gesture } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles, withUnistyles } from "react-native-unistyles";
-import { X } from "@/components/icons/ui-icons";
+import { Camera, Files, Gauge, GitBranch, X } from "@/components/icons/ui-icons";
 import { useTranslation } from "react-i18next";
 import { formatPrTabLabel, PullRequestTabIcon } from "@/git/pull-request-panel";
 import {
@@ -49,8 +49,13 @@ import {
 import { ToolbarButton } from "@/components/ui/pane-content-toolbar";
 import { mutedIconColorMapping } from "@/components/ui/icon-button-chrome";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
+import { WorkspaceActivity } from "@/screens/workspace/workspace-activity";
 
 const ThemedX = withUnistyles(X);
+const ThemedFiles = withUnistyles(Files);
+const ThemedChanges = withUnistyles(GitBranch);
+const ThemedEvidence = withUnistyles(Camera);
+const ThemedInsights = withUnistyles(Gauge);
 
 function logExplorerSidebar(_event: string, _details: Record<string, unknown>): void {}
 
@@ -276,7 +281,7 @@ export function NativeExplorerSidebarDock({
 interface ExplorerTabButtonProps {
   tab: ExplorerTab;
   active: boolean;
-  label?: string;
+  label: string;
   onTabPress: (tab: ExplorerTab) => void;
   testID: string;
   children?: React.ReactNode;
@@ -292,16 +297,20 @@ function ExplorerTabButton({
 }: ExplorerTabButtonProps) {
   const isCompact = useIsCompactFormFactor();
   const handlePress = useCallback(() => onTabPress(tab), [onTabPress, tab]);
-  const tabStyle = useMemo(
-    () => [styles.tab(isCompact), active && styles.tabActive],
-    [active, isCompact],
-  );
-  const tabTextStyle = useMemo(() => [styles.tabText, active && styles.tabTextActive], [active]);
+  let Icon = ThemedInsights;
+  if (tab === "files") Icon = ThemedFiles;
+  else if (tab === "changes") Icon = ThemedChanges;
+  else if (tab === "evidence") Icon = ThemedEvidence;
   return (
-    <Pressable testID={testID} style={tabStyle} onPress={handlePress}>
-      {children}
-      {label !== undefined ? <Text style={tabTextStyle}>{label}</Text> : null}
-    </Pressable>
+    <ToolbarButton
+      testID={testID}
+      label={label}
+      selected={active}
+      compact={isCompact}
+      onPress={handlePress}
+    >
+      {children ?? <Icon size={14} uniProps={mutedIconColorMapping} />}
+    </ToolbarButton>
   );
 }
 
@@ -367,7 +376,6 @@ function ExplorerSidebarContent({
 
   return (
     <View style={styles.sidebarContent} pointerEvents="auto">
-      {/* Header with tabs and close button */}
       <WindowChromeSafeArea placement="inline" style={styles.header} testID="explorer-header">
         <TitlebarDragRegion />
         <View style={styles.tabsContainer(isCompact)}>
@@ -434,7 +442,7 @@ function ExplorerSidebarContent({
         </View>
       </WindowChromeSafeArea>
 
-      {/* Content based on active tab */}
+      {workspaceId ? <WorkspaceActivity serverId={serverId} workspaceId={workspaceId} /> : null}
       <View style={styles.contentArea} testID="explorer-content-area">
         {mountedTabIds.has("changes") ? (
           <RetainedPanel active={resolvedTab === "changes"}>
@@ -563,32 +571,8 @@ const styles = StyleSheet.create((theme) => ({
   tabsContainer: (isCompact: boolean) => ({
     flexDirection: "row",
     gap: theme.spacing[1],
-    // With the tab's own horizontal padding this puts the label on the pane's
-    // leading rail, the same way the desktop tab rail does.
     paddingLeft: isCompact ? EXPLORER_TAB_RAIL_INSET : theme.spacing[2],
   }),
-  tab: (isCompact: boolean) => ({
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[2],
-    paddingVertical: theme.spacing[2],
-    paddingHorizontal: isCompact ? theme.spacing[2] : theme.spacing[3],
-    borderRadius: theme.borderRadius.md,
-  }),
-  tabActive: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
-  },
-  tabText: {
-    fontSize: theme.fontSize.base,
-    fontWeight: theme.fontWeight.normal,
-    color: theme.colors.foregroundMuted,
-  },
-  tabTextActive: {
-    color: theme.colors.foreground,
-  },
-  tabTextMuted: {
-    opacity: 0.8,
-  },
   headerRightSection: {
     flexDirection: "row",
     alignItems: "center",

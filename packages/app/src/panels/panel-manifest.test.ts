@@ -7,6 +7,16 @@ import {
 } from "@/panels/panel-manifest";
 
 describe("panel manifest", () => {
+  it("opens tasks as a closable singleton tool in main or Explorer", () => {
+    expect(panelSupportsHost("tasks", "main")).toBe(true);
+    expect(panelSupportsHost("tasks", "explorer")).toBe(true);
+    expect(panelSupportsHost("tasks", "sheet")).toBe(false);
+    expect(getPanelManifest("tasks").showCloseButton).toBe(true);
+    expect(panelCanLaunchInPane("tasks", ["tasks"])).toBe(false);
+    expect(panelCanLaunchInPane("tasks", [])).toBe(true);
+    expect(panelResourceKey({ kind: "tasks" })).toBe("tasks:tasks");
+  });
+
   it("answers host support without React panel registration", () => {
     expect(panelSupportsHost("agent", "main")).toBe(true);
     expect(panelSupportsHost("agent", "explorer")).toBe(true);

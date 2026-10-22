@@ -56,6 +56,7 @@ export const useBrowserActivityStore = create<BrowserActivityState>((set, get) =
       },
     }));
     if (event.phase !== "finished") return;
+    if (event.result?.uncertain && event.steps.some((step) => step.skipped)) return;
     if (isDefinitiveFailure(event)) {
       setTimeout(() => get().confirmFailure(serverId, event), FINISHED_BANNER_MS);
     } else {
@@ -120,6 +121,16 @@ export function useBrowserActivity(
   return useBrowserActivityStore((state) =>
     browserId ? (state.byBrowser[activityKey(serverId, workspaceId, browserId)] ?? null) : null,
   );
+}
+
+export function workspaceBrowserActivities(
+  byBrowser: Record<string, BrowserActivityEvent>,
+  serverId: string,
+  workspaceId: string,
+): BrowserActivityEvent[] {
+  return Object.entries(byBrowser)
+    .filter(([key]) => key.startsWith(`${serverId}\u0000${workspaceId}\u0000`))
+    .map(([, event]) => event);
 }
 
 export function useBrowserFailureConfirmed(
@@ -210,6 +221,11 @@ export function formatBrowserActivityStep(event: BrowserActivityEvent, t: TFunct
  */
 export function summarizeBrowserActivity(event: BrowserActivityEvent, t: TFunction): string {
   if (event.phase === "finished") {
+    if (event.result?.uncertain) {
+      if (event.steps.some((step) => step.skipped))
+        return t("workspace.browser.activity.incompleteSkipped");
+      return t("workspace.browser.activity.incomplete", { message: event.result.message });
+    }
     return event.result?.status === "passed"
       ? t("workspace.browser.activity.passed")
       : t("workspace.browser.activity.failed", { message: event.result?.message ?? "" });

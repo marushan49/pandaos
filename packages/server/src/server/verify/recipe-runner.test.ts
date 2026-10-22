@@ -10,7 +10,7 @@ import type {
 
 import { EvidenceStore } from "./evidence-store.js";
 import { DaemonPlaywrightHost } from "./playwright-host.js";
-import { RecipeRunner } from "./recipe-runner.js";
+import { RecipeRunner, type RecipeRunnerOptions } from "./recipe-runner.js";
 import type { TypeSafeDecisionRequest } from "../browser-tools/jev-client.js";
 import type { BrowserActivityEvent } from "@getpaseo/protocol/browser-activity/rpc-schemas";
 import { BrowserActivityHub } from "../browser-tools/browser-activity.js";
@@ -33,6 +33,138 @@ function isDaemonBrowserAvailable(): boolean {
 
 const BROWSER_AVAILABLE = isDaemonBrowserAvailable();
 const WORKSPACE_ID = "wks_recipe_slice";
+
+it.each([false, true])(
+  "recipe skip preserves the final verdict with later failure=%s",
+  async (laterFailure) => {
+    const paseoHome = mkdtempSync(join(tmpdir(), "paseo-recipe-skip-"));
+    const evidence = new EvidenceStore({ paseoHome });
+    const events: BrowserActivityEvent[] = [];
+    const activity = new BrowserActivityHub((event) => events.push(event));
+    const order: string[] = [];
+    const kept: boolean[] = [];
+    let requested = false;
+    const browserId = "11111111-1111-4111-8111-111111111111";
+    const host: RecipeRunnerOptions["host"] = {
+      openTab: async ({ workspaceId, url }) => ({
+        requestId: "open",
+        ok: true,
+        result: { command: "new_tab", browserId, workspaceId, url },
+      }),
+      releaseTab: (_id, preserve) => {
+        kept.push(preserve === true);
+        return true;
+      },
+      executeLocal: async ({ command }) => {
+        if (command.command === "logs") {
+          if (!requested) {
+            requested = true;
+            const current = activity.current()[0];
+            if (!current) throw new Error("Expected active recipe.");
+            order.push("active-start");
+            expect(
+              activity.control({
+                workspaceId: WORKSPACE_ID,
+                browserId,
+                runId: current.runId,
+                action: "skip",
+                step: 3,
+              }),
+            ).toBe(true);
+            expect(activity.current()[0]?.step).toBe(2);
+            expect(activity.current()[0]?.steps[2]?.skipped).toBeUndefined();
+            await Promise.resolve();
+            order.push("active-finish");
+          } else order.push("later-logs");
+          return {
+            requestId: "logs",
+            ok: true,
+            result: {
+              command: "logs",
+              browserId,
+              console: [],
+              network: laterFailure
+                ? [{ url: "https://example.test/broken", status: 500, startTime: 0, duration: 1 }]
+                : [],
+            },
+          };
+        }
+        if (command.command === "screenshot")
+          return {
+            requestId: "screenshot",
+            ok: true,
+            result: {
+              command: "screenshot",
+              browserId,
+              mimeType: "image/png",
+              width: 1,
+              height: 1,
+            },
+          };
+        throw new Error(`Unexpected command ${command.command}`);
+      },
+    };
+    try {
+      const runner = new RecipeRunner({
+        host,
+        evidence,
+        activity,
+        resolveServiceUrl: async () => null,
+      });
+      const result = await runner.run({
+        workspaceId: WORKSPACE_ID,
+        browser: { credentials: {} },
+        verification: {
+          recipes: {
+            skip: {
+              steps: [
+                { action: "navigate", url: "https://example.test/start" },
+                { action: "assert-console-errors", max: 0 },
+                { action: "navigate", url: "https://example.test/must-not-run" },
+                { action: "assert-failed-requests", max: 0 },
+              ],
+            },
+          },
+        },
+        recipeName: "skip",
+      });
+      expect(result).toMatchObject({
+        status: "fail",
+        checks: [{ ok: true }, { ok: false, skipped: true }, { ok: !laterFailure }],
+      });
+      expect(result.uncertain).toBe(laterFailure ? undefined : true);
+      expect(order.slice(0, 2)).toEqual(["active-start", "active-finish"]);
+      expect(order).toContain("later-logs");
+      expect(kept).toEqual([true]);
+      expect(events.find((event) => event.steps[2]?.skipped)).toMatchObject({
+        step: 3,
+        steps: [
+          { status: "done" },
+          { status: "done" },
+          { status: "failed", skipped: true },
+          { status: "pending" },
+        ],
+      });
+      expect(events.at(-1)?.result?.status).toBe("failed");
+      expect(events.at(-1)?.result?.uncertain).toBe(laterFailure ? undefined : true);
+      expect(events.at(-1)?.steps.map((step) => step.status)).toEqual([
+        "done",
+        "done",
+        "failed",
+        laterFailure ? "failed" : "done",
+      ]);
+      const finalCheck = result.checks.at(-1);
+      if (!finalCheck) throw new Error("Expected the final assertion result.");
+      expect(events.at(-1)?.result?.message).toContain(finalCheck.ok ? "Skipped" : "broken");
+      if (!result.runId) throw new Error("Expected stored evidence.");
+      expect(
+        (await evidence.getManifest({ workspaceId: WORKSPACE_ID, runId: result.runId }))?.status,
+      ).toBe("fail");
+    } finally {
+      rmSync(paseoHome, { recursive: true, force: true });
+    }
+  },
+);
 
 function testConfig(): { browser: PaseoBrowserConfig; verification: PaseoVerificationConfig } {
   return {

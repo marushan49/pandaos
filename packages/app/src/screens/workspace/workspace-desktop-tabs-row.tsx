@@ -58,6 +58,7 @@ import { buttonControlHeight } from "@/components/ui/control-geometry";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { Shortcut } from "@/components/ui/shortcut";
 import { useWorkspaceTabLayout } from "@/screens/workspace/use-workspace-tab-layout";
+import { workspaceIconOnlyTabs } from "@/screens/workspace/workspace-tab-layout";
 import { retainWorkspaceTabMeasuredWidth } from "@/screens/workspace/workspace-tab-layout";
 import {
   WorkspaceTabPresentationResolver,
@@ -729,6 +730,7 @@ function getFallbackTabLabel(
     pullRequest: string;
     evidence: string;
     insights: string;
+    tasks: string;
   },
 ): string {
   if (tab.target.kind === "new_tab") {
@@ -760,6 +762,9 @@ function getFallbackTabLabel(
   }
   if (tab.target.kind === "insights") {
     return labels.insights;
+  }
+  if (tab.target.kind === "tasks") {
+    return labels.tasks;
   }
   return labels.agent;
 }
@@ -821,7 +826,10 @@ function TabHandleContent({
   );
 
   return (
-    <View style={styles.tabHandle} dataSet={tabHandleDataSet}>
+    <View
+      style={[styles.tabHandle, !showLabel && styles.tabHandleIconOnly]}
+      dataSet={tabHandleDataSet}
+    >
       <View style={styles.tabIcon}>
         <WorkspaceTabIcon presentation={presentation} active={isHighlighted} backdrop={backdrop} />
       </View>
@@ -1319,6 +1327,7 @@ function ResolvedWorkspaceDesktopTabsRow({
       pullRequest: t("panels.pullRequest.label"),
       evidence: t("panels.evidence.label"),
       insights: t("panels.insights.label"),
+      tasks: t("message.todo.title"),
     }),
     [t],
   );
@@ -1429,8 +1438,13 @@ function ResolvedWorkspaceDesktopTabsRow({
     });
   }, [tabLabels, tabs, trackSnapshot]);
 
+  const iconOnlyTabs = useMemo(
+    () => workspaceIconOnlyTabs(trackSnapshot?.tabs.map(({ tab }) => tab.target.kind) ?? [], host),
+    [host, trackSnapshot],
+  );
   const { layout } = useWorkspaceTabLayout({
     tabLabelWidths: trackSnapshot?.labelWidths ?? [],
+    iconOnlyTabs,
     viewportWidthOverride: tabsContainerWidth > 0 ? tabsContainerWidth : null,
     metrics: layoutMetrics,
   });
@@ -1960,6 +1974,9 @@ const styles = StyleSheet.create((theme) => ({
     height: TAB_ICON_WIDTH,
     flexShrink: 0,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  tabHandleIconOnly: {
     justifyContent: "center",
   },
   tabDropIndicator: {

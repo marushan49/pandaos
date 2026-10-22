@@ -16,6 +16,7 @@ import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-
 import type { SplitPane } from "@/stores/workspace-layout-store";
 import type { WorkspaceTab } from "@/workspace-tabs/model";
 import { WindowChromeRegion, WindowChromeSafeArea } from "@/utils/desktop-window";
+import { WorkspaceActivity } from "@/screens/workspace/workspace-activity";
 
 interface ExplorerSidebarDockProps extends Pick<
   WorkspaceDesktopTabsRowProps,
@@ -164,6 +165,7 @@ export function ExplorerSidebarDock({
             {headerAction ? <View style={styles.headerAction}>{headerAction}</View> : null}
             <View pointerEvents="none" style={styles.tabRailDivider} />
           </WindowChromeSafeArea>
+          <WorkspaceActivity serverId={normalizedServerId} workspaceId={normalizedWorkspaceId} />
           <View style={styles.content}>
             <WorkspacePanelHost
               paneId={pane.id}

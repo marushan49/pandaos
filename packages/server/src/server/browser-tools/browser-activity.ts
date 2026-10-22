@@ -31,17 +31,20 @@ export interface BrowserActivityReporter {
 
 export interface BrowserActivityRun extends BrowserActivityReporter {
   finish(result: NonNullable<BrowserActivityEvent["result"]>): void;
+  takeSkip(step: number): boolean;
 }
 
 export const NOOP_BROWSER_ACTIVITY: BrowserActivityRun = {
   update: () => {},
   checkpoint: async () => false,
   finish: () => {},
+  takeSkip: () => false,
 };
 
 interface ActiveRun {
   event: BrowserActivityEvent;
   resume: (() => void) | null;
+  skipRequests: Set<number>;
 }
 
 interface ActiveHandoff {
@@ -86,6 +89,7 @@ export class BrowserActivityHub {
         updatedAt: Date.now(),
       },
       resume: null,
+      skipRequests: new Set(),
     };
     this.runs.set(run.event.runId, run);
     this.emit(run);
@@ -94,8 +98,10 @@ export class BrowserActivityHub {
         if (this.runs.get(run.event.runId) === run) this.apply(run, patch);
       },
       checkpoint: () => this.checkpoint(run),
+      takeSkip: (step) => this.runs.get(run.event.runId) === run && run.skipRequests.delete(step),
       finish: (result) => {
         if (!this.runs.delete(run.event.runId)) return;
+        run.skipRequests.clear();
         run.event = {
           ...patchEvent(run.event, { phase: "finished", next: null }),
           pauseRequested: false,
@@ -202,10 +208,13 @@ export class BrowserActivityHub {
     });
   }
 
-  /** Applies to every active run on the browser, or to its handoff; returns whether one matched. */
   public control(
-    input: Pick<BrowserActivityControlRequest, "workspaceId" | "browserId" | "action">,
+    input: Pick<
+      BrowserActivityControlRequest,
+      "workspaceId" | "browserId" | "action" | "runId" | "step"
+    >,
   ): boolean {
+    if (input.action === "skip") return this.requestSkip(input);
     if (input.action === "keep_tab_open") return this.tabClose?.keepOpen(input.browserId) ?? false;
     if (input.action === "close_tab_now") return this.tabClose?.closeNow(input.browserId) ?? false;
     if (input.action === "finish_handoff" || input.action === "cancel_handoff") {
@@ -234,6 +243,25 @@ export class BrowserActivityHub {
       }
     }
     return applied;
+  }
+
+  private requestSkip(
+    input: Pick<BrowserActivityControlRequest, "workspaceId" | "browserId" | "runId" | "step">,
+  ): boolean {
+    if (!input.runId || !input.step) return false;
+    const run = this.runs.get(input.runId);
+    if (
+      !run ||
+      run.event.kind !== "recipe" ||
+      run.event.workspaceId !== input.workspaceId ||
+      run.event.browserId !== input.browserId
+    )
+      return false;
+    if (run.event.steps[input.step - 1]?.status !== "pending") return false;
+    if (run.skipRequests.has(input.step)) return true;
+    run.skipRequests.add(input.step);
+    this.emit(run);
+    return true;
   }
 
   /** Current state of every active run, for subscribers that join mid-run. */
@@ -281,7 +309,12 @@ export class BrowserActivityHub {
   }
 
   private emit(run: ActiveRun): void {
-    run.event = { ...run.event, updatedAt: Date.now() };
+    const steps = [...run.event.steps];
+    for (const [index, step] of steps.entries()) {
+      const skipRequested = run.skipRequests.has(index + 1);
+      if (skipRequested !== Boolean(step.skipRequested)) steps[index] = { ...step, skipRequested };
+    }
+    run.event = { ...run.event, steps, updatedAt: Date.now() };
     this.publish(run.event);
   }
 }

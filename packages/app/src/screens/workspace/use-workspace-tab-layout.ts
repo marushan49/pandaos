@@ -8,6 +8,7 @@ import {
 
 interface UseWorkspaceTabLayoutInput {
   tabLabelWidths: number[];
+  iconOnlyTabs?: boolean[];
   viewportWidthOverride?: number | null;
   metrics: WorkspaceTabLayoutMetrics;
 }
@@ -30,9 +31,10 @@ export function useWorkspaceTabLayout(
       computeWorkspaceTabLayout({
         viewportWidth: resolvedViewportWidth,
         tabLabelWidths: input.tabLabelWidths,
+        iconOnlyTabs: input.iconOnlyTabs,
         metrics: input.metrics,
       }),
-    [input.metrics, input.tabLabelWidths, resolvedViewportWidth],
+    [input.metrics, input.tabLabelWidths, input.iconOnlyTabs, resolvedViewportWidth],
   );
 
   return {

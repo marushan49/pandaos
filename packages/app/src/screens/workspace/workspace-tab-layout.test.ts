@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeWorkspaceTabLayout,
   retainWorkspaceTabMeasuredWidth,
+  workspaceIconOnlyTabs,
 } from "@/screens/workspace/workspace-tab-layout";
 
 const metrics = {
@@ -18,6 +19,52 @@ const metrics = {
 };
 
 describe("computeWorkspaceTabLayout", () => {
+  it("preserves names that distinguish sessions, drafts, files and multiple terminals", () => {
+    expect(
+      workspaceIconOnlyTabs(
+        [
+          "files",
+          "changes_tree",
+          "evidence",
+          "insights",
+          "plugin",
+          "terminal",
+          "terminal",
+          "browser",
+          "agent",
+          "draft",
+          "file",
+          "provider_subagent",
+        ],
+        "explorer",
+      ),
+    ).toEqual([true, true, true, true, true, false, false, true, false, false, false, false]);
+  });
+  it("keeps browser and tool titles visible in the main tab strip", () => {
+    expect(workspaceIconOnlyTabs(["browser", "terminal", "evidence", "plugin"], "main")).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+  it("keeps tool tabs at icon width while preserving session labels", () => {
+    const result = computeWorkspaceTabLayout({
+      viewportWidth: 350,
+      tabLabelWidths: [150, 75, 100, 90],
+      iconOnlyTabs: [false, true, true, true],
+      metrics,
+    });
+
+    expect(result.requiresHorizontalScrollFallback).toBe(false);
+    expect(result.items).toEqual([
+      { width: 82, showLabel: true },
+      { width: 40, showLabel: false },
+      { width: 40, showLabel: false },
+      { width: 40, showLabel: false },
+    ]);
+  });
+
   it("keeps each tab at its natural content width when space is available", () => {
     const result = computeWorkspaceTabLayout({
       viewportWidth: 1200,

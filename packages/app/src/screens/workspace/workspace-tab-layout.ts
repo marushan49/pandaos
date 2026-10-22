@@ -1,4 +1,27 @@
+import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
+import type { PaneHost } from "@/panels/panel-manifest";
+
 export type WorkspaceTabCloseButtonPolicy = "all";
+
+export function workspaceIconOnlyTabs(
+  kinds: WorkspaceTabTarget["kind"][],
+  host: PaneHost,
+): boolean[] {
+  if (host === "main") return kinds.map(() => false);
+  return kinds.map((kind) => {
+    if (kind === "terminal" || kind === "browser")
+      return kinds.filter((other) => other === kind).length === 1;
+    return (
+      kind === "files" ||
+      kind === "changes_tree" ||
+      kind === "evidence" ||
+      kind === "insights" ||
+      kind === "tasks" ||
+      kind === "plugin" ||
+      kind === "pull_request"
+    );
+  });
+}
 
 export interface WorkspaceTabLayoutMetrics {
   rowHorizontalInset: number;
@@ -16,6 +39,7 @@ export interface WorkspaceTabLayoutMetrics {
 export interface WorkspaceTabLayoutInput {
   viewportWidth: number;
   tabLabelWidths: number[];
+  iconOnlyTabs?: boolean[];
   metrics: WorkspaceTabLayoutMetrics;
 }
 
@@ -74,33 +98,38 @@ export function computeWorkspaceTabLayout(
     input.metrics.tabContentGap +
     input.metrics.tabHorizontalPadding * 2 +
     input.metrics.closeButtonWidth;
-  const naturalWidths = input.tabLabelWidths.map((labelWidth) =>
-    clamp(tabChromeWidth + labelWidth, input.metrics.minTabWidth, input.metrics.maxTabWidth),
+  const minimumWidths = input.tabLabelWidths.map((_, index) =>
+    input.iconOnlyTabs?.[index] ? 40 : input.metrics.minTabWidth,
+  );
+  const naturalWidths = input.tabLabelWidths.map((labelWidth, index) =>
+    input.iconOnlyTabs?.[index]
+      ? minimumWidths[index]!
+      : clamp(tabChromeWidth + labelWidth, input.metrics.minTabWidth, input.metrics.maxTabWidth),
   );
   const naturalTotalWidth = naturalWidths.reduce((total, width) => total + width, 0);
-  const minimumTotalWidth = input.metrics.minTabWidth * tabCount;
+  const minimumTotalWidth = minimumWidths.reduce((total, width) => total + width, 0);
   const requiresHorizontalScrollFallback = availableTabsWidth < minimumTotalWidth;
 
   let resolvedWidths = naturalWidths;
   if (requiresHorizontalScrollFallback) {
-    resolvedWidths = Array.from({ length: tabCount }, () => input.metrics.minTabWidth);
+    resolvedWidths = minimumWidths;
   } else if (naturalTotalWidth > availableTabsWidth) {
     const widthToRemove = naturalTotalWidth - availableTabsWidth;
     const shrinkCapacity = naturalTotalWidth - minimumTotalWidth;
     const shrinkRatio = widthToRemove / shrinkCapacity;
     resolvedWidths = naturalWidths.map(
-      (width) => width - (width - input.metrics.minTabWidth) * shrinkRatio,
+      (width, index) => width - (width - minimumWidths[index]!) * shrinkRatio,
     );
   }
 
-  const roundedWidths = resolvedWidths.map((width) =>
-    Math.round(clamp(width, input.metrics.minTabWidth, input.metrics.maxTabWidth)),
+  const roundedWidths = resolvedWidths.map((width, index) =>
+    Math.round(clamp(width, minimumWidths[index]!, input.metrics.maxTabWidth)),
   );
 
   return {
-    items: roundedWidths.map((width) => ({
+    items: roundedWidths.map((width, index) => ({
       width,
-      showLabel: width > tabChromeWidth,
+      showLabel: !input.iconOnlyTabs?.[index] && width > tabChromeWidth,
     })),
     closeButtonPolicy: "all",
     requiresHorizontalScrollFallback,

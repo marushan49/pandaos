@@ -10,6 +10,7 @@ import {
   isBrowserRunLocked,
   summarizeBrowserActivity,
   useBrowserActivityStore,
+  workspaceBrowserActivities,
 } from "./activity";
 
 const t = ((key: string, options?: Record<string, unknown>) =>
@@ -61,6 +62,17 @@ function handoffStatus(serverId: string, handoffId: string): string | undefined 
 }
 
 describe("browser activity store", () => {
+  it("shows only runs belonging to the requested host and workspace", () => {
+    const store = useBrowserActivityStore.getState();
+    const own = event();
+    store.apply("server-1", own);
+    store.apply("server-1", event({ runId: "other-workspace", workspaceId: "ws-2" }));
+    store.apply("server-2", event({ runId: "other-host" }));
+    expect(
+      workspaceBrowserActivities(useBrowserActivityStore.getState().byBrowser, "server-1", "ws-1"),
+    ).toEqual([own]);
+  });
+
   beforeEach(() =>
     useBrowserActivityStore.setState({ byBrowser: {}, handoffs: {}, activeHandoffByBrowser: {} }),
   );
@@ -163,6 +175,28 @@ describe("browser activity presentation", () => {
     ).toBe('workspace.browser.activity.step {"step":2}, fill, textbox “Email”, ← account');
   });
 
+  it("announces skipped or uncertain runs as incomplete", () => {
+    expect(
+      summarizeBrowserActivity(
+        event({
+          phase: "finished",
+          result: { status: "failed", uncertain: true, message: "1 step skipped" },
+        }),
+        t,
+      ),
+    ).toBe('workspace.browser.activity.incomplete {"message":"1 step skipped"}');
+    expect(
+      summarizeBrowserActivity(
+        event({
+          phase: "finished",
+          result: { status: "failed", uncertain: true, message: "1 step skipped" },
+          steps: [{ operation: "assert-text", status: "failed", skipped: true }],
+        }),
+        t,
+      ),
+    ).toBe("workspace.browser.activity.incompleteSkipped");
+  });
+
   it("releases input only while paused or after the run", () => {
     expect(isBrowserRunLocked(null)).toBe(false);
     expect(isBrowserRunLocked(event())).toBe(true);
@@ -209,6 +243,19 @@ describe("browser activity banner timers", () => {
     expect(
       useBrowserActivityStore.getState().confirmedFailureByBrowser["server-1\u0000ws-1\u0000tab-a"],
     ).toBe("run-f");
+  });
+
+  it("keeps skipped checks visible until they are dismissed", () => {
+    const store = useBrowserActivityStore.getState();
+    const skipped = {
+      ...failed(true),
+      steps: [{ operation: "assert-text", status: "failed" as const, skipped: true }],
+    };
+    store.apply("server-1", skipped);
+    vi.advanceTimersByTime(8000);
+    expect(lookup("server-1", "ws-1", "tab-a")).toEqual(skipped);
+    store.dismiss("server-1", skipped);
+    expect(lookup("server-1", "ws-1", "tab-a")).toBeUndefined();
   });
 
   it("never lets an earlier run's timers touch a run that replaced it", () => {

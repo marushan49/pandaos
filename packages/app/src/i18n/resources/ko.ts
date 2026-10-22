@@ -465,6 +465,7 @@ export const ko: TranslationResources = {
       otherPlaceholder: "기타...",
     },
     todo: {
+      focusSession: "세션으로 이동",
       title: "작업",
       empty: "아직 작업이 없습니다.",
       tasksProgress: "작업 {{completed}}/{{total}}개",
@@ -694,6 +695,12 @@ export const ko: TranslationResources = {
         next: "다음",
         steps: "단계",
         noSteps: "아직 단계가 없습니다",
+        skipStep: "{{step}}단계 건너뛰기",
+        skipped: "건너뜀 · 확인 안 됨",
+        skipRequested: "건너뛰기 요청됨",
+        controlStale: "이 단계 또는 실행이 이미 변경되었습니다.",
+        incomplete: "실행 미완료: {{message}}",
+        incompleteSkipped: "실행 미완료 · 건너뛴 단계 있음",
         phase: {
           observing: "관찰 중",
           deciding: "결정 중",

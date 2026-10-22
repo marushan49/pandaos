@@ -56,6 +56,16 @@ export function selectWorkspaceMainAgentId(
   return main?.id ?? null;
 }
 
+export function selectWorkspacePlanAgentId(
+  agents: ReadonlyMap<string, Agent> | undefined,
+  workspaceId: string,
+  focusedAgentId: string | null,
+): string | null {
+  const focused = focusedAgentId ? agents?.get(focusedAgentId) : undefined;
+  if (focused && !focused.archivedAt && focused.workspaceId === workspaceId) return focused.id;
+  return selectWorkspaceMainAgentId(agents, workspaceId);
+}
+
 function buildSessionRows(roots: readonly Agent[]): readonly WorkspaceSessionRow[] {
   if (roots.length < 2) return NO_SESSIONS;
   return [...roots]

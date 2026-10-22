@@ -35,12 +35,14 @@ export interface RecipeCheckResult {
   name: string;
   ok: boolean;
   detail?: string;
+  skipped?: boolean;
 }
 
 export interface RecipeStepTrace {
   action: string;
   ok: boolean;
   ms: number;
+  skipped?: boolean;
 }
 
 export interface VerifyRunResult {
@@ -62,6 +64,7 @@ export interface VerifyRunResult {
   error?: string;
   hint?: string;
   tabNote?: string;
+  uncertain?: boolean;
 }
 
 type RecipeHost = Pick<DaemonPlaywrightHost, "executeLocal" | "openTab" | "releaseTab">;
@@ -163,7 +166,7 @@ export class RecipeRunner {
       ? {
           executeLocal: options.activity.guard((input) => options.host.executeLocal(input)),
           openTab: (input) => options.host.openTab(input),
-          releaseTab: (browserId) => options.host.releaseTab(browserId),
+          releaseTab: (browserId, preserve) => options.host.releaseTab(browserId, preserve),
         }
       : options.host;
     this.evidence = options.evidence;
@@ -211,34 +214,12 @@ export class RecipeRunner {
       lastScreenshotRef: null,
     };
     const startedAt = Date.now();
-    let failedCheck: RecipeCheckResult | null = null;
     const recipeSteps = interpolated.recipe.steps;
-    let plan = recipeSteps.map((step) => describeRecipeStep(step, context.redactor));
-    try {
-      for (const [index, step] of recipeSteps.entries()) {
-        await this.reportStep({ context, recipeName: input.recipeName, plan, index });
-        plan = withStatus(plan, index, "active");
-        const stepStartedAt = Date.now();
-        const check = await this.runStep(context, step);
-        context.trace.push({ action: step.action, ok: check.ok, ms: Date.now() - stepStartedAt });
-        plan = withStatus(plan, index, check.ok ? "done" : "failed");
-        if (!check.ok) {
-          failedCheck = check;
-          context.checks.push(check);
-          break;
-        }
-        if (check.name.length > 0) {
-          context.checks.push(check);
-        }
-      }
-    } catch (error) {
-      context.activity?.finish({
-        status: "failed",
-        message: context.redactor.redact(error instanceof Error ? error.message : String(error)),
-      });
-      await this.releaseTab(context, true, null);
-      throw error;
-    }
+    const failedCheck = await this.runSteps({
+      context,
+      recipeName: input.recipeName,
+      steps: recipeSteps,
+    });
     const status = failedCheck ? "fail" : "pass";
     const screenshotRef = await this.captureEndScreenshot(context, failedCheck !== null);
     finishActivity(context, failedCheck, recipeSteps.length);
@@ -265,12 +246,57 @@ export class RecipeRunner {
       ...(screenshotRef ? { screenshotRef } : {}),
       rawBytes: context.rawArtifactBytes,
       agentBytes: 0,
+      ...(failedCheck?.skipped ? { uncertain: true } : {}),
       ...(context.tabNote ? { tabNote: context.tabNote } : {}),
       ...(failedCheck && failedCheck.name === "setup"
         ? { error: context.redactor.redact(failedCheck.detail ?? "Setup failed") }
         : {}),
     };
     return sealResult(result, `${input.workspaceId}|${input.recipeName}`, context.browserId);
+  }
+
+  private async runSteps(input: {
+    context: RunContext;
+    recipeName: string;
+    steps: PaseoRecipeStep[];
+  }): Promise<RecipeCheckResult | null> {
+    const { context, recipeName, steps } = input;
+    let plan = steps.map((step) => describeRecipeStep(step, context.redactor));
+    try {
+      for (const [index, step] of steps.entries()) {
+        if (await this.reportStep({ context, recipeName, plan, index })) {
+          plan = withStatus(plan, index, "failed", true);
+          context.checks.push({
+            name: `step ${index + 1}: ${step.action}`,
+            ok: false,
+            skipped: true,
+            detail:
+              "Skipped by the user before execution. The run cannot establish a complete pass.",
+          });
+          context.trace.push({ action: step.action, ok: false, skipped: true, ms: 0 });
+          continue;
+        }
+        plan = withStatus(plan, index, "active");
+        const stepStartedAt = Date.now();
+        const check = await this.runStep(context, step);
+        context.trace.push({ action: step.action, ok: check.ok, ms: Date.now() - stepStartedAt });
+        plan = withStatus(plan, index, check.ok ? "done" : "failed");
+        context.activity?.update({ phase: "verifying", steps: plan });
+        if (!check.ok) {
+          context.checks.push(check);
+          return check;
+        }
+        if (check.name.length > 0) context.checks.push(check);
+      }
+    } catch (error) {
+      context.activity?.finish({
+        status: "failed",
+        message: context.redactor.redact(error instanceof Error ? error.message : String(error)),
+      });
+      await this.releaseTab(context, true, null);
+      throw error;
+    }
+    return context.checks.find((check) => check.skipped) ?? null;
   }
 
   private async captureEndScreenshot(context: RunContext, failed: boolean): Promise<string | null> {
@@ -317,7 +343,7 @@ export class RecipeRunner {
     recipeName: string;
     plan: BrowserActivityStep[];
     index: number;
-  }): Promise<void> {
+  }): Promise<boolean> {
     const { context, plan, index } = input;
     if (!context.activity && context.browserId && this.activity) {
       context.activity = this.activity.start({
@@ -330,13 +356,23 @@ export class RecipeRunner {
       });
     }
     const activity = context.activity;
-    if (!activity || !context.browserId) return;
+    if (!activity || !context.browserId) return false;
     if (await activity.checkpoint()) {
       activity.update({ phase: "observing" });
       await this.execute(context, { command: "snapshot", args: { browserId: context.browserId } });
     }
     const current = plan[index];
     const next = plan[index + 1];
+    if (activity.takeSkip(index + 1)) {
+      activity.update({
+        phase: "observing",
+        step: index + 1,
+        action: current ? { ...current, status: "failed", skipped: true } : null,
+        next: next ?? null,
+        steps: withStatus(plan, index, "failed", true),
+      });
+      return true;
+    }
     activity.update({
       phase: current && isCheckStep(current.operation) ? "verifying" : "executing",
       step: index + 1,
@@ -344,6 +380,7 @@ export class RecipeRunner {
       next: next ?? null,
       steps: withStatus(plan, index, "active"),
     });
+    return false;
   }
 
   private async writeRunEvidence(input: {
@@ -1158,7 +1195,7 @@ function sealResult(
 ): VerifyRunResult {
   if (result.status === "fail" && browserId) result.browserId = browserId;
   const failure = result.checks.find((check) => !check.ok);
-  if (!failure || failure.name === "setup") {
+  if (!failure || failure.name === "setup" || failure.skipped) {
     lastFailureByRun.delete(key);
   } else {
     const signature = `${failure.name}\n${failure.detail ?? ""}`;
@@ -1181,6 +1218,7 @@ function finishActivity(
           message: context.redactor.redact(
             `${failedCheck.name}: ${failedCheck.detail ?? "failed"}`,
           ),
+          ...(failedCheck.skipped ? { uncertain: true } : {}),
         }
       : { status: "passed", message: `All ${stepCount} steps passed.` },
   );
@@ -1206,8 +1244,11 @@ function withStatus(
   plan: BrowserActivityStep[],
   index: number,
   status: BrowserActivityStep["status"],
+  skipped = false,
 ): BrowserActivityStep[] {
-  return plan.map((step, stepIndex) => (stepIndex === index ? { ...step, status } : step));
+  return plan.map((step, stepIndex) =>
+    stepIndex === index ? { ...step, status, ...(skipped ? { skipped: true } : {}) } : step,
+  );
 }
 
 function describeRecipeStep(step: PaseoRecipeStep, redactor: SecretRedactor): BrowserActivityStep {

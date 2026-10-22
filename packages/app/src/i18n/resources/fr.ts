@@ -467,6 +467,7 @@ export const fr: TranslationResources = {
       otherPlaceholder: "Autre…",
     },
     todo: {
+      focusSession: "Afficher la session",
       title: "Tâches",
       empty: "Aucune tâche pour l’instant.",
       tasksProgress: "{{completed}}/{{total}} tâches",
@@ -696,6 +697,12 @@ export const fr: TranslationResources = {
         next: "Suivant",
         steps: "Étapes",
         noSteps: "Aucune étape pour l’instant",
+        skipStep: "Ignorer l’étape {{step}}",
+        skipped: "Ignorée · non vérifiée",
+        skipRequested: "Ignorer demandé",
+        controlStale: "Cette étape ou exécution a déjà changé.",
+        incomplete: "Exécution incomplète : {{message}}",
+        incompleteSkipped: "Exécution incomplète · étapes ignorées",
         phase: {
           observing: "Observation",
           deciding: "Décision",

@@ -19,7 +19,6 @@ import {
 } from "@/screens/workspace/workspace-tab-menu";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 
-// The trigger draws at 32pt beside its island neighbours, so only vertical slop is free.
 const TAB_SWITCHER_TRIGGER_HIT_SLOP = { top: 8, bottom: 8 } as const;
 
 function getFallbackTabOptionLabel(
@@ -36,6 +35,7 @@ function getFallbackTabOptionLabel(
     pullRequest: string;
     evidence: string;
     insights: string;
+    tasks: string;
   },
 ): string {
   if (tab.target.kind === "new_tab") {
@@ -71,6 +71,9 @@ function getFallbackTabOptionLabel(
   if (tab.target.kind === "insights") {
     return labels.insights;
   }
+  if (tab.target.kind === "tasks") {
+    return labels.tasks;
+  }
   if (tab.target.kind === "commit_diff") {
     return tab.target.sha.slice(0, 7);
   }
@@ -96,6 +99,7 @@ function getFallbackTabOptionDescription(
     evidenceDescription: string;
     insights: string;
     insightsDescription: string;
+    tasks: string;
   },
 ): string {
   if (tab.target.kind === "new_tab") {
@@ -136,6 +140,9 @@ function getFallbackTabOptionDescription(
   }
   if (tab.target.kind === "insights") {
     return labels.insightsDescription;
+  }
+  if (tab.target.kind === "tasks") {
+    return labels.tasks;
   }
   if (tab.target.kind === "plugin") {
     return tab.target.panelId;
@@ -261,6 +268,7 @@ function MobileWorkspaceTabOption({
       pullRequest: t("panels.pullRequest.label"),
       evidence: t("panels.evidence.label"),
       insights: t("panels.insights.label"),
+      tasks: t("message.todo.title"),
     }),
     [t],
   );
@@ -338,6 +346,7 @@ export const MobileWorkspaceTabSwitcher = memo(function MobileWorkspaceTabSwitch
       evidenceDescription: t("panels.evidence.subtitle"),
       insights: t("panels.insights.label"),
       insightsDescription: t("panels.insights.subtitle"),
+      tasks: t("message.todo.title"),
     }),
     [t],
   );

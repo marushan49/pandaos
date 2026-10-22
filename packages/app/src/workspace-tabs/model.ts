@@ -45,6 +45,7 @@ export type WorkspaceTabTarget =
   | { kind: "pull_request" }
   | { kind: "evidence" }
   | { kind: "insights" }
+  | { kind: "tasks" }
   | WorkspaceFileTabTarget
   | WorkspaceWorkingDiffTabTarget
   | PluginWorkspaceTabTarget
