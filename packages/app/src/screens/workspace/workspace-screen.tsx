@@ -1126,7 +1126,7 @@ function WorkspaceScreenContent({
       }),
     [normalizedServerId, normalizedWorkspaceId],
   );
-  useFinishedAgentTabsToFront({ serverId: normalizedServerId, workspaceKey: persistenceKey });
+  useFinishedAgentTabsToFront({ serverId: normalizedServerId, workspaceId: normalizedWorkspaceId });
   const openTab = useWorkspaceLayoutStore((state) => state.openTab);
   const canOpenRemoteBrowserTabs = useHostFeature(normalizedServerId, "remoteBrowser");
   const mirrorPushesTabChanges = useHostFeature(normalizedServerId, "browserMirror");

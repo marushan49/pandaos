@@ -5,18 +5,16 @@ import {
   findPaneContainingTab,
   useWorkspaceLayoutStore,
 } from "@/stores/workspace-layout-store";
+import { selectWorkspaceMainAgentId } from "@/utils/workspace-agent-activity";
+import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 
-/**
- * A session tab moves to the front of its pane when its turn finishes, the way the sidebar
- * lists sessions newest activity first, so the one that just answered is the first tab.
- */
 export function useFinishedAgentTabsToFront(input: {
   serverId: string;
-  workspaceKey: string | null;
+  workspaceId: string;
 }): void {
-  const { serverId, workspaceKey } = input;
+  const { serverId, workspaceId } = input;
   useEffect(() => {
-    if (!workspaceKey) return undefined;
+    if (!workspaceId) return undefined;
     const previousStatus = new Map<string, string>();
     const snapshot = useSessionStore.getState().sessions[serverId]?.agents;
     for (const agent of snapshot?.values() ?? []) previousStatus.set(agent.id, agent.status);
@@ -27,24 +25,40 @@ export function useFinishedAgentTabsToFront(input: {
         const before = previousStatus.get(agent.id);
         previousStatus.set(agent.id, agent.status);
         if (before === "running" && agent.status === "idle")
-          moveAgentTabToFront(workspaceKey, agent.id);
+          moveAgentTabToFront({ serverId, workspaceId, agentId: agent.id });
       }
     });
-  }, [serverId, workspaceKey]);
+  }, [serverId, workspaceId]);
 }
 
-function moveAgentTabToFront(workspaceKey: string, agentId: string): void {
+export function moveAgentTabToFront(input: {
+  serverId: string;
+  workspaceId: string;
+  agentId: string;
+}): void {
+  const workspaceKey = buildWorkspaceTabPersistenceKey({
+    serverId: input.serverId,
+    workspaceId: input.workspaceId,
+  });
   const store = useWorkspaceLayoutStore.getState();
-  const layout = store.layoutByWorkspace[workspaceKey];
-  if (!layout) return;
-  const tab = collectAllTabs(layout.root).find(
-    (candidate) => candidate.target.kind === "agent" && candidate.target.agentId === agentId,
+  const layout = workspaceKey ? store.layoutByWorkspace[workspaceKey] : null;
+  if (!workspaceKey || !layout) return;
+  const tabs = collectAllTabs(layout.root);
+  const tabIdOf = (agentId: string | null) =>
+    tabs.find((tab) => tab.target.kind === "agent" && tab.target.agentId === agentId)?.tabId;
+  const tabId = tabIdOf(input.agentId);
+  const pane = tabId ? findPaneContainingTab(layout.root, tabId) : null;
+  if (!tabId || !pane) return;
+  const mainAgentId = selectWorkspaceMainAgentId(
+    useSessionStore.getState().sessions[input.serverId]?.agents,
+    input.workspaceId,
   );
-  if (!tab) return;
-  const pane = findPaneContainingTab(layout.root, tab.tabId);
-  if (!pane || pane.tabIds[0] === tab.tabId) return;
-  store.reorderTabsInPane(workspaceKey, pane.id, [
-    tab.tabId,
-    ...pane.tabIds.filter((tabId) => tabId !== tab.tabId),
-  ]);
+  const mainTabId = tabIdOf(mainAgentId);
+  const head =
+    mainTabId && mainTabId !== tabId && pane.tabIds.includes(mainTabId)
+      ? [mainTabId, tabId]
+      : [tabId];
+  const order = [...head, ...pane.tabIds.filter((id) => !head.includes(id))];
+  if (order.every((id, index) => id === pane.tabIds[index])) return;
+  store.reorderTabsInPane(workspaceKey, pane.id, order);
 }

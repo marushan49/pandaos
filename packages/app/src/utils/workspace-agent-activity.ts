@@ -33,10 +33,33 @@ function agentStatusBucket(agent: Agent): WorkspaceDescriptor["status"] {
   });
 }
 
+function joinedWorkspaceAt(agent: Agent): number {
+  const joined = Date.parse(agent.labels["pandaos.workspace.joined-at"] ?? "");
+  return Number.isNaN(joined) ? agent.createdAt.getTime() : joined;
+}
+
+function byJoinedWorkspaceAt(left: Agent, right: Agent): number {
+  return joinedWorkspaceAt(left) - joinedWorkspaceAt(right);
+}
+
+export function selectWorkspaceMainAgentId(
+  agents: ReadonlyMap<string, Agent> | undefined,
+  workspaceId: string,
+): string | null {
+  let main: Agent | null = null;
+  for (const agent of agents?.values() ?? []) {
+    if (agent.archivedAt || agent.workspaceId !== workspaceId) continue;
+    const parentAgent = agent.parentAgentId ? agents?.get(agent.parentAgentId) : undefined;
+    if (!isWorkspaceRootAgent(agent, parentAgent)) continue;
+    if (!main || byJoinedWorkspaceAt(agent, main) < 0) main = agent;
+  }
+  return main?.id ?? null;
+}
+
 function buildSessionRows(roots: readonly Agent[]): readonly WorkspaceSessionRow[] {
   if (roots.length < 2) return NO_SESSIONS;
   return [...roots]
-    .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime())
+    .sort(byJoinedWorkspaceAt)
     .slice(1)
     .slice(-MAX_SESSION_ROWS)
     .map((agent) => ({ agentId: agent.id, title: agent.title, status: agentStatusBucket(agent) }));

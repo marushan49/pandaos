@@ -1,11 +1,8 @@
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
 import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
-import {
-  collectAllTabs,
-  findPaneContainingTab,
-  useWorkspaceLayoutStore,
-} from "@/stores/workspace-layout-store";
+import { moveAgentTabToFront } from "@/screens/workspace/use-finished-agent-tabs-to-front";
+import { collectAllTabs, useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 import { normalizeWorkspaceDescriptor, useSessionStore } from "@/stores/session-store";
 import {
@@ -98,19 +95,17 @@ export async function moveSessionToWorkspace(input: {
     workspaceId: input.targetWorkspaceId,
   });
   if (workspaceKey) {
-    const tabId = store.openTab({
+    store.openTab({
       workspaceKey,
       target: { kind: "agent", agentId: input.agentId },
       intent: "reveal",
       pin: true,
     });
-    const layout = useWorkspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
-    const pane = tabId && layout ? findPaneContainingTab(layout.root, tabId) : null;
-    if (pane && tabId)
-      store.reorderTabsInPane(workspaceKey, pane.id, [
-        tabId,
-        ...pane.tabIds.filter((id) => id !== tabId),
-      ]);
+    moveAgentTabToFront({
+      serverId: input.serverId,
+      workspaceId: input.targetWorkspaceId,
+      agentId: input.agentId,
+    });
     useSidebarOrderStore.getState().promoteWorkspace(workspaceKey);
   }
   if (input.navigate === false) return;

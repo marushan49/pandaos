@@ -5,7 +5,17 @@ import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
 const mocks = vi.hoisted(() => ({
   move: vi.fn(),
   navigate: vi.fn(),
-  agents: new Map<string, { id: string; workspaceId: string; archivedAt: string | null }>(),
+  agents: new Map<
+    string,
+    {
+      id: string;
+      workspaceId: string;
+      archivedAt: string | null;
+      parentAgentId?: string | null;
+      createdAt?: Date;
+      labels?: Record<string, string>;
+    }
+  >(),
 }));
 vi.mock("@/runtime/host-runtime", () => ({
   getHostRuntimeStore: () => ({ getClient: () => ({ moveAgentToWorkspace: mocks.move }) }),
@@ -90,6 +100,35 @@ it("moves an existing session to the front, reveals hidden target tabs and clean
     workspaceId: "target",
     target: { kind: "agent", agentId: "moved" },
   });
+});
+
+it("puts a moved session right after the target workspace's own session", async () => {
+  mocks.agents.set("moved", { id: "moved", workspaceId: "source", archivedAt: null });
+  mocks.agents.set("own", {
+    id: "own",
+    workspaceId: "target",
+    archivedAt: null,
+    parentAgentId: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    labels: {},
+  });
+  const store = useWorkspaceLayoutStore.getState();
+  for (const agentId of ["own", "later"]) {
+    store.openTab({
+      workspaceKey: "srv:target",
+      target: { kind: "agent", agentId },
+      intent: "reveal",
+      pin: true,
+    });
+  }
+
+  await moveSessionToWorkspace({ serverId: "srv", agentId: "moved", targetWorkspaceId: "target" });
+
+  expect(
+    collectAllTabs(useWorkspaceLayoutStore.getState().layoutByWorkspace["srv:target"]!.root)
+      .filter((tab) => tab.target.kind === "agent")
+      .map((tab) => (tab.target.kind === "agent" ? tab.target.agentId : null)),
+  ).toEqual(["own", "moved", "later"]);
 });
 
 it("keeps source and target layouts when the host refuses the move", async () => {

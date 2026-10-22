@@ -96,6 +96,7 @@ import {
   useHorizontalScrollBoundary,
 } from "@/components/ui/horizontal-scroll-boundary";
 import { useSessionStore } from "@/stores/session-store";
+import { selectWorkspaceMainAgentId } from "@/utils/workspace-agent-activity";
 import { useBrowserStore } from "@/desktop/browser/store";
 
 const DROPDOWN_WIDTH = 220;
@@ -1449,6 +1450,9 @@ function ResolvedWorkspaceDesktopTabsRow({
     handle: handleNewTabKeyboardAction,
   });
 
+  const mainAgentId = useSessionStore((state) =>
+    selectWorkspaceMainAgentId(state.sessions[normalizedServerId]?.agents, normalizedWorkspaceId),
+  );
   const renderTab = useCallback(
     ({
       item,
@@ -1466,6 +1470,10 @@ function ResolvedWorkspaceDesktopTabsRow({
         activeDragTabId !== null &&
         tabDropPreviewIndex === displayedTabs.length &&
         index === displayedTabs.length - 1;
+      const showMainDivider =
+        item.tab.target.kind === "agent" &&
+        item.tab.target.agentId === mainAgentId &&
+        index < displayedTabs.length - 1;
 
       return (
         <ResolvedDesktopTabChip
@@ -1496,11 +1504,13 @@ function ResolvedWorkspaceDesktopTabsRow({
           dragHandleProps={dragHandleProps}
           showDropIndicatorBefore={showDropIndicatorBefore}
           showDropIndicatorAfter={showDropIndicatorAfter}
+          showMainDivider={showMainDivider}
         />
       );
     },
     [
       activeDragTabId,
+      mainAgentId,
       isFocused,
       layout.closeButtonPolicy,
       layout.items,
@@ -1671,6 +1681,7 @@ function ResolvedDesktopTabChip({
   dragHandleProps,
   showDropIndicatorBefore,
   showDropIndicatorAfter,
+  showMainDivider,
 }: {
   serverId: string;
   item: ResolvedWorkspaceDesktopTabRowItem;
@@ -1698,6 +1709,7 @@ function ResolvedDesktopTabChip({
   dragHandleProps: DraggableListDragHandleProps | undefined;
   showDropIndicatorBefore: boolean;
   showDropIndicatorAfter: boolean;
+  showMainDivider: boolean;
 }) {
   const { t } = useTranslation();
   const presentation = item.presentation;
@@ -1800,6 +1812,13 @@ function ResolvedDesktopTabChip({
       />
       {showDropIndicatorAfter ? (
         <View style={[styles.tabDropIndicator, styles.tabDropIndicatorAfter]} />
+      ) : null}
+      {showMainDivider ? (
+        <View
+          pointerEvents="none"
+          testID={`workspace-tab-main-divider-${item.tab.tabId}`}
+          style={styles.tabMainDivider}
+        />
       ) : null}
       {group ? (
         <View
@@ -1927,6 +1946,14 @@ const styles = StyleSheet.create((theme) => ({
   },
   tabDropIndicatorAfter: {
     right: -TAB_CHIP_GAP / 2 - TAB_DROP_INDICATOR_WIDTH / 2,
+  },
+  tabMainDivider: {
+    position: "absolute",
+    top: theme.spacing[2],
+    bottom: theme.spacing[2],
+    right: -TAB_CHIP_GAP / 2 - 0.5,
+    width: 1,
+    backgroundColor: theme.colors.border,
   },
   tabLabel: {
     flexShrink: 1,

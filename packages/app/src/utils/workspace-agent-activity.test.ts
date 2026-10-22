@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Agent } from "@/stores/session-store";
-import { buildWorkspaceAgentActivityIndex } from "./workspace-agent-activity";
+import {
+  buildWorkspaceAgentActivityIndex,
+  selectWorkspaceMainAgentId,
+} from "./workspace-agent-activity";
 
 function agent(input: {
   id: string;
@@ -17,6 +20,7 @@ function agent(input: {
   parentAgentId?: string | null;
   createdAt?: string;
   title?: string;
+  labels?: Record<string, string>;
 }): Agent {
   return {
     serverId: "host-a",
@@ -65,11 +69,38 @@ function agent(input: {
     attentionTimestamp: input.attentionTimestamp ? new Date(input.attentionTimestamp) : null,
     archivedAt: input.archivedAt ? new Date(input.archivedAt) : null,
     parentAgentId: input.parentAgentId ?? null,
-    labels: {},
+    labels: input.labels ?? {},
   };
 }
 
 describe("workspace agent activity index", () => {
+  it("keeps the session a workspace started with as its main one when an older session moves in", () => {
+    const agents = new Map(
+      [
+        agent({
+          id: "own",
+          workspaceId: "ws",
+          createdAt: "2026-01-02T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+          title: "Own",
+        }),
+        agent({
+          id: "moved-in",
+          workspaceId: "ws",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-03T00:00:00.000Z",
+          title: "Moved in",
+          labels: { "pandaos.workspace.joined-at": "2026-01-03T00:00:00.000Z" },
+        }),
+      ].map((entry) => [entry.id, entry]),
+    );
+
+    expect(selectWorkspaceMainAgentId(agents, "ws")).toBe("own");
+    expect(buildWorkspaceAgentActivityIndex(agents).get("ws")?.sessions).toEqual([
+      { agentId: "moved-in", title: "Moved in", status: "done" },
+    ]);
+  });
+
   it("lists later root chats of a workspace as session rows", () => {
     const agents = new Map(
       [
