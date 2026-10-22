@@ -45,4 +45,6 @@
 
 - Pushed `bb45ff607..93648bc6b` to `origin/main`.
 - Mac, 12:27, Marushan's go ("ja"): installed `a4090efb…` over `2d6806e1…` (indented highlight build), signed, app restarted, backup `rollout-backups/dnd-main-tab-20261022-122715`.
-- Daemon: `pandaos-planned-restart --release ~/.local/share/pandaos-releases/dnd-main-tab` started right after this entry; result in the next entry.
+- Daemon, 12:28, same go: planned restart onto `dnd-main-tab` (log `~/.pandaos/planned-restart/2026-10-22T10-27-55-344Z.log`). Nine sessions were asked first; three resumed with their checkpoint, the rest reported done. Healthy: service active, `pandaos-live` points to `dnd-main-tab`, the web UI serves the release bundle `index-d6074e8a…`.
+- Live check of the label: a tab dragged from one workspace onto another in the same folder moved the session, and its stored record now carries `pandaos.workspace.joined-at` `2026-10-22T10:31:32.852Z`. Fixture (`/tmp/pandaos-label-check`, two workspaces, two agents, project `prj_cafb8743757b5d18`) archived, deleted and removed.
+- Open: the index line in `journal/README.md` waits until the other agents' uncommitted edits in that file are committed.
