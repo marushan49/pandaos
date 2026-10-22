@@ -15,6 +15,17 @@ import { navigateToAgent } from "@/utils/navigate-to-agent";
 import type { WorkspaceSessionRow } from "@/utils/workspace-agent-activity";
 import { encodeWorkspaceDropTarget } from "@/workspace-move/drop-target";
 
+export function useIsSessionRowFocused(
+  workspace: SidebarWorkspaceEntry | null | undefined,
+  isActiveWorkspace: boolean,
+): boolean {
+  return useWorkspaceLayoutStore((state) => {
+    if (!isActiveWorkspace || !workspace?.sessions?.length) return false;
+    const focusedAgentId = getFocusedAgentId(state.layoutByWorkspace[workspace.workspaceKey]);
+    return workspace.sessions.some((session) => session.agentId === focusedAgentId);
+  });
+}
+
 export function SidebarSessionRows({
   workspace,
   onPress,

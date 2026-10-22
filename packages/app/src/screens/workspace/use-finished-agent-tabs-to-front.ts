@@ -17,7 +17,11 @@ export function useFinishedAgentTabsToFront(input: {
     selectWorkspaceMainAgentId(state.sessions[serverId]?.agents, workspaceId),
   );
   useEffect(() => {
-    if (mainAgentId) moveAgentTabToFront({ serverId, workspaceId, agentId: mainAgentId });
+    if (!mainAgentId) return undefined;
+    const keepMainTabFirst = () =>
+      moveAgentTabToFront({ serverId, workspaceId, agentId: mainAgentId });
+    keepMainTabFirst();
+    return useWorkspaceLayoutStore.subscribe(keepMainTabFirst);
   }, [mainAgentId, serverId, workspaceId]);
   useEffect(() => {
     if (!workspaceId) return undefined;

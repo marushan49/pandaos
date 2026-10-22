@@ -1,6 +1,10 @@
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { selectionTint } from "@/styles/with-alpha";
-import { SidebarSessionRows } from "@/components/sidebar/sidebar-session-rows";
+import {
+  SidebarSessionRows,
+  useIsSessionRowFocused,
+} from "@/components/sidebar/sidebar-session-rows";
+import { navigateToWorkspaceMainSession } from "@/workspace/open-main-session";
 import {
   View,
   Text,
@@ -27,7 +31,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { router, usePathname, type Href } from "expo-router";
 import {
-  navigateToWorkspace,
   useActiveWorkspaceSelection,
   type ActiveWorkspaceSelection,
 } from "@/stores/navigation-active-workspace-store";
@@ -1433,8 +1436,18 @@ function WorkspaceRowItem({
       return;
     }
     onWorkspacePress?.();
-    navigateToWorkspace({ serverId: workspace.serverId, workspaceId: workspace.workspaceId });
+    navigateToWorkspaceMainSession({
+      serverId: workspace.serverId,
+      workspaceId: workspace.workspaceId,
+    });
   }, [onWorkspacePress, workspace.serverId, workspace.workspaceId]);
+  const isActiveWorkspace = isWorkspaceSelected({
+    selection: activeWorkspaceSelection,
+    serverId: workspace.serverId,
+    workspaceId: workspace.workspaceId,
+    enabled: selectionEnabled,
+  });
+  const isSessionRowFocused = useIsSessionRowFocused(workspaceEntry, isActiveWorkspace);
 
   return (
     <>
@@ -1450,12 +1463,7 @@ function WorkspaceRowItem({
         onToggleWorkspacePin={onToggleWorkspacePin}
         reserveIdleStatusIndicatorSpace={reserveIdleStatusIndicatorSpace}
         isCreating={isCreating}
-        selected={isWorkspaceSelected({
-          selection: activeWorkspaceSelection,
-          serverId: workspace.serverId,
-          workspaceId: workspace.workspaceId,
-          enabled: selectionEnabled,
-        })}
+        selected={isActiveWorkspace && !isSessionRowFocused}
         onPress={handlePress}
         drag={drag ?? noop}
         isDragging={isDragging}

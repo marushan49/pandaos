@@ -4,7 +4,7 @@ import { getIsElectronRuntime } from "@/constants/layout";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { setCommandCenterFocusRestoreElement } from "@/utils/command-center-focus-restore";
 import { getResidentBrowserWebview } from "@/desktop/browser/resident-webviews";
-import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
+import { navigateToWorkspaceMainSession } from "@/workspace/open-main-session";
 import { useKeyboardActionDispatcher } from "@/keyboard/keyboard-action-dispatcher-context";
 import {
   type ChordState,
@@ -172,7 +172,10 @@ export function useKeyboardShortcuts({
           serverId: action.serverId,
           workspaceId: action.workspaceId,
         };
-        navigateToWorkspace({ serverId: action.serverId, workspaceId: action.workspaceId });
+        navigateToWorkspaceMainSession({
+          serverId: action.serverId,
+          workspaceId: action.workspaceId,
+        });
         return true;
       case "navigate-last-workspace":
         if (navigateToLastWorkspace()) {

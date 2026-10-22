@@ -7,7 +7,11 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { SidebarSessionRows } from "@/components/sidebar/sidebar-session-rows";
+import {
+  SidebarSessionRows,
+  useIsSessionRowFocused,
+} from "@/components/sidebar/sidebar-session-rows";
+import { navigateToWorkspaceMainSession } from "@/workspace/open-main-session";
 import { selectionTint } from "@/styles/with-alpha";
 import { useTranslation } from "react-i18next";
 import {
@@ -20,7 +24,6 @@ import {
 } from "react-native";
 import { NestableScrollContainer } from "react-native-draggable-flatlist";
 import type { GestureType } from "react-native-gesture-handler";
-import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { type SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import { type StatusBucket } from "@/hooks/sidebar-status-view-model";
@@ -574,14 +577,19 @@ const StatusWorkspaceRow = memo(function StatusWorkspaceRow({
   dragHandleProps?: DraggableListDragHandleProps;
 }) {
   const activeWorkspaceSelection = useActiveWorkspaceSelection();
-  const selected =
+  const isActiveWorkspace =
     activeWorkspaceSelection?.serverId === workspace.serverId &&
     activeWorkspaceSelection?.workspaceId === workspace.workspaceId;
+  const isSessionRowFocused = useIsSessionRowFocused(workspace, isActiveWorkspace);
+  const selected = isActiveWorkspace && !isSessionRowFocused;
 
   const handlePress = useCallback(() => {
     if (!workspace.serverId) return;
     onWorkspacePress?.();
-    navigateToWorkspace({ serverId: workspace.serverId, workspaceId: workspace.workspaceId });
+    navigateToWorkspaceMainSession({
+      serverId: workspace.serverId,
+      workspaceId: workspace.workspaceId,
+    });
   }, [onWorkspacePress, workspace.serverId, workspace.workspaceId]);
 
   return (
