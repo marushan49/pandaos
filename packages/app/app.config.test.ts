@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-// Load the copies the Expo CLI uses for prebuild, not older hoisted ones.
 const requireFromExpo = createRequire(require.resolve("expo/package.json"));
 const requireFromExpoCli = createRequire(requireFromExpo.resolve("@expo/cli/package.json"));
 const { getPrebuildConfigAsync } = requireFromExpoCli("@expo/prebuild-config");
@@ -58,4 +58,45 @@ describe("Android app config", () => {
     },
     30_000,
   );
+});
+
+describe("Metro watch scope", () => {
+  const root = path.resolve(__dirname, "../..");
+  const blockList: RegExp[] = require("./metro.config.cjs").resolver.blockList;
+  const isBlocked = (relativePath: string) =>
+    blockList.some((pattern) => pattern.test(path.resolve(root, relativePath)));
+
+  it.each([
+    "packages/app/android",
+    "packages/app/android/app/build/intermediates/assets/release",
+    "packages/app/ios/Pods",
+    "packages/app/.expo/web/cache",
+    "packages/app/.expo/types/router.d.ts",
+    "packages/app/src/components/example.test.tsx",
+    "packages/app/src/components/__tests__/example.tsx",
+    "packages/app/modules/paseo-scroll/android/build",
+    "packages/app/modules/paseo-diff-prototype/android/.cxx/Debug",
+    "node_modules/react-native-reanimated/android/build/intermediates",
+    "node_modules/react-native/ReactAndroid/.cxx",
+    ".gradle/caches",
+  ])("excludes generated or test path %s", (relativePath) => {
+    expect(isBlocked(relativePath)).toBe(true);
+  });
+
+  it.each([
+    "packages/app",
+    "packages/app/src/app/_layout.tsx",
+    "packages/app/.expo/.virtual-metro-entry",
+    "packages/app/modules/paseo-scroll/src/index.ts",
+    "packages/app/modules/paseo-diff-prototype/assets/grammar.bin",
+    "packages/expo-two-way-audio/build/index.js",
+    "packages/protocol/dist/generated/validation/ws-outbound.aot.js",
+    "packages/client/dist/index.js",
+    "node_modules/react-native/Libraries/Core/InitializeCore.js",
+    "node_modules/expo-camera/build/index.js",
+    "node_modules/metro/build/index.js",
+    "packages/app/src/desktop/browser/index.electron.tsx",
+  ])("keeps runtime source visible %s", (relativePath) => {
+    expect(isBlocked(relativePath)).toBe(false);
+  });
 });

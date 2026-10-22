@@ -18,15 +18,18 @@ const customWebPlatform = (process.env.PASEO_WEB_PLATFORM ?? "")
 const config = getDefaultConfig(projectRoot);
 const defaultResolveRequest = config.resolver.resolveRequest ?? resolve;
 
-// Keep app exports deterministic across dev machines and CI. Metro's Watchman
-// crawler behavior depends on the host Watchman build/capabilities, while the
-// node crawler is the path used when Watchman is absent.
 config.resolver.useWatchman = false;
 
-const escapedAppSrcRoot = appSrcRoot
-  .split(path.sep)
-  .map((segment) => segment.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&"))
-  .join("[\\\\/]");
+function escapeRoot(root) {
+  return root
+    .split(path.sep)
+    .map((segment) => segment.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&"))
+    .join("[\\\\/]");
+}
+
+const escapedAppSrcRoot = escapeRoot(appSrcRoot);
+const escapedProjectRoot = escapeRoot(projectRoot);
+const escapedRepositoryRoot = escapeRoot(path.resolve(projectRoot, "../.."));
 const pathSeparatorPattern = "[\\\\/]";
 
 config.resolver.extraNodeModules = {
@@ -36,9 +39,18 @@ config.resolver.extraNodeModules = {
   "react/jsx-runtime": path.join(appNodeModulesRoot, "react/jsx-runtime"),
   "react/jsx-dev-runtime": path.join(appNodeModulesRoot, "react/jsx-dev-runtime"),
 };
-config.resolver.blockList = new RegExp(
-  `(^${escapedAppSrcRoot}${pathSeparatorPattern}.*\\.(test|spec)\\.(ts|tsx)$|${pathSeparatorPattern}__tests__${pathSeparatorPattern}.*)$`,
-);
+config.resolver.blockList = [
+  ...[config.resolver.blockList ?? []].flat(),
+  new RegExp(
+    `(^${escapedAppSrcRoot}${pathSeparatorPattern}.*\\.(test|spec)\\.(ts|tsx)$|${pathSeparatorPattern}__tests__${pathSeparatorPattern}.*)$`,
+  ),
+  new RegExp(
+    `^${escapedProjectRoot}${pathSeparatorPattern}(?:android|ios|\\.expo${pathSeparatorPattern}web${pathSeparatorPattern}cache)(?:${pathSeparatorPattern}|$)`,
+  ),
+  new RegExp(
+    `^${escapedRepositoryRoot}${pathSeparatorPattern}(?:.*${pathSeparatorPattern})?(?:\\.gradle|\\.cxx|android${pathSeparatorPattern}build)(?:${pathSeparatorPattern}|$)`,
+  ),
+];
 
 function isLocalModuleImport(moduleName) {
   return (
@@ -59,16 +71,13 @@ function resolveWithCustomWebOverlay(context, moduleName, platform) {
   if (shouldResolveCustomWebVariant) {
     const overlayContext = {
       ...context,
-      // Resolve only "<custom-platform>.<ext>" variants in overlay mode.
       sourceExts: context.sourceExts.map((ext) => `${customWebPlatform}.${ext}`),
       preferNativePlatform: false,
     };
 
     try {
       return defaultResolveRequest(overlayContext, moduleName, null);
-    } catch {
-      // Ignore overlay misses and continue with normal web resolution.
-    }
+    } catch {}
   }
 
   return defaultResolveRequest(context, moduleName, platform);

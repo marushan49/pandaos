@@ -12,7 +12,7 @@ parse_arguments() {
         shift 2
         ;;
       --install)
-        arguments+=(--install 100.96.225.48:5555)
+        arguments+=(--install)
         shift
         ;;
       --install=*)

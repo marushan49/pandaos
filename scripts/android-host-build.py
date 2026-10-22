@@ -27,10 +27,10 @@ def save(path, data):
     temporary.replace(path)
 
 
-def run(args, cwd=None, env=None, capture=False):
+def run(args, cwd=None, env=None, capture=False, timeout=None):
     result = subprocess.run(args, cwd=cwd, env=env, check=True,
                             stdout=subprocess.PIPE if capture else None,
-                            stderr=subprocess.PIPE if capture else None)
+                            stderr=subprocess.PIPE if capture else None, timeout=timeout)
     return result.stdout if capture else None
 
 
@@ -282,9 +282,27 @@ def package_identity(text):
     return {'firstInstallTime': first_install.group(1), 'appIdentity': identity.group(1)}
 
 
+def xiaomi_wlan_transport(adb_path, execute=run):
+    devices = execute([str(adb_path), 'devices'], capture=True).decode().splitlines()
+    matches = []
+    for line in devices:
+        fields = line.split()
+        if (len(fields) != 2 or fields[1] != 'device'
+                or not re.fullmatch(r'adb-XOOVEML7RS79MB99-[^.\s]+\._adb-tls-connect\._tcp\.?', fields[0])):
+            continue
+        identity = execute([str(adb_path), '-s', fields[0], 'shell', 'getprop', 'ro.serialno'],
+                           capture=True).decode().strip()
+        if identity == 'XOOVEML7RS79MB99':
+            matches.append(fields[0])
+    if len(matches) != 1:
+        raise ValueError('Expected one connected authenticated WLAN transport for Xiaomi XOOVEML7RS79MB99; found ' + str(len(matches)))
+    return matches[0]
+
+
 def install(apk, signer, apksigner, serial, package, output, adb_path, execute=run, install_debug=None):
-    def adb(*args):
-        return execute([str(adb_path), '-s', serial, *map(str, args)], capture=True).decode().strip()
+    def adb(*args, timeout=None):
+        return execute([str(adb_path), '-s', serial, *map(str, args)], capture=True,
+                       timeout=timeout).decode().strip()
 
     def info():
         return package_identity(adb('shell', 'dumpsys', 'package', package))
@@ -312,8 +330,18 @@ def install(apk, signer, apksigner, serial, package, output, adb_path, execute=r
     if not before or digest(previous.read_bytes()) != digest(apk.read_bytes()):
         if install_debug:
             install_debug()
-        elif 'Success' not in adb('install', '-r', apk):
-            raise ValueError('adb install did not report success')
+        else:
+            try:
+                result = adb('install', '-r', apk, timeout=120)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                details = '\n'.join(part.decode(errors='replace') if isinstance(part, bytes) else part
+                                    for part in [error.stdout, error.stderr] if part).strip()
+                reason = ('Android installation timed out after 120 seconds; check the MIUI approval on the phone'
+                          if isinstance(error, subprocess.TimeoutExpired) else 'Android installation failed')
+                error.add_note(reason + (': ' + details if details else ''))
+                raise
+            if 'Success' not in result:
+                raise ValueError('adb install did not report success: ' + result)
     after = info()
     if before and after != before:
         raise ValueError('Installed package identity or first-install time changed')
@@ -431,11 +459,12 @@ def build(args, execute=run, environment=None):
         before = time.monotonic()
         timings['installSucceeded'] = False
         try:
-            install(apk, signer, apksigner, args.install,
+            serial = xiaomi_wlan_transport(sdk / 'platform-tools/adb', execute) if args.install is True else args.install
+            install(apk, signer, apksigner, serial,
                     'sh.pandaos.debug' if args.debug else 'sh.pandaos', state, sdk / 'platform-tools/adb', execute,
                     install_debug=(lambda: step('gradleInstallSeconds',
                         gradle_command(':app:installDebug'), cwd=app / 'android',
-                        env_override={'ANDROID_SERIAL': args.install})) if args.debug else None)
+                        env_override={'ANDROID_SERIAL': serial})) if args.debug else None)
             timings['installSucceeded'] = True
         finally:
             timings.update(installSeconds=round(time.monotonic() - before, 3),
@@ -463,7 +492,7 @@ def main():
     parser.add_argument('--builder')
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--keystore')
-    parser.add_argument('--install', metavar='ADB_SERIAL')
+    parser.add_argument('--install', nargs='?', const=True, metavar='ADB_SERIAL')
     parser.add_argument('--requested-at', type=float,
                         default=float(os.environ.get('PANDAOS_ANDROID_REQUESTED_AT', time.time())),
                         help=argparse.SUPPRESS)

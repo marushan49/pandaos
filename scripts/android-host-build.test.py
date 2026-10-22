@@ -47,17 +47,56 @@ class AndroidHostTests(unittest.TestCase):
         shim = Path(__file__).with_name('pandaos-android-build')
         for arguments, expected in [
                 ([], ['', '/canonical/pandaos']),
-                (['--install'], ['', '/canonical/pandaos', '--install', '100.96.225.48:5555']),
-                (['--install', 'topic'], ['topic', '', '--install', '100.96.225.48:5555']),
-                (['topic', '--install'], ['topic', '', '--install', '100.96.225.48:5555']),
+                (['--install'], ['', '/canonical/pandaos', '--install']),
+                (['--install', 'topic'], ['topic', '', '--install']),
+                (['topic', '--install'], ['topic', '', '--install']),
                 (['--install=selected-device', 'topic'], ['topic', '', '--install', 'selected-device']),
                 (['--source', '/source', '--install', '--debug'],
-                 ['', '/source', '--install', '100.96.225.48:5555', '--debug'])]:
+                 ['', '/source', '--install', '--debug'])]:
             with self.subTest(arguments=arguments):
                 output = host.run(['bash', '-c',
                     'source "$1"; shift; repo=/canonical/pandaos; parse_arguments "$@"; printf "%s\\0" "$ref" "$source_path" "${arguments[@]}"',
                     'parse-test', str(shim), *arguments], capture=True)
                 self.assertEqual(output.decode().split('\0')[:-1], expected)
+
+    def test_bare_install_selects_known_xiaomi_authenticated_wlan_with_dynamic_suffix(self):
+        adb = '/guarded/sdk/platform-tools/adb'
+        for suffix in ['GSkm2j', 'new-suffix-42']:
+            with self.subTest(suffix=suffix):
+                transport = 'adb-XOOVEML7RS79MB99-' + suffix + '._adb-tls-connect._tcp'
+                commands = []
+
+                def execute(args, **kwargs):
+                    commands.append(args)
+                    if args == [adb, 'devices']:
+                        return ('List of devices attached\n100.96.225.48:5555\tdevice\n'
+                                'adb-OTHERPHONE-example._adb-tls-connect._tcp\tdevice\n'
+                                'adb-XOOVEML7RS79MB99-unauthorized._adb-tls-connect._tcp\tunauthorized\n'
+                                + transport + '\tdevice\n').encode()
+                    self.assertEqual(args, [adb, '-s', transport, 'shell', 'getprop', 'ro.serialno'])
+                    return b'XOOVEML7RS79MB99\n'
+
+                self.assertEqual(host.xiaomi_wlan_transport(adb, execute), transport)
+                self.assertEqual(len(commands), 2)
+
+    def test_bare_install_never_falls_back_to_legacy_wrong_or_ambiguous_device(self):
+        adb = '/guarded/sdk/platform-tools/adb'
+        tls = 'adb-XOOVEML7RS79MB99-dynamic._adb-tls-connect._tcp'
+        second = 'adb-XOOVEML7RS79MB99-second._adb-tls-connect._tcp'
+        for listing, identity in [
+                ('100.96.225.48:5555\tdevice\n', b'XOOVEML7RS79MB99'),
+                (tls + '\toffline\n', b'XOOVEML7RS79MB99'),
+                (tls + '\tdevice\n', b'OTHERPHONE'),
+                (tls + '\tdevice\n' + second + '\tdevice\n', b'XOOVEML7RS79MB99')]:
+            with self.subTest(listing=listing, identity=identity):
+                def execute(args, **kwargs):
+                    if args == [adb, 'devices']:
+                        return listing.encode()
+                    self.assertEqual(args[3:], ['shell', 'getprop', 'ro.serialno'])
+                    return identity
+
+                with self.assertRaisesRegex(ValueError, 'authenticated WLAN transport'):
+                    host.xiaomi_wlan_transport(adb, execute)
 
     def test_outdated_source_fails_before_changing_existing_builder_or_native_state(self):
         source = self.root / 'pandaos'
@@ -346,7 +385,7 @@ class AndroidHostTests(unittest.TestCase):
         debug_installed = False
         install_failure = False
 
-        def execute(command, cwd=None, env=None, capture=False):
+        def execute(command, cwd=None, env=None, capture=False, timeout=None):
             nonlocal debug_installed
             commands.append(command)
             working_builder = source / '.worktrees' / ('android-build-debug' if args.debug else 'android-build')
@@ -522,6 +561,54 @@ class AndroidHostTests(unittest.TestCase):
         self.assertEqual(sum('install' in command for command in commands), 1)
         self.assertTrue(all(command[0] == '/guarded/sdk/platform-tools/adb'
                             for command in commands if command[0] != 'apksigner'))
+
+    def test_release_install_refusal_or_timeout_preserves_failure_and_has_no_success_receipt(self):
+        apk = self.write('app.apk', b'verified new apk')
+        proof = {'apkSHA256': host.digest(apk.read_bytes()), 'signerSHA256': 'abc'}
+        host.save(self.root / 'receipt.json', proof)
+        for timed_out in [False, True]:
+            with self.subTest(timed_out=timed_out):
+                installs = []
+                raised = None
+
+                def execute(args, **kwargs):
+                    nonlocal raised
+                    if args[0] == 'apksigner':
+                        return b'certificate SHA-256 digest: abc\n'
+                    if 'path' in args:
+                        return b'package:/data/app/sh.pandaos/base.apk\n'
+                    if 'dumpsys' in args:
+                        return b'firstInstallTime=unchanged\nappId=10758\n'
+                    if 'pull' in args:
+                        Path(args[-1]).write_bytes(b'previous apk')
+                        return b'pulled'
+                    if 'install' in args:
+                        installs.append(kwargs['timeout'])
+                        if timed_out:
+                            raised = subprocess.TimeoutExpired(args, kwargs['timeout'],
+                                output=b'Performing Streamed Install', stderr=b'Waiting for confirmation')
+                        else:
+                            raised = subprocess.CalledProcessError(1, args,
+                                output=b'Performing Streamed Install', stderr=b'INSTALL_FAILED_USER_RESTRICTED')
+                        raise raised
+                    self.fail('Unexpected command: ' + repr(args))
+
+                with self.assertRaises(subprocess.TimeoutExpired if timed_out else subprocess.CalledProcessError) as caught:
+                    host.install(apk, 'abc', 'apksigner', 'device', 'sh.pandaos', self.root,
+                                 '/guarded/sdk/platform-tools/adb', execute)
+                self.assertIs(caught.exception, raised)
+                self.assertEqual(installs, [120])
+                self.assertIn('Performing Streamed Install', '\n'.join(caught.exception.__notes__))
+                self.assertIn('Waiting for confirmation' if timed_out else 'INSTALL_FAILED_USER_RESTRICTED',
+                              '\n'.join(caught.exception.__notes__))
+                if timed_out:
+                    self.assertEqual(caught.exception.timeout, 120)
+                    self.assertIn('120 seconds', '\n'.join(caught.exception.__notes__))
+                else:
+                    self.assertEqual(caught.exception.returncode, 1)
+                self.assertEqual(host.load(self.root / 'receipt.json'), proof)
+                self.assertEqual(apk.read_bytes(), b'verified new apk')
+                self.assertFalse((self.root / 'installation.json').exists())
 
     def test_missing_debug_package_does_not_hide_transport_or_production_errors(self):
         apk = self.write('app.apk', b'new apk')

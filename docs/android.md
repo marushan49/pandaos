@@ -65,13 +65,18 @@ On the Zotac, use the persistent host builder:
 
 ```bash
 pandaos-android-build
-pandaos-android-build --source /path/to/pandaos-worktree --install=100.96.225.48:5555
-pandaos-android-build --source /path/to/pandaos-worktree --debug --install=100.96.225.48:5555
+pandaos-android-build --source /path/to/pandaos-worktree --install
+pandaos-android-build --source /path/to/pandaos-worktree --debug --install
 ```
 
 The bare command builds the canonical repository. Use `--source` for another checkout; an
 explicit release ref requires that checkout to contain the current build tooling. Unsupported
 older sources fail before changing the builder.
+
+Bare `--install` selects the connected authenticated WLAN transport of the known Xiaomi,
+checks its physical serial number and rejects missing or ambiguous matches. Use
+`--install=SERIAL` for an explicit target. MIUI may label its WLAN confirmation
+“Installieren über USB”; confirm installation on the phone when prompted.
 
 The release builder stays at `.worktrees/android-build`; the debug builder stays at
 `.worktrees/android-build-debug`. Keep these paths: CMake and Gradle native outputs contain
@@ -87,7 +92,7 @@ changes preserve native outputs and Metro transforms. Do not run `clean` or dele
 for an APK update. `android:clear` is an explicit recovery command.
 
 Release updates verify the APK signer before `adb install -r`. Debug updates use `installDebug`
-and the separate `sh.pandaos.debug` package. Existing package identity and first-install time
+and the separate `sh.pandaos.debug` package. Release device installation times out after120seconds; its error includes the phone's refusal or pending-confirmation output. Existing package identity and first-install time
 must match after an update. The APK receipt is reusable only when source, configuration,
 actual APK hash and signer match; a failed build cannot promote an old APK.
 

@@ -48,7 +48,7 @@ Hermes remains in use.
 | Actual changed-JS warm APK          | 1m12.795s   | Same job, source from a different caller worktree; no npm/workspace rebuild. Metro12.268s, Hermes16.853s, maps5.587s, Gradle33.633s.40executed/1237up-to-date. |
 | Exact signed APK reuse              | 1.914s      | Matching source/config/APK/signer; no Metro, Hermes or Gradle execution.                                                                                       |
 | Initial separate debug native build | 9m47s       | Job1093;744tasks,590executed/154fromcache. Build and signature passed; subsequent installDebug was rejected by the phone.                                      |
-| Physical Fast Refresh               | Unconfirmed | Five state-preserving edits prepared; blocked until the Xiaomi is unlocked and the debug client installed.                                                     |
+| Physical Fast Refresh               | Unconfirmed | Debug client installed; two Metro attempts reached the shared host inotify watch limit.                                                                        |
 
 The permanent workflow has one actual changed-JS sample and one artifact hit. Outer queue wait
 was 0.934s, excluded. Receipts prove the changed module was bundled and its verified Hermes
@@ -63,28 +63,46 @@ Host scheduler settings belong to its separate task. No host limits were changed
 
 ## Verification and current blocker
 
-The final host workflow has23passing focused tests, including source ownership, unchanged
+The final host workflow has26passing focused tests, including source ownership, unchanged
 mtimes, caches, external dependency invalidation, signatures, device selection, missing debug
 packages and failed-install timing/cache preservation. Python and shell syntax passed. The
 compiler/prebuild fix has focused tests, typecheck, lint, format, advisor review and the actual
 ARM64 task-plan proof. Nine existing CI-contract tests passed after adding the Python tests to
 the existing CI job. Hosted CI and the full suite were not run.
 
-Xiaomi production update was already installed and viewed with the existing chat restored.
-APK signer, app identity and first-install time matched the prior installation. The separate
-debug APK also built and passed signing checks. `installDebug` then returned
-`INSTALL_FAILED_USER_RESTRICTED`. Inspection showed a dozing phone with keyguard visible and
-screen off; the actual screenshot was viewed and was black. The debug package is absent.
-No additional build is needed. An async request asks the user to unlock the Xiaomi; the exact
-OS confirmation/restriction must be resolved during installation-only retry. Build-stage
-measurements and a valid signed APK are now retained even when installation fails.
+Xiaomi production update was installed and viewed with the existing chat restored. The separate
+debug APK passed signing checks. Both legacy TCP and authenticated WLAN streaming installation
+returned `INSTALL_FAILED_USER_RESTRICTED` while the phone was unlocked. Device logs identify
+MIUI's `AdbInstallActivity`; its confirmation says “Installieren über USB” even over WLAN.
+The bounded non-streaming WLAN installation then succeeded in17.479s. A screenshot captured
+the confirmation; this does not prove that non-streaming alone resolved the earlier refusal.
+Installed debug APK hash matches the signed artifact. Production APK hash, app identity and
+first-install time stayed identical. No settings were weakened, no package uninstalled and
+no APK rebuilt for installation. Bare `--install` now resolves the known Xiaomi's connected
+authenticated WLAN endpoint and verifies its physical serial instead of using port5555.
+
+The first real Metro run failed with `ENOSPC` from the fallback directory watcher. It was
+stopped, with exact source restoration, probe removal, child-process shutdown and unchanged
+production/debug APK identities verified. Host watch limits were not increased. The scoped Metro correction preserves Expo defaults,
+excludes generated native outputs and app caches, and leaves every one of6795checked bundled
+runtime paths visible. It reduced directory observations from23219to17076. Twenty-four focused
+cases, formatting and lint passed. The second actual Metro attempt still reached `ENOSPC`;
+this is a footprint reduction, not a resolved host quota. Both attempts restored source and
+removed only their own probe, Metro/logcat children and reverse mapping; package identities
+stayed unchanged. There is no supported separate dependency watch filter in installed Metro.
+No foreign agent/process was stopped.
+
+One read-only Mac inspection found Node24.18.0, free port8081 and the same LAN, but no existing
+PandaOS source checkout or verified Metro dependencies. A user choice is pending before setting
+up that additional development checkout. Physical Fast Refresh timing remains unconfirmed.
 
 The prepared Fast Refresh driver preserves PID, component state and ref identity through five
 actual edits. It reports first Metro/full-bundle startup separately, includes ADB log transport
 in the update latency and measures a next-frame commit marker rather than pixel paint. It
 removes inherited CI so Expo file watching remains enabled. It restores source bytes, removes
-only its own reverse mapping and stops only its own Metro/logcat children. It has not run at
-the device yet; no Fast Refresh time is claimed.
+only its own reverse mapping and stops only its own Metro/logcat children. It was attempted at
+the device twice, but neither run reached its first marker because Metro exited with ENOSPC;
+no Fast Refresh time is claimed.
 
 ## Evidence and ownership
 
@@ -93,4 +111,5 @@ Current state: `.dev/claude-account-rollout/checkpoint.json`. Production install
 `.dev/android-workflow/`. Native fix commit: `93d4a4b08223aeeee662ca29c419c8ec9475bae0`.
 Persistent release and debug worktrees intentionally retain native caches under this task.
 Frozen app-source overlays are build-only and must never be staged. Agent sessions and
-browser tabs stay open. Installation-only retry and Fast Refresh remain pending user input.
+browser tabs stay open. Debug installation is complete; the physical Fast Refresh measurement
+remains blocked by the shared Zotac watcher budget; the Mac development-checkout choice is pending.
