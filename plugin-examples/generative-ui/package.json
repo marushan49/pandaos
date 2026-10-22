@@ -1,0 +1,22 @@
+{
+  "name": "@pandaos/generative-ui-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "build": "esbuild server/mcp.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/mcp.mjs"
+  },
+  "dependencies": {
+    "@json-render/core": "0.21.1",
+    "@json-render/react-native": "0.21.1",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.4.3"
+  },
+  "peerDependencies": {
+    "@getpaseo/plugin": ">=0.11.2",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "zod": "^4.4.3"
+  }
+}

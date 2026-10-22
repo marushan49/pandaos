@@ -740,6 +740,8 @@ preference instead of painting the reserved slot's placeholder colors.
 
 Existing plugin authors should follow the standalone [v0.8 runtime-entry migration guide](../public-docs/plugins/migration.md).
 
+See [`plugin-examples/generative-ui`](../plugin-examples/generative-ui/README.md) for the isolated, versioned interactive chat UI prototype and its cost simulator.
+
 See `plugin-examples/local-plugin` for a native surface, `plugin-examples/linear` for a complete
 attachment-source example, `plugin-examples/timeline-items` for timeline projection, and
 `plugin-examples/catppuccin` for a theme.

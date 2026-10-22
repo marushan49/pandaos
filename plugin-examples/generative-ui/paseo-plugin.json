@@ -1,0 +1,5 @@
+{
+  "id": "generative-ui",
+  "name": "Generative UI prototype",
+  "requirements": { "paseo": ">=0.11.2" }
+}
