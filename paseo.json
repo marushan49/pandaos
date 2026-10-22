@@ -871,7 +871,7 @@
           },
           {
             "action": "goal",
-            "goal": "Prüfe, dass im Chat außer der Fortsetzungsnachricht und der Antwort eine eigene kompakte Plugin-Markierung 'Automatisch fortgesetzt' mit Uhrzeit und Grund 'Codex app-server exited with code null and signal SIGKILL' sichtbar ist. Lies die Zeile. Die Antwort 'Automatisch fortgesetzt, Test erfolgreich.' allein reicht nicht.",
+            "goal": "Pr\u00fcfe, dass im Chat au\u00dfer der Fortsetzungsnachricht und der Antwort eine eigene kompakte Plugin-Markierung 'Automatisch fortgesetzt' mit Uhrzeit und Grund 'Codex app-server exited with code null and signal SIGKILL' sichtbar ist. Lies die Zeile. Die Antwort 'Automatisch fortgesetzt, Test erfolgreich.' allein reicht nicht.",
             "verify": [
               {
                 "text": "Automatisch fortgesetzt"
@@ -1655,7 +1655,7 @@
           {
             "action": "click",
             "role": "button",
-            "name": "Erkläre Michelin Kitchen Architektur und Fachbegriffe"
+            "name": "Erkl\u00e4re Michelin Kitchen Architektur und Fachbegriffe"
           },
           {
             "action": "wait-text",
@@ -1756,7 +1756,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Zahlen für unseren Termin prüfen",
+            "text": "Zahlen f\u00fcr unseren Termin pr\u00fcfen",
             "timeoutMs": 10000
           },
           {
@@ -1794,7 +1794,7 @@
           {
             "action": "assert-visible",
             "role": "button",
-            "name": "Agenten öffnen"
+            "name": "Agenten \u00f6ffnen"
           }
         ]
       },
@@ -1919,7 +1919,7 @@
           {
             "action": "assert-visible",
             "role": "button",
-            "name": "Einrichtung öffnen"
+            "name": "Einrichtung \u00f6ffnen"
           },
           {
             "action": "screenshot",
@@ -1928,7 +1928,7 @@
           {
             "action": "click",
             "role": "button",
-            "name": "Einrichtung öffnen"
+            "name": "Einrichtung \u00f6ffnen"
           },
           {
             "action": "wait-text",
@@ -2008,7 +2008,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Schließe die Anmeldung bei Microsoft ab",
+            "text": "Schlie\u00dfe die Anmeldung bei Microsoft ab",
             "timeoutMs": 20000
           }
         ]
@@ -2041,7 +2041,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Schließe die Anmeldung bei Microsoft ab",
+            "text": "Schlie\u00dfe die Anmeldung bei Microsoft ab",
             "timeoutMs": 20000
           },
           {
@@ -2095,7 +2095,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Schließe die Anmeldung bei Microsoft ab",
+            "text": "Schlie\u00dfe die Anmeldung bei Microsoft ab",
             "timeoutMs": 20000
           }
         ]
@@ -2274,7 +2274,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Layout-Prüfung beendet.",
+            "text": "Layout-Pr\u00fcfung beendet.",
             "timeoutMs": 20000
           },
           {
@@ -2307,7 +2307,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Layout-Prüfung beendet.",
+            "text": "Layout-Pr\u00fcfung beendet.",
             "timeoutMs": 15000
           },
           {
@@ -2616,13 +2616,13 @@
           },
           {
             "action": "wait-text",
-            "text": "Entwicklerkonto auswählen",
+            "text": "Entwicklerkonto ausw\u00e4hlen",
             "timeoutMs": 8000
           },
           {
             "action": "assert-visible",
             "role": "heading",
-            "name": "Entwicklerkonto auswählen"
+            "name": "Entwicklerkonto ausw\u00e4hlen"
           },
           {
             "action": "screenshot",
@@ -2639,7 +2639,7 @@
           },
           {
             "action": "goal",
-            "goal": "Öffne den bestehenden Workspace pandaos. Erstelle und ändere keine Daten. Prüfe ob die App mit ihrem Host verbunden ist.",
+            "goal": "\u00d6ffne den bestehenden Workspace pandaos. Erstelle und \u00e4ndere keine Daten. Pr\u00fcfe ob die App mit ihrem Host verbunden ist.",
             "verify": [
               {
                 "text": "pandaos"
@@ -2658,7 +2658,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Position oder Thema hinzufügen"
+            "text": "Position oder Thema hinzuf\u00fcgen"
           },
           {
             "action": "click",
@@ -2667,13 +2667,13 @@
           },
           {
             "action": "wait-text",
-            "text": "Name (1–100 Zeichen)"
+            "text": "Name (1\u2013100 Zeichen)"
           },
           {
             "action": "fill",
             "role": "textbox",
             "name": "Name",
-            "value": "GDELT-Prüfeintrag"
+            "value": "GDELT-Pr\u00fcfeintrag"
           },
           {
             "action": "fill",
@@ -2692,7 +2692,7 @@
           },
           {
             "action": "assert-text",
-            "text": "GDELT-Prüfeintrag"
+            "text": "GDELT-Pr\u00fcfeintrag"
           },
           {
             "action": "assert-console-errors",
@@ -2713,7 +2713,7 @@
           },
           {
             "action": "wait-text",
-            "text": "GDELT-Prüfeintrag bearbeitet"
+            "text": "GDELT-Pr\u00fcfeintrag bearbeitet"
           },
           {
             "action": "assert-text",
@@ -2728,7 +2728,7 @@
             "action": "fill",
             "role": "textbox",
             "name": "Name",
-            "value": "GDELT-Prüfeintrag geprüft"
+            "value": "GDELT-Pr\u00fcfeintrag gepr\u00fcft"
           },
           {
             "action": "click",
@@ -2746,7 +2746,7 @@
           },
           {
             "action": "assert-text",
-            "text": "GDELT-Prüfeintrag geprüft"
+            "text": "GDELT-Pr\u00fcfeintrag gepr\u00fcft"
           },
           {
             "action": "click",
@@ -2777,7 +2777,7 @@
           },
           {
             "action": "wait-text",
-            "text": "GDELT-KONTEXT-OK GDELT-Prüfeintrag geprüft"
+            "text": "GDELT-KONTEXT-OK GDELT-Pr\u00fcfeintrag gepr\u00fcft"
           },
           {
             "action": "assert-console-errors",
@@ -2798,7 +2798,7 @@
           },
           {
             "action": "wait-text",
-            "text": "GDELT-Prüfeintrag geprüft"
+            "text": "GDELT-Pr\u00fcfeintrag gepr\u00fcft"
           },
           {
             "action": "click",
@@ -2807,12 +2807,12 @@
           },
           {
             "action": "wait-text",
-            "text": "Noch keine Einträge."
+            "text": "Noch keine Eintr\u00e4ge."
           },
           {
             "action": "click",
             "role": "button",
-            "name": "Zurücksetzen"
+            "name": "Zur\u00fccksetzen"
           },
           {
             "action": "click",
@@ -2821,7 +2821,7 @@
           },
           {
             "action": "assert-text",
-            "text": "Noch keine Einträge."
+            "text": "Noch keine Eintr\u00e4ge."
           },
           {
             "action": "assert-console-errors",
@@ -2842,12 +2842,12 @@
           },
           {
             "action": "wait-text",
-            "text": "Noch keine Einträge."
+            "text": "Noch keine Eintr\u00e4ge."
           },
           {
             "action": "click",
             "role": "button",
-            "name": "Zurücksetzen"
+            "name": "Zur\u00fccksetzen"
           },
           {
             "action": "click",
@@ -2895,7 +2895,7 @@
           },
           {
             "action": "wait-text",
-            "text": "Noch keine Einträge."
+            "text": "Noch keine Eintr\u00e4ge."
           },
           {
             "action": "assert-console-errors",
@@ -2904,6 +2904,974 @@
           {
             "action": "screenshot",
             "name": "gdelt-mobile-final"
+          }
+        ]
+      },
+      "skill-deck-host-connected": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/",
+            "action": "navigate"
+          },
+          {
+            "action": "goal",
+            "goal": "\u00d6ffne den bestehenden Workspace pandaos. Erstelle oder \u00e4ndere keine Daten. Pr\u00fcfe die verbundene App.",
+            "verify": [
+              {
+                "text": "pandaos"
+              }
+            ],
+            "maxSteps": 8
+          }
+        ]
+      },
+      "skill-deck-compact-detail-copy": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "assert-visible",
+            "role": "textbox",
+            "name": "Module suchen"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "antislop"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Skill antislop \u00f6ffnen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Quelle & Version"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Inhalt kopieren"
+          },
+          {
+            "action": "wait-text",
+            "text": "Skill-Inhalt kopiert"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zur\u00fcck zur Bibliothek"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Info"
+          },
+          {
+            "action": "wait-text",
+            "text": "Quellen & Grenzen"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Schlie\u00dfen"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "compact-library-final"
+          }
+        ]
+      },
+      "skill-deck-project-filter": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "goal",
+            "goal": "\u00d6ffne Projekt & Filter, w\u00e4hle unter Projekt den vorhandenen Eintrag pandaos mit genau /home/admin/projects/pandaos (kein Worktree und kein anderes Projekt). W\u00e4hle Bereich Projekt. Schlie\u00dfe den Filter \u00fcber Auswahl anzeigen. Keine Daten anlegen oder Projekte bearbeiten.",
+            "verify": [
+              {
+                "text": "Filter aktiv"
+              },
+              {
+                "text": "pandaos + globale Skills"
+              }
+            ],
+            "maxSteps": 12
+          },
+          {
+            "action": "screenshot",
+            "name": "compact-project-skills"
+          }
+        ]
+      },
+      "skill-deck-updates-and-tabs": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Updates pr\u00fcfen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Aktuell",
+            "timeoutMs": 60000
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "antislop"
+          },
+          {
+            "action": "screenshot",
+            "name": "skill-updates-real"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Plugins"
+          },
+          {
+            "action": "wait-text",
+            "text": "Lokales Verzeichnis"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Updates pr\u00fcfen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Lokales Verzeichnis, kein verwaltetes Update"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Hinweise"
+          },
+          {
+            "action": "wait-text",
+            "text": "Belegter Befund"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Nutzung"
+          },
+          {
+            "action": "wait-text",
+            "text": "Beobachtete Aufrufe"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          }
+        ]
+      },
+      "skill-deck-appearance-entry": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/settings/appearance",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Appearance"
+          },
+          {
+            "action": "screenshot",
+            "name": "original-appearance"
+          }
+        ]
+      },
+      "skill-deck-dark-compact": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Skill Deck",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "antislop"
+          },
+          {
+            "action": "screenshot",
+            "name": "dark-compact-library"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Skill antislop \u00f6ffnen"
+          },
+          {
+            "action": "wait-text",
+            "text": "Quelle & Version"
+          },
+          {
+            "action": "screenshot",
+            "name": "dark-compact-detail"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Zur\u00fcck zur Bibliothek"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          }
+        ]
+      },
+      "skill-deck-dark-desktop": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Skill Deck"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "antislop"
+          },
+          {
+            "action": "screenshot",
+            "name": "desktop-dark-final"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Hinweise"
+          },
+          {
+            "action": "wait-text",
+            "text": "Belegter Befund"
+          },
+          {
+            "action": "screenshot",
+            "name": "desktop-findings-dark"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          }
+        ]
+      },
+      "skill-deck-real-provider-usage": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Nutzung"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Neu einlesen"
+          },
+          {
+            "action": "wait-text",
+            "text": "paseo-plugin",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "wait-text",
+            "text": "claude"
+          },
+          {
+            "action": "screenshot",
+            "name": "observed-claude-usage"
+          }
+        ]
+      },
+      "skill-deck-final-compact": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Skill Deck"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "antislop"
+          },
+          {
+            "action": "screenshot",
+            "name": "compact-dark-final"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Info"
+          },
+          {
+            "action": "wait-text",
+            "text": "Quellen & Grenzen"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Schlie\u00dfen"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          }
+        ]
+      },
+      "skill-deck-final-desktop": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Skill Deck"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "__kein_skill__"
+          },
+          {
+            "action": "wait-text",
+            "text": "Kein passendes Modul"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "antislop"
+          },
+          {
+            "action": "screenshot",
+            "name": "desktop-light-final"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          }
+        ]
+      },
+      "skill-deck-final-compact-search": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/plugin/skill-deck/surface/main",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Skill Deck"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Module suchen",
+            "value": "antislop"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          }
+        ]
+      },
+      "e2e-progress-symbol-tabs": {
+        "params": ["appUrl", "workspaceUrl"],
+        "steps": [
+          {
+            "url": "{{appUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Add a project",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Hosts"
+          },
+          {
+            "action": "wait-text",
+            "text": "zotac",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "zotac"
+          },
+          {
+            "url": "{{workspaceUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "New tab",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open Explorer sidebar"
+          },
+          {
+            "action": "wait-text",
+            "text": "example.txt",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "symbol-tabs"
+          }
+        ]
+      },
+      "e2e-progress-symbols-skip-pause": {
+        "params": ["appUrl", "workspaceUrl", "startUrl"],
+        "steps": [
+          {
+            "url": "{{appUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Add a project",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Hosts"
+          },
+          {
+            "action": "wait-text",
+            "text": "zotac",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "zotac"
+          },
+          {
+            "url": "{{workspaceUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "New tab",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open Explorer sidebar"
+          },
+          {
+            "action": "wait-text",
+            "text": "example.txt",
+            "timeoutMs": 10000
+          },
+          {
+            "url": "{{startUrl}}",
+            "action": "navigate"
+          },
+          {
+            "url": "{{workspaceUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "E2E live progress",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Skip step 3"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Take over"
+          },
+          {
+            "action": "wait-text",
+            "text": "Taking over after this step",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "live-e2e-progress"
+          }
+        ]
+      },
+      "e2e-progress-resume-focus-incomplete": {
+        "params": ["workspaceUrl"],
+        "steps": [
+          {
+            "url": "{{workspaceUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Paused, you have control",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Resume"
+          },
+          {
+            "action": "wait-text",
+            "text": "Run incomplete",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-text",
+            "text": "Skipped \u00b7 not checked"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open browser"
+          },
+          {
+            "action": "wait-text",
+            "text": "Fixture ready",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "e2e-incomplete-browser-focused"
+          }
+        ]
+      },
+      "workspace-plan-always-populated": {
+        "params": ["appUrl", "planUrl", "plainUrl"],
+        "steps": [
+          {
+            "url": "{{appUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "New workspace",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Hosts"
+          },
+          {
+            "action": "wait-text",
+            "text": "zotac",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "zotac"
+          },
+          {
+            "url": "{{planUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Implement persistent progress",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open Explorer sidebar"
+          },
+          {
+            "action": "wait-text",
+            "text": "Inspect the workspace",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "persistent-task-plan"
+          },
+          {
+            "url": "{{plainUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Plain task",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "wait-text",
+            "text": "Idle",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "minimum-task-without-checklist"
+          }
+        ]
+      },
+      "workspace-plan-and-e2e-progress": {
+        "params": ["planUrl", "startUrl", "workspaceUrl", "releaseUrl"],
+        "steps": [
+          {
+            "url": "{{planUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Implement persistent progress",
+            "timeoutMs": 15000
+          },
+          {
+            "url": "{{startUrl}}",
+            "action": "navigate"
+          },
+          {
+            "url": "{{workspaceUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "E2E live progress",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Skip step 3"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Take over"
+          },
+          {
+            "action": "wait-text",
+            "text": "Taking over after this step",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "plan-and-live-e2e"
+          },
+          {
+            "url": "{{releaseUrl}}",
+            "action": "navigate"
+          },
+          {
+            "url": "{{workspaceUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Paused, you have control",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Resume"
+          },
+          {
+            "action": "wait-text",
+            "text": "Run incomplete \u00b7 skipped steps",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "assert-text",
+            "text": "Skipped \u00b7 not checked"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open browser"
+          },
+          {
+            "action": "wait-text",
+            "text": "Fixture ready",
+            "timeoutMs": 10000
+          },
+          {
+            "action": "screenshot",
+            "name": "plan-and-e2e-complete"
+          }
+        ]
+      },
+      "live-workspace-task-progress": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/agent/0f5ddccb-9b69-45cd-a7b6-100a2fd4c3fb",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Tasks",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "screenshot",
+            "name": "live-workspace-task-progress"
+          }
+        ]
+      },
+      "tasks-as-sidebar-tool": {
+        "params": ["workspaceUrl"],
+        "steps": [
+          {
+            "action": "navigate",
+            "url": "{{workspaceUrl}}"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Focus session"
+          },
+          {
+            "action": "screenshot",
+            "name": "tasks-as-sidebar-tool"
+          }
+        ]
+      },
+      "generative-ui-cost-simulator": {
+        "params": ["demoUrl", "launcherUrl", "readyText"],
+        "steps": [
+          {
+            "url": "{{launcherUrl}}",
+            "action": "navigate"
+          },
+          {
+            "url": "{{demoUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "{{readyText}}"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Reset inputs"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Requests per month",
+            "value": "20000"
+          },
+          {
+            "action": "assert-text",
+            "text": "$140.00"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Save inputs"
+          },
+          {
+            "action": "wait-text",
+            "text": "Inputs saved on this host."
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Increase Requests per month"
+          },
+          {
+            "action": "assert-text",
+            "text": "$146.00"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Decrease Requests per month"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "USD per million tokens",
+            "value": "1,5"
+          },
+          {
+            "action": "assert-text",
+            "text": "$80.00"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Tokens per request",
+            "value": "-1"
+          },
+          {
+            "action": "assert-text",
+            "text": "Enter Tokens per request between 0 and 100000"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Reset inputs"
+          },
+          {
+            "action": "assert-text",
+            "text": "$80.00"
+          },
+          {
+            "url": "{{launcherUrl}}",
+            "action": "navigate"
+          },
+          {
+            "url": "{{demoUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Saved inputs loaded."
+          },
+          {
+            "action": "assert-text",
+            "text": "$140.00"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "generative-ui-cost-simulator"
+          }
+        ]
+      },
+      "generative-ui-timeline": {
+        "params": ["chatUrl", "launcherUrl", "readyText"],
+        "steps": [
+          {
+            "url": "{{launcherUrl}}",
+            "action": "navigate"
+          },
+          {
+            "url": "{{chatUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Show the illustrative cost simulator.",
+            "timeoutMs": 15000
+          },
+          {
+            "action": "wait-text",
+            "text": "{{readyText}}"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Reset inputs"
+          },
+          {
+            "action": "fill",
+            "role": "textbox",
+            "name": "Requests per month",
+            "value": "20000"
+          },
+          {
+            "action": "assert-text",
+            "text": "$140.00"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Save inputs"
+          },
+          {
+            "action": "wait-text",
+            "text": "Inputs saved on this host."
+          },
+          {
+            "url": "{{launcherUrl}}",
+            "action": "navigate"
+          },
+          {
+            "url": "{{chatUrl}}",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Saved inputs loaded."
+          },
+          {
+            "action": "assert-text",
+            "text": "$140.00"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          },
+          {
+            "action": "assert-failed-requests",
+            "max": 0
+          },
+          {
+            "action": "screenshot",
+            "name": "generative-ui-in-chat"
           }
         ]
       }
