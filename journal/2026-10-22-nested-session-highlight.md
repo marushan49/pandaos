@@ -19,4 +19,5 @@ A session row under its workspace (with the └ tree line) shows its selected an
 ## Rollout
 
 - Mac payload staged at `/tmp/pandaos-sidebar-child-card` on the Mac: `app-dist` from the Electron export (`index.html` `2d6806e1…`, tarball `f9a1bbe7…`), built on the message row renderer so that feature stays. `install-mac.sh` from the message row rollout with two guards: the installed `index.html` must be `3783d002…` and the payload `2d6806e1…`. `app.asar` (zoom fix) is not touched.
-- Install waits for Marushan's go: `bash /tmp/pandaos-sidebar-child-card/install-mac.sh` on the Mac quits and reopens PandaOS.
+- 22.10. 12:14 installed after Marushan's go: `app-dist/index.html` `2d6806e1…`, `app.asar` still `bca23f26…`, `codesign --verify` ok, PandaOS running. Backup `rollout-backups/sidebar-child-card-20261022-121439`.
+- The staged `/tmp/pandaos-dnd-main-tab` payload already contains this change (its release is built on `sidebar-child-card`), but its installer guards the old `3783d002…`. Before installing it, change that guard to `2d6806e1…`.
