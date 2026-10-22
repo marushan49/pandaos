@@ -1,5 +1,5 @@
 import { useSettings, type PluginClientContext } from "@getpaseo/plugin/client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createPinStore } from "./client/store";
 import { onPinSelection } from "./client/web";
 import { pinsSettings } from "./shared/pins";
@@ -10,8 +10,10 @@ export default function contribute(client: PluginClientContext) {
   function PinsSync() {
     const settings = useSettings(pinsSettings);
     const revision = settings.status === "ready" ? settings.revision : null;
+    const values = useRef(settings.status === "ready" ? settings.values : null);
+    values.current = settings.status === "ready" ? settings.values : null;
     useEffect(() => {
-      if (settings.status === "ready") store.apply(settings.values);
+      if (values.current) store.apply(values.current);
     }, [revision]);
     return null;
   }

@@ -1,5 +1,5 @@
 import { type PluginAgentPanelProps, useAgent, usePaseo } from "@getpaseo/plugin/client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { buildHandoverPrompt, HANDOVER_SOURCE_LABEL } from "../shared/handover";
 
@@ -39,17 +39,32 @@ export function HandoverDraftPanel({ agentId, navigation, theme }: PluginAgentPa
   }, [agentId, paseo, sourceAgentId]);
 
   const colors = theme.colors;
-  const inputStyle = useMemo(
-    () => [
-      styles.input,
-      { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface1 },
-    ],
+  const themed = useMemo(
+    () => ({
+      container: [styles.container, { backgroundColor: colors.surface0 }],
+      title: [styles.title, { color: colors.foreground }],
+      help: [styles.help, { color: colors.foregroundMuted }],
+      input: [
+        styles.input,
+        { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface1 },
+      ],
+      error: [styles.error, { color: colors.statusDanger }],
+      buttonText: [styles.buttonText, { color: colors.accentForeground }],
+    }),
     [colors],
   );
+  const busy = sending || sent;
+  const buttonStyle = useCallback(
+    ({ pressed }: { pressed: boolean }) => [
+      styles.button,
+      { backgroundColor: colors.accent, opacity: pressed || busy ? 0.7 : 1 },
+    ],
+    [colors.accent, busy],
+  );
 
-  async function sendDraft() {
+  const sendDraft = useCallback(async () => {
     const prompt = draft.trim();
-    if (!prompt || sending || sent) return;
+    if (!prompt || busy) return;
     setSending(true);
     setError(null);
     try {
@@ -65,12 +80,17 @@ export function HandoverDraftPanel({ agentId, navigation, theme }: PluginAgentPa
     } finally {
       setSending(false);
     }
-  }
+  }, [agentId, busy, draft, navigation, paseo]);
+  const startDraft = useCallback(() => void sendDraft(), [sendDraft]);
+
+  let buttonLabel = "Start agent";
+  if (sending) buttonLabel = "Starting…";
+  else if (sent) buttonLabel = "Started";
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface0 }]}>
-      <Text style={[styles.title, { color: colors.foreground }]}>Handover draft</Text>
-      <Text style={[styles.help, { color: colors.foregroundMuted }]}>
+    <View style={themed.container}>
+      <Text style={themed.title}>Handover draft</Text>
+      <Text style={themed.help}>
         Review this prompt before starting the new {target?.provider ?? "provider"} agent. It stays
         idle until you press Start agent.
       </Text>
@@ -81,24 +101,19 @@ export function HandoverDraftPanel({ agentId, navigation, theme }: PluginAgentPa
         placeholder="Loading handover context…"
         placeholderTextColor={colors.foregroundMuted}
         selectionColor={colors.accent}
-        style={inputStyle}
+        style={themed.input}
         textAlignVertical="top"
         value={draft}
       />
-      {error ? <Text style={[styles.error, { color: colors.statusDanger }]}>{error}</Text> : null}
+      {error ? <Text style={themed.error}>{error}</Text> : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Start handover agent"
-        disabled={sending || sent || !draft.trim()}
-        onPress={() => void sendDraft()}
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: colors.accent, opacity: pressed || sending || sent ? 0.7 : 1 },
-        ]}
+        disabled={busy || !draft.trim()}
+        onPress={startDraft}
+        style={buttonStyle}
       >
-        <Text style={[styles.buttonText, { color: colors.accentForeground }]}>
-          {sending ? "Starting…" : sent ? "Started" : "Start agent"}
-        </Text>
+        <Text style={themed.buttonText}>{buttonLabel}</Text>
       </Pressable>
     </View>
   );

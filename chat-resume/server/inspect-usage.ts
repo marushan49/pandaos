@@ -94,7 +94,7 @@ async function mapPool<T, R>(
   size: number,
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  const results: R[] = [];
   let next = 0;
   async function worker() {
     while (next < items.length) {

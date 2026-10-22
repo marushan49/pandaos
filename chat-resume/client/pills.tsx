@@ -31,6 +31,43 @@ interface UsageInspection {
   resetAt: string | null;
 }
 
+type HandoverProvider = Awaited<
+  ReturnType<PluginClientContext["paseo"]["providers"]["waitForReady"]>
+>["entries"][number];
+
+async function pickModel(client: PluginClientContext, provider: HandoverProvider, cwd: string) {
+  const modelsResult = provider.models?.length
+    ? { models: provider.models, error: null }
+    : await client.paseo.providers.listModels(provider.provider, { cwd });
+  if (modelsResult.error) throw new Error(modelsResult.error);
+  const selectableModels = (modelsResult.models ?? []).filter(
+    (model) => model.isSelectable !== false,
+  );
+  const model = selectableModels.find((candidate) => candidate.isDefault) ?? selectableModels[0];
+  if (!model) throw new Error(`Provider ${provider.provider} has no selectable model.`);
+  return model;
+}
+
+async function listModes(client: PluginClientContext, provider: HandoverProvider, cwd: string) {
+  const modesResult = provider.modes?.length
+    ? { modes: provider.modes, error: null }
+    : await client.paseo.providers.listModes(provider.provider, { cwd });
+  if (modesResult.error) throw new Error(modesResult.error);
+  return modesResult.modes ?? [];
+}
+
+function openDraftPanel(client: PluginClientContext, agentId: string, workspaceId: string) {
+  try {
+    client.openPanel(HANDOVER_PANEL_ID, { workspaceId, agentId, location: "workspace" });
+  } catch (error) {
+    console.error(
+      "[chat-resume] handover agent created but the draft panel did not open",
+      agentId,
+      error,
+    );
+  }
+}
+
 async function createHandoverAgent(client: PluginClientContext, sourceAgentId: string) {
   const refreshed = await client.paseo.agents.ref(sourceAgentId).refresh();
   const source = refreshed?.agent;
@@ -47,21 +84,9 @@ async function createHandoverAgent(client: PluginClientContext, sourceAgentId: s
   const provider = nextReadyProvider(snapshot.entries, source.provider);
   if (!provider) throw new Error("No other ready provider is available.");
 
-  const modelsResult = provider.models?.length
-    ? { models: provider.models, error: null }
-    : await client.paseo.providers.listModels(provider.provider, { cwd: source.cwd });
-  if (modelsResult.error) throw new Error(modelsResult.error);
-  const selectableModels = (modelsResult.models ?? []).filter(
-    (model) => model.isSelectable !== false,
-  );
-  const model = selectableModels.find((candidate) => candidate.isDefault) ?? selectableModels[0];
-  if (!model) throw new Error(`Provider ${provider.provider} has no selectable model.`);
-
-  const modesResult = provider.modes?.length
-    ? { modes: provider.modes, error: null }
-    : await client.paseo.providers.listModes(provider.provider, { cwd: source.cwd });
-  if (modesResult.error) throw new Error(modesResult.error);
-  const modeId = similarMode(source.currentModeId, modesResult.modes ?? [], provider.defaultModeId);
+  const model = await pickModel(client, provider, source.cwd);
+  const modes = await listModes(client, provider, source.cwd);
+  const modeId = similarMode(source.currentModeId, modes, provider.defaultModeId);
   const thinkingOptionId =
     similarThinkingOption(
       source.effectiveThinkingOptionId ?? source.thinkingOptionId,
@@ -80,19 +105,7 @@ async function createHandoverAgent(client: PluginClientContext, sourceAgentId: s
   const created = target.current() ?? (await target.refresh())?.agent;
   const workspaceId = created?.workspaceId ?? target.workspaceId ?? source.workspaceId;
   if (!workspaceId) throw new Error("The handover agent was created without a workspace.");
-  try {
-    client.openPanel(HANDOVER_PANEL_ID, {
-      workspaceId,
-      agentId: target.id,
-      location: "workspace",
-    });
-  } catch (error) {
-    console.error(
-      "[chat-resume] handover agent created but the draft panel did not open",
-      target.id,
-      error,
-    );
-  }
+  openDraftPanel(client, target.id, workspaceId);
   return target.id;
 }
 
@@ -334,36 +347,38 @@ export function contributePills(client: PluginClientContext) {
     }
   }
 
+  function trackHandoverTarget(agent: PaseoAgent) {
+    const sourceId = agent.labels[HANDOVER_SOURCE_LABEL];
+    if (!sourceId) return;
+    if (!agent.archivedAt) handoverTargets.set(sourceId, agent.id);
+    else if (handoverTargets.get(sourceId) === agent.id) handoverTargets.delete(sourceId);
+    else return;
+    const source = agents.get(sourceId);
+    if (source) sync(source);
+  }
+
+  function forgetPills(agentId: string) {
+    inspections.delete(agentId);
+    retried.delete(agentId);
+    pendingRetry.delete(agentId);
+    removeAll(agentId);
+  }
+
   function upsert(agent: PaseoAgent) {
     const previous = agents.get(agent.id);
     if (previous && previous.updatedAt > agent.updatedAt) return;
 
-    const sourceId = agent.labels[HANDOVER_SOURCE_LABEL];
-    if (sourceId && !agent.archivedAt) {
-      handoverTargets.set(sourceId, agent.id);
-      const source = agents.get(sourceId);
-      if (source) sync(source);
-    } else if (sourceId && handoverTargets.get(sourceId) === agent.id) {
-      handoverTargets.delete(sourceId);
-      const source = agents.get(sourceId);
-      if (source) sync(source);
-    }
+    trackHandoverTarget(agent);
 
     if (!agent.workspaceId || agent.archivedAt) {
       agents.delete(agent.id);
-      inspections.delete(agent.id);
-      retried.delete(agent.id);
-      pendingRetry.delete(agent.id);
-      removeAll(agent.id);
+      forgetPills(agent.id);
       return;
     }
     agents.set(agent.id, agent);
 
     if (!canShowPills(agent)) {
-      inspections.delete(agent.id);
-      retried.delete(agent.id);
-      pendingRetry.delete(agent.id);
-      removeAll(agent.id);
+      forgetPills(agent.id);
       return;
     }
 
@@ -392,11 +407,8 @@ export function contributePills(client: PluginClientContext) {
         if (source) sync(source);
       }
       agents.delete(update.agentId);
-      inspections.delete(update.agentId);
-      retried.delete(update.agentId);
-      pendingRetry.delete(update.agentId);
       inspectQueued.delete(update.agentId);
-      removeAll(update.agentId);
+      forgetPills(update.agentId);
     } else upsert(update.agent);
   });
 
@@ -408,7 +420,7 @@ export function contributePills(client: PluginClientContext) {
     if (flushTimer) clearTimeout(flushTimer);
     for (const timer of flipTimers.values()) clearTimeout(timer);
     flipTimers.clear();
-    for (const agentId of [...pills.keys()]) removeAll(agentId);
+    for (const agentId of pills.keys()) removeAll(agentId);
     agents.clear();
     inspections.clear();
   };
