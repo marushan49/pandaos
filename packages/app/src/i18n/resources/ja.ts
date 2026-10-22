@@ -2,6 +2,7 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  providerAccounts: en.providerAccounts,
   panda: {
     status: {
       run: "エージェントは実行中です",

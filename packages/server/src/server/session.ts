@@ -35,6 +35,8 @@ import equal from "fast-deep-equal";
 import { SessionDelivery, type OwnedSubscription } from "./session/owned-subscriptions/index.js";
 import type { ForgeAccount, ForgeAccountScope } from "@getpaseo/protocol/messages";
 import { discoverForgeAccounts } from "./forge-account-discovery.js";
+import { ClaudeAccountLogin } from "./session/provider/claude-account-login.js";
+import { ProviderOverrideSchema } from "@getpaseo/protocol/provider-config";
 import { readGhAuthStatus } from "../services/github-service.js";
 import { normalizePullRequestCuration } from "./workspace-pull-request-curation.js";
 import {
@@ -875,6 +877,7 @@ export class Session {
   private readonly checkoutSession: CheckoutSession;
   private readonly scheduleSession: ScheduleSession;
   private readonly providerCatalogSession: ProviderCatalogSession;
+  private readonly claudeAccountLogin: ClaudeAccountLogin;
   private readonly usageSession: UsageSession;
   private readonly workspaceFilesSession: WorkspaceFilesSession;
   private readonly agentConfigSession: AgentConfigSession;
@@ -1056,6 +1059,14 @@ export class Session {
       host: { emit: (msg) => this.emit(msg) },
       scheduleService,
       logger: this.sessionLogger,
+    });
+    this.claudeAccountLogin = new ClaudeAccountLogin({
+      home: this.paseoHome,
+      command: () =>
+        ProviderOverrideSchema.parse(this.daemonConfigStore.get().providers.claude ?? {}).command,
+      save: (provider, config) => {
+        this.daemonConfigStore.patch({ providers: { [provider]: config } });
+      },
     });
     this.providerCatalogSession = new ProviderCatalogSession({
       host: {
@@ -3008,6 +3019,13 @@ export class Session {
 
   private dispatchDaemonConfigMessage(msg: SessionInboundMessage): Promise<void> | undefined {
     switch (msg.type) {
+      case "provider.claude.login.request":
+        return this.claudeAccountLogin.handle(msg.operation).then((result) => {
+          return this.emit({
+            type: "provider.claude.login.response",
+            payload: { ...result, requestId: msg.requestId },
+          });
+        });
       case "get_daemon_config_request":
         return this.handleGetDaemonConfigRequest(msg.requestId);
       case "daemon.get_status.request":
@@ -9543,6 +9561,7 @@ export class Session {
       this.unsubscribeTerminalWorkspaceContributionEvents = null;
     }
     this.providerCatalogSession.dispose();
+    this.claudeAccountLogin.dispose();
 
     this.terminalController.dispose();
 

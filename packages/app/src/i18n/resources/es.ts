@@ -2,6 +2,7 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
+  providerAccounts: en.providerAccounts,
   panda: {
     status: {
       run: "El agente está en ejecución",

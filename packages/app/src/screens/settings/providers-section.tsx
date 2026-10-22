@@ -22,6 +22,7 @@ import {
   type AcpProviderCatalogItem,
 } from "@/hooks/use-acp-provider-catalog";
 import { ProviderCatalogList } from "@/components/provider-catalog-list";
+import { AddClaudeAccount } from "@/components/provider-account-sheet";
 import { useProviderIcon } from "@/components/provider-icons";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Switch } from "@/components/ui/switch";
@@ -241,6 +242,11 @@ function ProviderRow({
               {providerError && !isCompact ? (
                 <Text style={styles.errorText} numberOfLines={3}>
                   {providerError}
+                </Text>
+              ) : null}
+              {entry.source === "custom" && def.description ? (
+                <Text style={settingsStyles.rowHint} numberOfLines={2}>
+                  {def.description}
                 </Text>
               ) : null}
             </View>
@@ -502,6 +508,8 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
           </View>
         ) : null}
       </SettingsSection>
+
+      {hasServer && isConnected ? <AddClaudeAccount serverId={serverId} /> : null}
 
       {hasServer && isConnected ? (
         <SettingsSection

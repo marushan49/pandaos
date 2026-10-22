@@ -1,4 +1,5 @@
 import { legacyUsageIcon } from "./legacy-usage-icons.js";
+import type { ClaudeAccountLoginOperation } from "@getpaseo/protocol/provider-account-login";
 import { subscribeTimeline, type TimelineMessage } from "./timeline-subscription/index.js";
 import { ProviderSnapshotUpdates } from "./provider-snapshots/index.js";
 import {
@@ -5838,6 +5839,13 @@ export class DaemonClient {
       },
       responseType: "provider_diagnostic_response",
       timeout: 180000,
+    });
+  }
+
+  async claudeAccountLogin(operation: ClaudeAccountLoginOperation) {
+    return this.sendCorrelatedSessionRequest({
+      message: { type: "provider.claude.login.request", operation },
+      responseType: "provider.claude.login.response",
     });
   }
 

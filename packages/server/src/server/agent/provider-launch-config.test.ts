@@ -217,6 +217,15 @@ describe("checkProviderLaunchAvailable", () => {
 });
 
 describe("createProviderEnv", () => {
+  test("shared team accounts disable automatic memory despite inherited or session values", () => {
+    const env = createProviderEnv({
+      baseEnv: { CLAUDE_CODE_DISABLE_AUTO_MEMORY: "0" },
+      runtimeSettings: { accountPolicy: "shared-team-9elf26-memory" },
+      overlays: [{ CLAUDE_CODE_DISABLE_AUTO_MEMORY: "0" }],
+    });
+    expect(env.CLAUDE_CODE_DISABLE_AUTO_MEMORY).toBe("1");
+  });
+
   test("merges provider env overrides", () => {
     const base = {
       PATH: "/usr/bin",

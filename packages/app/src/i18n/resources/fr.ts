@@ -2,6 +2,7 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
+  providerAccounts: en.providerAccounts,
   panda: {
     status: {
       run: "L’agent est en cours d’exécution",

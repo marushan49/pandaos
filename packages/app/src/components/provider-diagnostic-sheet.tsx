@@ -10,6 +10,7 @@ import {
 } from "@/components/icons/ui-icons";
 import type { TFunction } from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ProviderAccountDetails } from "@/components/provider-account-sheet";
 import { useTranslation } from "react-i18next";
 import { Pressable, type PressableStateCallbackType, Text, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -825,6 +826,7 @@ export function ProviderDiagnosticSheet({
         snapPoints={MAIN_SNAP_POINTS}
         keyboardBehavior="interactive"
       >
+        <ProviderAccountDetails serverId={serverId} provider={provider} />
         {supportsProviderAccountIdentity ? (
           <ProviderIdentityColorPicker
             provider={provider}

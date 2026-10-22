@@ -39,6 +39,8 @@ export const ProviderCommandSchema = z.discriminatedUnion("mode", [
 ]);
 
 export const ProviderRuntimeSettingsSchema = z.object({
+  accountInstructions: z.string().optional(),
+  accountPolicy: z.enum(["standard", "shared-team-9elf26-memory"]).optional(),
   command: ProviderCommandSchema.optional(),
   env: z.record(z.string(), z.string()).optional(),
   disallowedTools: z.array(z.string()).optional(),
@@ -65,6 +67,7 @@ export const ProviderProfileModelSchema = z.object({
 });
 
 export const ProviderOverrideSchema = z.object({
+  accountPolicy: z.enum(["standard", "shared-team-9elf26-memory"]).optional(),
   extends: z.string().optional(),
   label: z.string().optional(),
   description: z.string().optional(),
