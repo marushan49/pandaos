@@ -115,6 +115,7 @@ const TAB_ROW_PADDING_HORIZONTAL = 4;
 const TAB_ICON_WIDTH = 14;
 const TAB_CONTENT_GAP = 4;
 const TAB_DROP_INDICATOR_WIDTH = 4;
+const TAB_MAIN_DIVIDER_SPACE = 8;
 const TAB_MODIFIED_DOT_SIZE = 8;
 const TAB_MIN_WIDTH = 64;
 const TAB_MAX_WIDTH = 160;
@@ -1201,6 +1202,21 @@ export function WorkspaceDesktopTabsRow(props: WorkspaceDesktopTabsRowProps) {
   );
 }
 
+function useMainTabDivider(
+  serverId: string,
+  workspaceId: string,
+  tabs: readonly ResolvedWorkspaceDesktopTabRowItem[],
+): { mainAgentId: string | null; mainDividerSpace: number } {
+  const mainAgentId = useSessionStore((state) =>
+    selectWorkspaceMainAgentId(state.sessions[serverId]?.agents, workspaceId),
+  );
+  const mainTabIndex = tabs.findIndex(
+    ({ tab }) => tab.target.kind === "agent" && tab.target.agentId === mainAgentId,
+  );
+  const hasMainDivider = mainTabIndex >= 0 && mainTabIndex < tabs.length - 1;
+  return { mainAgentId, mainDividerSpace: hasMainDivider ? TAB_MAIN_DIVIDER_SPACE : 0 };
+}
+
 function ResolvedWorkspaceDesktopTabsRow({
   host = "main",
   launchPurpose = "primary",
@@ -1255,12 +1271,18 @@ function ResolvedWorkspaceDesktopTabsRow({
     updateMeasuredWidth(setExitFocusModeWidth, event);
   }, []);
 
+  const { mainAgentId, mainDividerSpace } = useMainTabDivider(
+    normalizedServerId,
+    normalizedWorkspaceId,
+    tabs,
+  );
   const layoutMetrics = useMemo(
     () => ({
       rowHorizontalInset: 0,
       actionsReservedWidth: Math.max(
         0,
         DEFAULT_INLINE_ADD_BUTTON_RESERVED_WIDTH +
+          mainDividerSpace +
           (focusModeEnabled ? exitFocusModeWidth : 0) +
           (showPaneSplitActions ? PANE_SPLIT_ACTIONS_RESERVED_WIDTH : 0) +
           (showPaneMaximizeAction ? PANE_MAXIMIZE_ACTION_RESERVED_WIDTH : 0),
@@ -1274,7 +1296,13 @@ function ResolvedWorkspaceDesktopTabsRow({
       tabHorizontalPadding: TAB_CHIP_HORIZONTAL_PADDING,
       closeButtonWidth: TAB_CLOSE_BUTTON_RESERVED_WIDTH,
     }),
-    [exitFocusModeWidth, focusModeEnabled, showPaneMaximizeAction, showPaneSplitActions],
+    [
+      exitFocusModeWidth,
+      focusModeEnabled,
+      mainDividerSpace,
+      showPaneMaximizeAction,
+      showPaneSplitActions,
+    ],
   );
 
   const panePanelKinds = useMemo(() => tabs.map(({ tab }) => tab.kind), [tabs]);
@@ -1450,9 +1478,6 @@ function ResolvedWorkspaceDesktopTabsRow({
     handle: handleNewTabKeyboardAction,
   });
 
-  const mainAgentId = useSessionStore((state) =>
-    selectWorkspaceMainAgentId(state.sessions[normalizedServerId]?.agents, normalizedWorkspaceId),
-  );
   const renderTab = useCallback(
     ({
       item,
@@ -1786,7 +1811,7 @@ function ResolvedDesktopTabChip({
       : rawTooltipLabel;
 
   return (
-    <View style={styles.tabSlot}>
+    <View style={showMainDivider ? styles.tabSlotMain : styles.tabSlot}>
       {showDropIndicatorBefore ? (
         <View style={[styles.tabDropIndicator, styles.tabDropIndicatorBefore]} />
       ) : null}
@@ -1916,6 +1941,12 @@ const styles = StyleSheet.create((theme) => ({
     overflow: "visible",
     marginHorizontal: TAB_CHIP_GAP / 2,
   },
+  tabSlotMain: {
+    position: "relative",
+    overflow: "visible",
+    marginLeft: TAB_CHIP_GAP / 2,
+    marginRight: TAB_CHIP_GAP / 2 + TAB_MAIN_DIVIDER_SPACE,
+  },
   tabHandle: {
     flexDirection: "row",
     alignItems: "center",
@@ -1949,9 +1980,9 @@ const styles = StyleSheet.create((theme) => ({
   },
   tabMainDivider: {
     position: "absolute",
-    top: theme.spacing[2],
-    bottom: theme.spacing[2],
-    right: -TAB_CHIP_GAP / 2 - 0.5,
+    top: theme.spacing[1],
+    bottom: theme.spacing[1],
+    right: -(TAB_CHIP_GAP + TAB_MAIN_DIVIDER_SPACE) / 2,
     width: 1,
     backgroundColor: theme.colors.border,
   },
