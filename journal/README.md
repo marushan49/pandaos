@@ -1,7 +1,13 @@
 # PandaOS product journal
 
+- [2026-10-22 Main-Zusammenführung und Worktreebereinigung](2026-10-22-main-worktrees.md)
+
+- [2026-10-20 generative interactive UI prototype](2026-10-20-generative-ui.md)
+
 - [Product context](product.md)
-- [2026-10-21 GDELT Aktien-Nachrichten](2026-10-21-gdelt-tracker.md)
+- [2026-10-22 E2E-Fortschritt und Symboltabs](2026-10-22-e2e-progress-icons.md)
+- [2026-10-22 Plugins & Skills](2026-10-22-skill-deck.md)
+- [2026-10-21 GDELT Aktien-Nachrichten, am 22.10. entfernt](2026-10-21-gdelt-tracker.md)
 - [2026-10-09 image previews](2026-10-09-image-previews.md)
 
 - [2026-10-09 automatic recovery](2026-10-09-recovery-automatic.md)

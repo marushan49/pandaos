@@ -2,7 +2,7 @@
 
 ## Ergebnis
 
-Auf Zotac und Mac aktiviert. Symbole gelten für die rechte Sidebar; Haupttabs, insbesondere Browser, zeigen wieder Titel. Das Plus bleibt unverändert. Es gibt keinen fest eingeblendeten Tasks-Block über dem Chat oder anderen Werkzeugen. Aufgaben ist ein eigener optionaler Tab mit Checklistenicon im vorhandenen Launcher. Der Tab verwendet vorhandene echte Todo-/Arbeitsstände und zeigt ohne Checkliste mindestens Titel und Status.
+Auf Zotac und Mac aktiviert. Symbole gelten für die rechte Sidebar; Haupttabs, insbesondere Browser, zeigen wieder Titel. Das Plus bleibt unverändert. Es gibt keinen fest eingeblendeten Tasks-Block über dem Chat oder anderen Werkzeugen. Aufgaben ist ein eigener optionaler Tab mit Checklistenicon im vorhandenen Launcher. Der Tab zeigt eine kompakte runde Karte mit echter Aufgabe, Status und Laufzeit. Der aktive Punkt ist hervorgehoben; erledigte Punkte sind eingeklappt. Ohne geladene Checkliste oder Nachrichten bleibt der Sitzungstitel sichtbar. Auf- und Zuklappen sowie Sitzungsfokus bleiben erhalten.
 
 Tatsächliche Browserläufe erscheinen zusätzlich rechts mit Schritten und Symbolaktionen. Skip wartet auf die Schrittgrenze, unterbricht keine laufende Aktion und zählt niemals als bestanden. Reine Skip-Läufe bleiben unvollständig sichtbar; spätere echte Fehler bleiben eindeutige Fehlschläge. Der letzte Schritt wird nach Abschluss korrekt markiert.
 
@@ -10,11 +10,16 @@ Tatsächliche Browserläufe erscheinen zusätzlich rechts mit Schritten und Symb
 
 Fertig, keine Folgearbeit oder Freigabe offen. Nutzerfreigabe „japp mach as“ für Zotac/Mac genutzt. Aktiver Release `/home/admin/.local/share/pandaos-releases/e2e-progress-icons-final`, Basis `dnd-main-tab`, geplante Aktivierung 2026-10-22T11-37-42-746Z erfolgreich. Server-ID srv_RtppvtlARpFR erhalten, Service active, Recovery bestätigt. Nach konkreten Nutzerkorrekturen ausschließlich statische UI aktualisiert, kein weiterer Daemonrestart.
 
-Aktueller Webindex SHA256 3257a0b95f5a045c8f730e214996cfed1eab488a7d8b9d912330a0ed2b9e8da1. HTTP ergänzt den bestehenden Initial-Connection-Scriptblock; daher ist der rohe HTTP-Hash anders. Vorhandene Hashassets bleiben für geladene Clients erhalten, Index atomar ersetzt. Aktuelles Mac-Bundle 7d0d173311bc185e20c4914284343f6acb1cb405bf36ea6af7b33b116686e5f9, codesign verifiziert und Prozess96513 nach Wiederöffnung bestätigt. app.asar bca23f26 unverändert. Mac-Backup `/Users/mau/Library/Application Support/PandaOS/rollout-backups/ui-correction-20261022-134829`.
+Aktueller Webindex SHA256 `93834d294e70bc059245b76b1f0014b0987643581b10773ff6ff81298d926057`. Aktuelles Mac-Bundle `3d51b56e2ca293e9c0d7724b85c565de45304133d47cd2cfc5d32cb0337ff92b`, Signatur und geöffneter App-Prozess bestätigt. app.asar unverändert. Letztes Mac-Backup `/Users/mau/Library/Application Support/PandaOS/rollout-backups/task-cards-20261022-143135`. Statische Assets aus dem aktiven Release mit ausschließlich geändertem Task-Panel gebaut; kein weiterer Daemonrestart. Bestehende Hashassets bleiben erhalten.
 
-Keine laufenden eigenen Build-/Install-/Testprozesse, kein SSH-Tunnel angelegt. Heartbeat8db8ffa2 gelöscht; ältere Heartbeats da706e64/3b311e02 ebenfalls gelöscht. Agent-Sessions und Browser bleiben offen. Kein Commit/Push, kein Blanket-Staging. Fremde Änderungen und vorhandener Index erhalten.
+Die Kartenänderung ist in `b0e70705a`, der Titel-Fallback in `1d863f063` auf main gesichert. Zusammenführung und Worktreebereinigung stehen im [Mergejournal](2026-10-22-main-worktrees.md). Sessions und Browser bleiben offen.
 
 ## Aktuelle Abnahme
+
+- Runde Karte nach echtem Reload im Produktbrowser tatsächlich angesehen: `/home/admin/.pandaos/artifacts/wks_87cf2bbf78a1437f/evr_21c556cf-218b-4339-ad1c-4dea40f1269e/screenshot.png`. Zustand ohne geladene Todos: Sitzungstitel, aktueller Werkzeugstatus und Laufzeit; Karte mit 16px Radius, innerhalb des optionalen rechten Tabs. Auf- und Zuklappen tatsächlich betätigt. Umgebung1571x1049, normale Schrift, Systemtheme. Funktion und Sichtprüfung für diesen Zustand bestanden; keine zusätzliche Matrix. Darstellung mehrerer echter Todos im neuen Kartenlayout nicht erneut live geprüft.
+- Scoped Format/Lint und App-Typecheck für den letzten Titel-Fallback grün; Browser- und Electron-Export erfolgreich. Mac-Update mit altem/neuem Hashguard, Backup, codesign und Prozesscheck erfolgreich. Native Mac-Screenshotaufnahme weiterhin nicht möglich; keine native Sichtprüfung behauptet.
+
+Die folgenden Nachweise betreffen die davor geprüfte Platzierung und denselben optionalen Tab:
 
 - Funktion/Sichtprüfung bestanden: nach echtem Seitenreload lädt der Produktbrowser index-03ce12793bcbd9cf3f1416f6a6db79ac.js. DOM vor Öffnen des Aufgaben-Tabs: null Aufgabenpanels. Rechte Sidebar über vorhandenen Knopf geöffnet, normales Plus und Tasks-Menüeintrag tatsächlich geklickt. Danach genau ein Aufgabenpanel, innerhalb der rechten Sidebar; Plus vorhanden. Haupt-Browsertitel sichtbar. Endbild tatsächlich mit view_image angesehen: `/home/admin/.pandaos/artifacts/wks_87cf2bbf78a1437f/evr_408bfcc2-8b2a-42e5-bdb2-1467b6f485d5/screenshot.png`.
 - Prüfumgebung: bestehende Produktansicht1571x1049, Systemtheme, normale Schrift. Keine Größen-/Theme-/Schriftmatrix. Das Bild zeigt Aufgaben ausschließlich als ausgewählten Sidebar-Tab, daneben Files/Changes-Symbole und Plus; keine Tasks-Zeile im Hauptbereich.
