@@ -51,6 +51,9 @@ export function WorkspaceTaskPlan({
       ? (state.sessions[serverId]?.agentStreamTail.get(agentId) ?? EMPTY_STREAM)
       : EMPTY_STREAM,
   );
+  const sessionTitle = useSessionStore((state) =>
+    agentId ? state.sessions[serverId]?.agents.get(agentId)?.title : undefined,
+  );
   const request = useMemo(() => {
     const message =
       head.findLast((item) => item.kind === "user_message") ??
@@ -145,7 +148,7 @@ export function WorkspaceTaskPlan({
               <View style={styles.requestRow}>
                 {request ? <ThemedCircleDot size={16} uniProps={mutedIconColorMapping} /> : null}
                 <Text style={styles.request} numberOfLines={3}>
-                  {request || t("message.todo.empty")}
+                  {request || sessionTitle || t("message.todo.empty")}
                 </Text>
               </View>
             ) : null}
