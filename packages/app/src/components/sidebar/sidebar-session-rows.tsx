@@ -13,6 +13,7 @@ import { density, densityFontSize, densityIconBox } from "@/styles/density";
 import { selectionTint } from "@/styles/with-alpha";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
 import type { WorkspaceSessionRow } from "@/utils/workspace-agent-activity";
+import { encodeWorkspaceDropTarget } from "@/workspace-move/drop-target";
 
 export function SidebarSessionRows({
   workspace,
@@ -41,8 +42,17 @@ function SessionRowList({
   const focusedAgentId = useWorkspaceLayoutStore((state) =>
     isActiveWorkspace ? getFocusedAgentId(state.layoutByWorkspace[workspace.workspaceKey]) : null,
   );
+  const dropTargetDataSet = useMemo(
+    () => ({
+      workspaceDropTarget: encodeWorkspaceDropTarget({
+        serverId: workspace.serverId,
+        workspaceId: workspace.workspaceId,
+      }),
+    }),
+    [workspace.serverId, workspace.workspaceId],
+  );
   return (
-    <View>
+    <View dataSet={dropTargetDataSet}>
       {sessions.map((session, index) => (
         <SessionRow
           isLast={index === sessions.length - 1}
