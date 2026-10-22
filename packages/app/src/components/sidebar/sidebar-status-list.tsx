@@ -82,7 +82,6 @@ import {
 } from "@/components/sidebar/sidebar-workspace-menu";
 import { PinnedSectionHeader } from "@/components/sidebar/pinned-section-header";
 import { SidebarGroupToggleRow } from "@/components/sidebar/sidebar-group-toggle-row";
-import { SidebarWorkspaceSetAsideActions } from "@/components/sidebar/sidebar-set-aside-ui";
 import { MONO_FONT_DATASET } from "@/styles/font-dataset";
 import { useLimitedSidebarGroup } from "@/components/sidebar/use-limited-sidebar-group";
 import type { ToggleSidebarWorkspacePin } from "@/hooks/use-sidebar-workspace-pin";
@@ -1001,12 +1000,6 @@ function StatusWorkspaceRowInnerContent({
                     archiveShortcutKeys={archiveShortcutKeys}
                   />
                 ) : null}
-                <SidebarWorkspaceSetAsideActions
-                  workspace={workspace}
-                  backdrop={backdrop}
-                  visible={isHovered || isTouchPlatform}
-                  isTouchPlatform={isTouchPlatform}
-                />
               </SidebarWorkspaceRowContent>
             </SidebarWorkspaceContextMenu>
           </View>

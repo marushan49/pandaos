@@ -1419,6 +1419,10 @@ export const ptBR: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} sessão aninhada",
+      collapsed_other: "{{count}} sessões aninhadas",
+      expand: "Mostrar sessões aninhadas",
+      collapse: "Ocultar sessões aninhadas",
       untitled: "Novo chat",
     },
     leitstand: {

@@ -1388,6 +1388,10 @@ export const ar: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} جلسة متداخلة",
+      collapsed_other: "{{count}} جلسات متداخلة",
+      expand: "إظهار الجلسات المتداخلة",
+      collapse: "إخفاء الجلسات المتداخلة",
       untitled: "دردشة جديدة",
     },
     leitstand: {

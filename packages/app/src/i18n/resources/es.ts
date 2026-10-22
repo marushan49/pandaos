@@ -1429,6 +1429,10 @@ export const es: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} sesión anidada",
+      collapsed_other: "{{count}} sesiones anidadas",
+      expand: "Mostrar sesiones anidadas",
+      collapse: "Ocultar sesiones anidadas",
       untitled: "Chat nuevo",
     },
     leitstand: {

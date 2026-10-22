@@ -114,7 +114,6 @@ import {
   SidebarWorkspaceTrailingActionSlot,
 } from "@/components/sidebar/sidebar-workspace-row-content";
 import { useOpenKebabMenuVisibility } from "@/components/sidebar/use-open-kebab-menu-visibility";
-import { SidebarWorkspaceSetAsideActions } from "@/components/sidebar/sidebar-set-aside-ui";
 import {
   SidebarFilterEmptyState,
   SidebarProjectEmptyState,
@@ -710,12 +709,6 @@ function WorkspaceRowRightGroup({
           </SidebarWorkspaceTrailingActionOverlay>
         </SidebarWorkspaceTrailingActionSlot>
       ) : null}
-      <SidebarWorkspaceSetAsideActions
-        workspace={workspace}
-        backdrop={backdrop}
-        visible={!isCreating && (isHovered || isTouchPlatform)}
-        isTouchPlatform={isTouchPlatform}
-      />
     </>
   );
 }

@@ -1409,6 +1409,10 @@ export const ru: TranslationResources = {
   },
   sidebar: {
     sessions: {
+      collapsed_one: "{{count}} вложенная сессия",
+      collapsed_other: "{{count}} вложенных сессий",
+      expand: "Показать вложенные сессии",
+      collapse: "Скрыть вложенные сессии",
       untitled: "Новый чат",
     },
     leitstand: {
