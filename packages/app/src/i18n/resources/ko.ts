@@ -2,6 +2,7 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  providerAccounts: en.providerAccounts,
   panda: {
     status: {
       run: "에이전트가 실행 중입니다",

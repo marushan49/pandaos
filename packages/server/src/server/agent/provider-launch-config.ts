@@ -238,6 +238,9 @@ function collectProviderEnvOverlays(
 export function createProviderEnvSpec(options: ProviderEnvOptions = {}): ProviderEnvSpec {
   const overlays = collectProviderEnvOverlays(options.runtimeSettings, options.overlays ?? []);
   const envOverlay: ProcessEnvRecord = Object.assign({}, ...overlays);
+  if (options.runtimeSettings?.accountPolicy === "shared-team-9elf26-memory") {
+    envOverlay.CLAUDE_CODE_DISABLE_AUTO_MEMORY = "1";
+  }
   for (const key of PARENT_SESSION_ENV_VARS) {
     envOverlay[key] = undefined;
   }

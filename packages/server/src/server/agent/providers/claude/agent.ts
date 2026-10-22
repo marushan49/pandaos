@@ -3401,7 +3401,16 @@ class ClaudeAgentSession implements AgentSession {
 
   private buildAppendedSystemPrompt(): string {
     return (
-      composeSystemPromptParts(this.config.systemPrompt, this.config.daemonAppendSystemPrompt) ?? ""
+      composeSystemPromptParts(
+        this.config.systemPrompt,
+        this.config.daemonAppendSystemPrompt,
+        this.runtimeSettings?.accountInstructions
+          ? `Provider account instructions:\n${this.runtimeSettings.accountInstructions}`
+          : undefined,
+        this.runtimeSettings?.accountPolicy === "shared-team-9elf26-memory"
+          ? "You are using a shared 9elf26 team account on this host. You may work on other projects, but for projects unrelated to 9elf26 do not create or update persistent project memories, auto-memory files, Second Brain notes, or other cross-session knowledge. Do not store those projects in the team account's memory. This account-specific instruction takes precedence over generic instructions to remember project context. Ordinary requested source files and task deliverables are allowed. For 9elf26 company work, follow its project memory rules. Do not publish or synchronize local sessions to another host or Claude Remote Control. Local memory controls do not guarantee privacy from Anthropic or the account's administrators."
+          : undefined,
+      ) ?? ""
     );
   }
 

@@ -2,6 +2,7 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  providerAccounts: en.providerAccounts,
   panda: {
     status: {
       run: "代理正在运行",

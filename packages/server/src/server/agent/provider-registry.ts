@@ -251,11 +251,19 @@ function getProviderClientFactory(provider: string): ProviderClientFactory {
 }
 
 function toRuntimeSettings(override?: ProviderOverride): ProviderRuntimeSettings | undefined {
-  if (!override?.command && !override?.env && !override?.disallowedTools) {
+  if (
+    !override?.command &&
+    !override?.env &&
+    !override?.disallowedTools &&
+    !override?.description &&
+    !override?.accountPolicy
+  ) {
     return undefined;
   }
 
   return {
+    accountInstructions: override.accountPolicy ? override.description : undefined,
+    accountPolicy: override.accountPolicy,
     command: override.command
       ? {
           mode: "replace",
@@ -274,19 +282,23 @@ function mergeRuntimeSettings(
   if (!base && !override) {
     return undefined;
   }
+  base ??= {};
+  override ??= {};
 
   return {
-    command: override?.command ?? base?.command,
+    accountInstructions: override.accountInstructions ?? base.accountInstructions,
+    accountPolicy: override.accountPolicy ?? base.accountPolicy,
+    command: override.command ?? base.command,
     env:
-      base?.env || override?.env
+      base.env || override.env
         ? {
-            ...base?.env,
-            ...override?.env,
+            ...base.env,
+            ...override.env,
           }
         : undefined,
     disallowedTools:
-      base?.disallowedTools || override?.disallowedTools
-        ? [...(base?.disallowedTools ?? []), ...(override?.disallowedTools ?? [])]
+      base.disallowedTools || override.disallowedTools
+        ? [...(base.disallowedTools ?? []), ...(override.disallowedTools ?? [])]
         : undefined,
   };
 }

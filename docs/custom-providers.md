@@ -286,6 +286,10 @@ requires_openai_auth = false
 
 ## Multiple profiles for the same provider
 
+To add a Claude subscription account, open **Settings → your host → Providers → Add Claude account**. Enter its name and optional account instructions, then open Claude's sign-in page. If Claude supplies an authorization code, paste it into the app. The host registers the provider after successful sign-in; cancellation removes the unfinished login. Credentials stay in an independent directory on that host. Signing in from a Mac browser to a Zotac host stores the provider on the Zotac.
+
+**Shared team account** gives each Claude session account-specific instructions and disables Claude's local automatic memory. Agents may work on other projects, but are instructed to keep persistent project knowledge only for 9elf26 company work. Edit the name, instructions and policy through **Edit account details** in the provider's settings; changes apply when its sessions next launch or resume. This is an instruction and local auto-memory setting, not a filesystem sandbox or an Anthropic retention guarantee. Team owners may have account activity and export access; Enterprise compliance settings may capture local transcripts. Host-local histories do not become private from other users of the same Anthropic login.
+
 You can create multiple entries that extend the same built-in provider. Each gets its own entry in the provider list with independent credentials, models, and environment.
 
 "Profile" here means a provider alias, and it is not an **Agent profile** — that is a named bundle of provider, model, mode, thinking option and features, stored under `daemon.agentProfiles`. See [glossary.md](glossary.md) for all four senses of the word.

@@ -575,7 +575,7 @@ describe("ClaudeAgentClient binary resolution", () => {
     await expect(resolveClaudeCodeVersion()).resolves.toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  test("loads user, project, and local Claude settings", async () => {
+  test("loads settings and shared account instructions into the launched Claude session", async () => {
     const queryReturn = vi.fn();
     queryReturn.mockResolvedValue(undefined);
     const queryFactory = vi.fn(() => ({
@@ -587,6 +587,10 @@ describe("ClaudeAgentClient binary resolution", () => {
       logger,
       queryFactory,
       resolveBinary: async () => "/test/claude/bin",
+      runtimeSettings: {
+        accountPolicy: "shared-team-9elf26-memory",
+        accountInstructions: "Shared with Timo, remaining quota on Zotac only.",
+      },
     });
     const session = await client.createSession({
       provider: "claude",
@@ -606,6 +610,14 @@ describe("ClaudeAgentClient binary resolution", () => {
       "project",
       "local",
     ]);
+    const options = queryFactory.mock.calls[0]?.[0].options;
+    expect(options.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY).toBe("1");
+    expect(options.systemPrompt.append).toContain(
+      "Shared with Timo, remaining quota on Zotac only.",
+    );
+    expect(options.systemPrompt.append).toContain(
+      "for projects unrelated to 9elf26 do not create or update persistent project memories",
+    );
 
     await session.close();
   });

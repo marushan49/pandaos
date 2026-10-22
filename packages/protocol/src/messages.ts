@@ -49,6 +49,10 @@ export {
 import { TerminalProfileSchema } from "./terminal-profile.js";
 export { TerminalProfileSchema, type TerminalProfile } from "./terminal-profile.js";
 import { z } from "zod";
+import {
+  ClaudeAccountLoginRequestSchema,
+  ClaudeAccountLoginResponseSchema,
+} from "./provider-account-login.js";
 import { TerminalActivitySchema } from "./terminal-activity.js";
 import { CLIENT_CAPS } from "./client-capabilities.js";
 import { AGENT_LIFECYCLE_STATUSES } from "./agent-lifecycle.js";
@@ -216,6 +220,9 @@ const MutableDaemonProviderModelSchema = z
 
 const MutableDaemonProviderConfigSchema = z
   .object({
+    accountPolicy: z.enum(["standard", "shared-team-9elf26-memory"]).optional(),
+    label: z.string().optional(),
+    description: z.string().optional(),
     paseoTools: ProviderPaseoToolsPolicySchema.optional(),
     enabled: z.boolean().optional(),
     additionalModels: z.array(MutableDaemonProviderModelSchema).optional(),
@@ -3681,6 +3688,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   GetProvidersSnapshotRequestMessageSchema,
   RefreshProvidersSnapshotRequestMessageSchema,
   ProviderDiagnosticRequestMessageSchema,
+  ClaudeAccountLoginRequestSchema,
   ProviderUsageListRequestMessageSchema,
   TeamListRequestMessageSchema,
   TeamEventsRequestMessageSchema,
@@ -4180,6 +4188,7 @@ export const ServerInfoStatusPayloadSchema = z
         // COMPAT(providerRemoval): added in v0.1.105, drop the gate when floor >= v0.1.105.
         providerRemoval: z.boolean().optional(),
         providerAccountIdentity: z.boolean().optional(),
+        claudeAccountLogin: z.boolean().optional(),
         // COMPAT(importSessionWorkspaceTarget): added in v0.1.110, remove gate after 2027-01-16.
         importSessionWorkspaceTarget: z.boolean().optional(),
         // COMPAT(importSessionSearch): added in v0.8.0, remove gate after 2027-03-02.
@@ -7581,6 +7590,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   ProvidersSnapshotUpdateMessageSchema,
   RefreshProvidersSnapshotResponseMessageSchema,
   ProviderDiagnosticResponseMessageSchema,
+  ClaudeAccountLoginResponseSchema,
   ProviderUsageListResponseMessageSchema,
   TeamListResponseMessageSchema,
   TeamEventsResponseMessageSchema,
