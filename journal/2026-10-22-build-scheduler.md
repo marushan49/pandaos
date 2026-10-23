@@ -52,7 +52,7 @@ Technisch nötig bleiben: Zero-Swap pro Job, harte Speichergrenze pro Job und f�
 - [x] Mac: Temurin JDK 17.0.21 und 21.0.13 unter `~/.pandaos-worker/` (Adoptium-Prüfsummen geprüft), `~/.gradle/gradle.properties` neu angelegt (nur `org.gradle.java.installations.paths`); Rückbau: Datei löschen, `~/.pandaos-worker` löschen
 - [ ] iOS-Export: blockiert, bis Marushan den Mac-Anmeldeschlüsselbund einmal entsperrt; Archiv lief durch
 - [x] Queue-Ansicht auf Marushans Wunsch in den Host-Monitor verlegt (`56424867c`): Karte „Builds“ mit Produkt · Aufgabe (z. B. „chillbro · Android APK (debug)“), Worker, Wartegrund, Dauer; Fußzeile „… GB free · N builds“; separates Plugin entfernt. Sichtprüfung 1280×720 Desktop, hell: bestanden (Produkt erkennbar, keine Abschneidungen/Überlagerungen); Funktionsprüfung: Live-Daten, Tests 3/3, Lint/Typecheck grün
-- [ ] Codex-Review 4 läuft
+- [x] Codex-Reviews 4 und 5 (`.dev/build-scheduler/codex-review-4.md`, `-5.md`): Befunde behoben in `47829e2ad`, `49ff7ed5a`; Endstand Hostwahl 31, Play 8, Worker 15, Host-Karte 3, Smoke 13 Tests grün
 
 ## Zuständigkeiten
 
