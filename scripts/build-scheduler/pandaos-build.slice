@@ -1,0 +1,15 @@
+[Unit]
+Description=Shared limits for PandaOS build scheduler jobs
+
+[Slice]
+MemoryAccounting=yes
+CPUAccounting=yes
+IOAccounting=yes
+TasksAccounting=yes
+MemoryHigh=30G
+MemoryMax=32G
+MemorySwapMax=0
+CPUQuota=1200%
+CPUWeight=30
+IOWeight=50
+TasksMax=16384

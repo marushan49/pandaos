@@ -1,0 +1,2 @@
+#!/bin/sh
+PANDAOS_SCHEDULER_LEGACY_NAME=1 exec /usr/bin/python3 /usr/local/lib/pandaos-build-scheduler/scheduler.py "$@"

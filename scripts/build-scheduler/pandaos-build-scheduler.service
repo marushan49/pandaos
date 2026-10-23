@@ -1,0 +1,25 @@
+[Unit]
+Description=PandaOS resource-aware build scheduler
+After=local-fs.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=/usr/bin/python3 /usr/local/lib/pandaos-build-scheduler/scheduler.py serve
+RuntimeDirectory=pandaos-build-scheduler
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=20
+KillMode=mixed
+UMask=0027
+MemoryMax=512M
+MemorySwapMax=0
+CPUQuota=50%
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target
