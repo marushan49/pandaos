@@ -452,6 +452,8 @@ class Scheduler:
     def remote_request(self, req, name, info, job_id, artifacts):
         spec = remote_worker.worker_config(self.config, name)
         mapping = remote_worker.snapshot_mapping(spec, info['project'])
+        if artifacts and not mapping:
+            raise ValueError('artifacts need a worker snapshot_root')
         payload = remote_worker.prepare(req, remote_worker.with_mapping(spec, mapping), job_id, req['timeout'],
                                         min(self.config['job_memory_max_gib'], spec['memory_budget_gib']))
         return dict(spec=spec, payload=payload, snapshot=mapping, artifacts=artifacts)
@@ -460,7 +462,7 @@ class Scheduler:
         return [name for name, spec in (self.config.get('workers') or {}).items()
                 if isinstance(spec, dict) and spec.get('enabled') is True]
 
-    def compatible(self, job, name):
+    def compatible(self, job, name, pinned=False):
         if name == 'local':
             return None if not job.darwin else 'iOS/Xcode nur auf macOS'
         probe = self.workers.get(name) or {}
@@ -468,11 +470,15 @@ class Scheduler:
             return 'nicht erreichbar'
         if job.darwin and probe.get('platform') != 'darwin':
             return 'kein macOS'
-        if not job.darwin and not job.portable:
-            return 'Projekt nicht als Snapshot übertragbar'
         missing = [tool for tool in job.needs if tool not in (probe.get('tools') or {})]
         if missing:
             return 'Werkzeug fehlt: ' + ', '.join(missing)
+        if pinned:
+            return None
+        if not (self.config.get('workers') or {}).get(name, {}).get('snapshot_root'):
+            return 'kein snapshot_root konfiguriert'
+        if not job.portable:
+            return 'Projekt nicht als Snapshot übertragbar'
         if job.klass == 'light' and not job.darwin:
             return 'leichte Jobs bleiben lokal'
         return None
@@ -513,7 +519,14 @@ class Scheduler:
                 candidates.append(dict(worker=name, blocked=incompatible))
                 continue
             snap = self.snapshot(name)
-            reason = self.blocker(job, snap, reserved if reserved and reserved.worker == name else None)
+            probe = job
+            if name != 'local':
+                spec = remote_worker.worker_config(self.config, name)
+                mapping = remote_worker.snapshot_mapping(spec, job.project)
+                probe = Job(dict(job.record(), lock=remote_worker.map_path(
+                    job.lock, remote_worker.with_mapping(spec, mapping))))
+            applies = reserved if reserved and reserved.id != job.id and reserved.worker in (name, 'auto') else None
+            reason = self.blocker(probe, snap, applies)
             if name != 'local' and not reason:
                 reason = self.protect_worker(job, name)
             wall = self.expected_wall(job, name)
@@ -531,6 +544,13 @@ class Scheduler:
             if local and choice['worker'] != 'local' and choice['eta'] > local['eta'] * self.config.get(
                     'remote_advantage', 0.85):
                 choice = local
+            busy = [c for c in usable if c['reason'] and self.waitable(c['reason'])]
+            faster = min(busy, key=lambda c: c['eta']) if busy else None
+            if faster and faster['eta'] < choice['eta'] * self.config.get('wait_advantage', 0.6) and \
+                    now() - job.created < self.config.get('wait_for_faster_seconds', 600):
+                view = [{k: v for k, v in c.items() if k != 'snap'} for c in candidates]
+                return None, 'wartet auf schnelleren Host %s (ca. %d s statt %d s)' % (
+                    faster['worker'], faster['eta'], choice['eta']), view
         view = [{k: v for k, v in c.items() if k != 'snap'} for c in candidates]
         if not choice:
             if job.darwin and not usable:
@@ -539,6 +559,10 @@ class Scheduler:
                 return None, 'kein passender Worker', view
             return None, '; '.join(c['worker'] + ': ' + c['reason'] for c in sorted(usable, key=lambda c: c['eta'])), view
         return choice, None, view
+
+    @staticmethod
+    def waitable(reason):
+        return reason.startswith(('gleicher Build-Ordner', 'Parallel-Limit', 'Heavy-Limit', 'CPU:', 'Build-RAM-Budget'))
 
     def protect_worker(self, job, name):
         spec = self.config['workers'][name]
@@ -563,6 +587,7 @@ class Scheduler:
             info = dict(project=job.project)
             remote = self.remote_request(req, choice['worker'], info, job.id, job.artifacts)
             job.lock = remote_worker.map_path(job.lock, remote_worker.with_mapping(remote['spec'], remote['snapshot']))
+            job.signature = signature(job.project + ':' + choice['worker'], job.command)
             atomic_write(path, json.dumps(dict(command=job.command, env={}, cwd=job.cwd, remote=remote,
                                                timeout=job.timeout, artifacts=job.artifacts)),
                          0o640, self.account.pw_gid)
@@ -763,9 +788,10 @@ class Scheduler:
                 snap = choice['snap'] if choice else self.snapshot('local')
             else:
                 snap = self.snapshot(job.worker)
-                reason = self.blocker(job, snap, reserved if reserved and reserved.worker == job.worker else None)
+                applies = reserved if reserved and reserved.worker in (job.worker, 'auto') else None
+                reason = self.blocker(job, snap, applies)
                 if reason is None and job.worker != 'local':
-                    reason = self.protect_worker(job, job.worker)
+                    reason = self.compatible(job, job.worker, pinned=True) or self.protect_worker(job, job.worker)
             if reason is None:
                 job.decision = dict(capacity=dict(snap['metrics']), why='Kapazität frei')
                 await self.start(job)
@@ -806,6 +832,7 @@ class Scheduler:
         job.state = 'running'
         job.started = now()
         job.wait_reason = None
+        self.save()
         proc = await asyncio.create_subprocess_exec(*args, stdin=asyncio.subprocess.DEVNULL,
                                                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         try:
@@ -1180,7 +1207,10 @@ def worker(directory):
     sccache = config.get('sccache')
     use_sccache = sccache and Path(sccache).exists() and 'RUSTC_WRAPPER' not in env
     if use_sccache:
-        env.update(RUSTC_WRAPPER=sccache, SCCACHE_SERVER_PORT=str(20000 + int(job_id[:4], 16) % 9000))
+        with socket.socket() as probe:
+            probe.bind(('127.0.0.1', 0))
+            port = probe.getsockname()[1]
+        env.update(RUSTC_WRAPPER=sccache, SCCACHE_SERVER_PORT=str(port))
         env.setdefault('SCCACHE_DIR', home + '/.cache/sccache')
         env.setdefault('SCCACHE_CACHE_SIZE', '40G')
         env.setdefault('SCCACHE_IDLE_TIMEOUT', '0')

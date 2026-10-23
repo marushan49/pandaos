@@ -46,6 +46,15 @@ function toolEnvironment() {
   return env;
 }
 
+function workerEnvironment(requested) {
+  const tools = toolEnvironment();
+  const env = { ...process.env, ...tools, ...requested };
+  if (requested.PATH) env.PATH = `${tools.PATH}:${requested.PATH}`;
+  const gradle = "-Dorg.gradle.daemon=false -Dkotlin.compiler.execution.strategy=in-process";
+  env.GRADLE_OPTS = env.GRADLE_OPTS ? `${env.GRADLE_OPTS} ${gradle}` : gradle;
+  return env;
+}
+
 function send(event) {
   process.stdout.write(`${JSON.stringify(event)}\n`);
 }
@@ -217,7 +226,7 @@ if (process.argv[1] === "probe") {
       started = Date.now();
       child = spawn(payload.command[0], payload.command.slice(1), {
         cwd: payload.cwd,
-        env: { ...process.env, ...toolEnvironment(), ...payload.env },
+        env: workerEnvironment(payload.env),
         detached: true,
         stdio: ["ignore", "pipe", "pipe"],
       });

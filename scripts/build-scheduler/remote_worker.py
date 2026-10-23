@@ -53,7 +53,10 @@ def worker_config(config, name):
 
 SNAPSHOT_EXCLUDES = ['/.git', '.git/', 'node_modules/', '.worktrees/', '.dev/', '__pycache__/', '.gradle/',
                      '.cxx/', 'build/', 'DerivedData/', 'Pods/', 'target/', '.dart_tool/', '*.keystore', '*.jks',
-                     '*.p12', '*.mobileprovision', '.env', '.env.*', 'key.properties', 'local.properties']
+                     '*.p12', '*.p8', '*.pem', '*.key', '*.pfx', '*.cer', '*.mobileprovision', '.env', '.env.*',
+                     '.npmrc', '.yarnrc', '.yarnrc.yml', '.netrc', '.pypirc', '.git-credentials', '.aws/', '.ssh/',
+                     'id_rsa*', 'id_ed25519*', '*service-account*.json', '*credentials*.json', 'key.properties',
+                     'keystore.properties', 'local.properties', 'asc.env', '*.secret', '*.secrets']
 SSH_OPTIONS = ['-oBatchMode=yes', '-oConnectTimeout=5', '-oServerAliveInterval=3', '-oServerAliveCountMax=2']
 
 

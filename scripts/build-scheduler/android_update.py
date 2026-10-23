@@ -345,11 +345,11 @@ def main():
         print(json.dumps(dict(category=category, kind=info['kind'], last=previous.get('commit'))))
         return
     if args.action in ('build', 'update') and not isolated():
-        os.chdir(Path(args.project).resolve())
         argv = [a if not a.startswith('--project=') else '--project=' + str(Path(a[10:]).resolve()) for a in sys.argv[1:]]
         if '--project' in argv:
             index = argv.index('--project') + 1
             argv[index] = str(Path(argv[index]).resolve())
+        os.chdir(Path(args.project).resolve())
         os.execv('/usr/local/bin/pandaos-build-scheduler', ['pandaos-build-scheduler', '--class', 'heavy',
                                                              '--label', 'android-' + args.action, '--',
                                                              sys.executable, os.path.abspath(__file__), *argv])

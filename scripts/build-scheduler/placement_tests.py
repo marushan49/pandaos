@@ -138,9 +138,106 @@ class PlacementTests(unittest.TestCase):
         outside = scheduler.classify(['/home/admin/other/tool'], str(scheduler.Path(__file__).resolve().parents[2]), {})
         self.assertFalse(outside['portable'])
 
-    def test_no_configured_worker_keeps_ios_commands_local(self):
-        self.instance.config['workers'] = {}
-        self.assertEqual(self.instance.worker_names(), [])
+    def admit(self, command, directory):
+        req = dict(command=command, env={}, cwd=directory, timeout=60, queue_timeout=60)
+        with patch.object(scheduler, 'JOBS', scheduler.Path(directory)), patch.object(scheduler.os, 'chown'), \
+                patch.object(scheduler.os, 'fchown'):
+            self.instance.save = lambda: None
+            return self.instance.admit(req, 1001)
+
+    def test_ios_commands_wait_for_mac_only_when_a_worker_is_configured(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            self.instance.config['workers'] = {}
+            self.assertEqual(self.admit(['xcodebuild', '-version'], directory).worker, 'local')
+            self.instance.config['workers'] = dict(macbook=dict(SPEC))
+            self.assertEqual(self.admit(['xcodebuild', '-version'], directory).worker, 'auto')
+            self.assertEqual(self.admit(['bash', '-c', 'ssh macbook xcodebuild'], directory).worker, 'local')
+
+    def test_pinned_remote_jobs_check_platform_and_tools(self):
+        self.instance.workers['macbook'] = mac(platform='linux')
+        self.assertEqual(self.instance.compatible(job(darwin=True, needs=['xcode']), 'macbook', pinned=True),
+                         'kein macOS')
+        self.instance.workers['macbook'] = mac(tools={})
+        self.assertIn('Werkzeug fehlt', self.instance.compatible(job(), 'macbook', pinned=True))
+
+    def test_auto_placement_needs_snapshot_root(self):
+        self.instance.config['workers']['macbook'].pop('snapshot_root')
+        self.instance.workers['macbook'] = mac()
+        self.assertEqual(self.instance.compatible(job(), 'macbook'), 'kein snapshot_root konfiguriert')
+
+    def test_auto_jobs_respect_the_remote_snapshot_lock(self):
+        self.busy_local()
+        self.instance.workers['macbook'] = mac()
+        mapping = remote_worker.snapshot_mapping(SPEC, '/home/admin/projects/app')
+        running = job('remote-running', state='running', lock=mapping['remote'])
+        running.worker = 'macbook'
+        self.instance.jobs[running.id] = running
+        choice, reason, view = self.place(job('second'))
+        self.assertIsNone(choice)
+        self.assertIn('macbook: gleicher Build-Ordner wie', reason)
+
+    def test_starving_auto_job_reserves_capacity_on_every_host(self):
+        self.instance.workers['macbook'] = mac()
+        starving = job('starving')
+        newcomer = job('newcomer', lock='/home/admin/projects/other')
+        choice, reason, _ = self.instance.place(newcomer, starving)
+        self.assertIsNone(choice)
+        self.assertIn('Vorrang für', reason)
+
+    def test_waits_for_a_clearly_faster_busy_host(self):
+        self.instance.workers['macbook'] = mac()
+        item = job(wall=600)
+        sig = scheduler.signature(item.project + ':macbook', item.command)
+        self.instance.history[sig].append(dict(wall=60, worker='macbook', project=item.project))
+        self.instance.history['other'].append(dict(worker='macbook', project=item.project, sync_seconds=5))
+        for index in range(2):
+            running = job('r%d' % index, state='running', lock='/remote/%d' % index, wall=40)
+            running.worker = 'macbook'
+            running.started = time.time() - 30
+            self.instance.jobs[running.id] = running
+        choice, reason, _ = self.place(item)
+        self.assertIsNone(choice)
+        self.assertIn('wartet auf schnelleren Host macbook', reason)
+
+    def test_bind_moves_history_to_the_chosen_worker(self):
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory, patch.object(scheduler, 'JOBS', scheduler.Path(directory)), \
+                patch.object(scheduler, 'atomic_write'):
+            self.instance.workers['macbook'] = mac()
+            item = job()
+            item.directory.mkdir()
+            (item.directory / 'request.json').write_text(json.dumps(dict(command=item.command, env={}, cwd=item.cwd)))
+            import asyncio
+            asyncio.run(self.instance.bind(item, dict(worker='macbook', eta=100), []))
+            self.assertEqual(item.worker, 'macbook')
+            self.assertEqual(item.signature, scheduler.signature(item.project + ':macbook', item.command))
+            self.assertTrue(item.lock.startswith('/Users/mau/.pandaos-worker/snapshots/app-'))
+
+    def test_running_state_is_saved_before_the_unit_starts(self):
+        import asyncio
+        import tempfile
+        saved = []
+        item = job()
+        item.timeout = 60
+        self.instance.save = lambda: saved.append(item.state)
+
+        class Process:
+            returncode = 0
+
+            async def communicate(self):
+                return b'', b''
+
+        async def spawn(*args, **kwargs):
+            self.assertEqual(saved, ['running'])
+            return Process()
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(scheduler, 'JOBS', scheduler.Path(directory)), \
+                patch.object(scheduler.asyncio, 'create_subprocess_exec', spawn):
+            item.decision = dict(why='test', capacity={})
+            asyncio.run(self.instance.start(item))
+        self.assertEqual(item.state, 'running')
 
     def test_snapshot_mapping_isolated_per_project_and_maps_working_directory(self):
         first = remote_worker.snapshot_mapping(SPEC, '/home/admin/projects/app')
@@ -156,7 +253,8 @@ class PlacementTests(unittest.TestCase):
             remote_worker.snapshot_mapping(dict(SPEC, snapshot_root='relative'), '/home/admin/projects/app')
 
     def test_snapshot_excludes_secrets_and_platform_outputs(self):
-        for pattern in ('.env', '*.keystore', '*.jks', 'key.properties', 'node_modules/', 'build/', 'Pods/', '/.git'):
+        for pattern in ('.env', '*.keystore', '*.jks', 'key.properties', 'node_modules/', 'build/', 'Pods/', '/.git',
+                        '.npmrc', '*.pem', '*.p8', '.netrc', '*service-account*.json', 'keystore.properties'):
             self.assertIn(pattern, remote_worker.SNAPSHOT_EXCLUDES)
 
 
