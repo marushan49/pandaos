@@ -53,7 +53,12 @@ class Play:
         except urllib.error.HTTPError as error:
             status, payload = error.code, error.read()
         entry = dict(method=method, path=path.split('?')[0], status=status)
-        result = json.loads(payload) if payload else {}
+        try:
+            result = json.loads(payload) if payload else {}
+        except ValueError:
+            result = dict(error=dict(message='unreadable response'))
+            status = status if status >= 400 else 502
+            entry['status'] = status
         if status >= 400:
             entry['error'] = (result.get('error') or {}).get('message', '')[:300]
         self.calls.append(entry)
@@ -191,7 +196,7 @@ def upload(args, play):
             result['readback'] = tracks(play, after).get(args.track)
         finally:
             discard_safely(play, after)
-    except (RuntimeError, OSError) as error:
+    except Exception as error:
         result['readback_error'] = str(error)[:300]
     return result
 
@@ -199,7 +204,7 @@ def upload(args, play):
 def discard_safely(play, edit):
     try:
         play.discard(edit)
-    except (RuntimeError, OSError) as error:
+    except Exception as error:
         log('could not discard edit %s: %s' % (edit, str(error)[:200]))
 
 

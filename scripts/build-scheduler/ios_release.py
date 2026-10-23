@@ -85,7 +85,11 @@ def build_script(args, key_id, issuer):
     project = '-workspace %s' % shlex.quote(args.workspace) if args.workspace else (
         '-project %s' % shlex.quote(args.xcodeproj) if args.xcodeproj else '')
     scheme = shlex.quote(args.scheme)
-    lines = ['set -euo pipefail', 'export PATH=/opt/homebrew/bin:$PATH']
+    lines = ['set -euo pipefail', 'export PATH=/opt/homebrew/bin:$PATH',
+             'if ! security show-keychain-info "$HOME/Library/Keychains/login.keychain-db" >/dev/null 2>&1; then '
+             'echo "ios-release: der Anmelde-Schlüsselbund des Macs ist gesperrt; einmal am Mac '
+             '\\`security unlock-keychain ~/Library/Keychains/login.keychain-db\\` ausführen, dann erneut starten" >&2; '
+             'exit 75; fi']
     if Path(args.project, 'project.yml').exists():
         lines.append('xcodegen generate -q')
     if Path(args.project, 'Podfile').exists():

@@ -28,7 +28,8 @@ def job(name='j', klass='heavy', needs=('java_home', 'android_sdk'), darwin=Fals
                               lock=lock, command=['./gradlew', 'assembleDebug'], created=time.time(),
                               started=time.time() if state == 'running' else None,
                               estimate=dict(memory_gib=4, cores=4, wall=wall), needs=list(needs), darwin=darwin,
-                              portable=portable, artifacts=[], timeout=600, queue_timeout=600, signature='s'))
+                              portable=portable, artifacts=[], timeout=600, queue_timeout=600, signature='s',
+                              measured=None, cache=None, exit=None, reason=None, finished=None))
 
 
 class PlacementTests(unittest.TestCase):
@@ -70,6 +71,19 @@ class PlacementTests(unittest.TestCase):
         choice, _, _ = self.place(job())
         self.assertEqual(choice['worker'], 'local')
 
+    def test_similar_local_history_keeps_a_warm_zotac(self):
+        self.instance.workers['macbook'] = mac()
+        item = job()
+        item.command = ['./gradlew', 'clean', 'assembleDebug', '--build-cache']
+        item.estimate['wall'] = None
+        self.instance.history['local-variant'].append(dict(wall=11, project=item.project, worker='local',
+                                                           command='./gradlew clean assembleDebug --no-daemon'))
+        self.instance.history['mac-variant'].append(dict(wall=13, project=item.project, worker='macbook',
+                                                         command='./gradlew clean assembleDebug', sync_seconds=1))
+        choice, _, view = self.place(item)
+        self.assertEqual(choice['worker'], 'local')
+        self.assertEqual(next(c for c in view if c['worker'] == 'local')['wall'], 11)
+
     def test_measured_faster_mac_wins_when_both_are_free(self):
         self.instance.workers['macbook'] = mac()
         item = job()
@@ -84,10 +98,16 @@ class PlacementTests(unittest.TestCase):
         self.instance.workers['macbook'] = dict(error='offline')
         choice, reason, _ = self.place(job(needs=['xcode'], darwin=True))
         self.assertIsNone(choice)
-        self.assertEqual(reason, 'wartet auf Mac-Worker (iOS)')
+        self.assertTrue(reason.startswith('wartet auf Mac-Worker (iOS): macbook: nicht erreichbar'))
         self.instance.workers['macbook'] = mac()
         choice, _, _ = self.place(job(needs=['xcode'], darwin=True))
         self.assertEqual(choice['worker'], 'macbook')
+
+    def test_ios_job_outside_a_project_is_rejected_instead_of_waiting(self):
+        self.instance.workers['macbook'] = mac()
+        choice, reason, _ = self.place(job(needs=['xcode'], darwin=True, portable=False))
+        self.assertIsNone(choice)
+        self.assertTrue(reason.startswith('PERMANENT: macbook: Projekt nicht als Snapshot'))
 
     def test_battery_protects_mac(self):
         self.busy_local()
@@ -149,7 +169,8 @@ class PlacementTests(unittest.TestCase):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
             self.instance.config['workers'] = {}
-            self.assertEqual(self.admit(['xcodebuild', '-version'], directory).worker, 'local')
+            with self.assertRaisesRegex(ValueError, 'macOS-Worker'):
+                self.admit(['xcodebuild', '-version'], directory)
             self.instance.config['workers'] = dict(macbook=dict(SPEC))
             self.assertEqual(self.admit(['xcodebuild', '-version'], directory).worker, 'auto')
             self.assertEqual(self.admit(['bash', '-c', 'ssh macbook xcodebuild'], directory).worker, 'local')
@@ -236,6 +257,70 @@ class PlacementTests(unittest.TestCase):
         estimate = self.instance.remote_estimate(item, 'macbook')
         self.assertGreater(estimate['memory_gib'], 11)
         self.assertEqual(estimate['wall'], 100)
+
+    def start_with(self, spawn, cancel_during=False):
+        import asyncio
+        import tempfile
+        item = job()
+        item.timeout = 60
+        item.decision = dict(why='test', capacity={})
+        self.instance.save = lambda: None
+        self.instance.notify = lambda *a, **k: asyncio.sleep(0)
+        controls = []
+
+        async def control(*args):
+            controls.append(args)
+            return 0, '', ''
+
+        self.instance.control = control
+        with tempfile.TemporaryDirectory() as directory, patch.object(scheduler, 'JOBS', scheduler.Path(directory)), \
+                patch.object(scheduler.asyncio, 'create_subprocess_exec', spawn):
+            item.directory.mkdir()
+            asyncio.run(self.instance.start(item))
+        return item, controls
+
+    def test_spawn_failure_finishes_the_job(self):
+        async def spawn(*args, **kwargs):
+            raise OSError(24, 'Too many open files')
+
+        item, _ = self.start_with(spawn)
+        self.assertEqual((item.state, item.exit, item.reason), ('finished', 125, 'queue execution failed: spawn'))
+
+    def test_cancel_during_start_is_not_overwritten(self):
+        instance = self.instance
+
+        class Process:
+            returncode = 0
+
+            async def communicate(self):
+                item.state = 'finished'
+                item.exit = 130
+                return b'', b''
+
+        async def spawn(*args, **kwargs):
+            return Process()
+
+        item = None
+        original = instance.assign_sccache_port
+
+        def capture(job_):
+            nonlocal item
+            item = job_
+            original(job_)
+
+        instance.assign_sccache_port = capture
+        result, controls = self.start_with(spawn)
+        self.assertEqual((result.state, result.exit), ('finished', 130))
+        self.assertIn(('stop', result.unit), controls)
+
+    def test_sccache_ports_are_unique_among_running_jobs(self):
+        first, second = job('a', state='running'), job('b', state='running')
+        self.instance.jobs.update(a=first, b=second)
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory, patch.object(scheduler, 'JOBS', scheduler.Path(directory)):
+            self.instance.assign_sccache_port(first)
+            self.instance.assign_sccache_port(second)
+        self.assertNotEqual(first.sccache_port, second.sccache_port)
 
     def test_bind_moves_history_to_the_chosen_worker(self):
         import json

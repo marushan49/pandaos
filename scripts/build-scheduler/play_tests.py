@@ -85,6 +85,27 @@ class PlayReleaseTests(unittest.TestCase):
         self.assertNotIn(('POST', '/edits/e1/bundles'), play.calls)
         self.assertIn(('DELETE', '/edits/e1'), play.calls)
 
+    def test_unreadable_response_is_an_api_error(self):
+        play = play_release.Play.__new__(play_release.Play)
+        play.token, play.package, play.calls, play.evidence = 't', 'app.example', [], None
+
+        class Reply:
+            status = 200
+
+            def read(self):
+                return b'<html>'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        with patch.object(play_release.urllib.request, 'urlopen', return_value=Reply()), \
+                self.assertRaisesRegex(RuntimeError, 'unreadable response'):
+            play.call('GET', '/edits/x/tracks')
+        self.assertEqual(play.calls[-1]['status'], 502)
+
     def test_production_needs_explicit_permission_and_stays_draft(self):
         with patch.object(play_release, 'inspect', return_value=META), self.assertRaises(SystemExit):
             play_release.upload(args(track='production'), FakePlay())

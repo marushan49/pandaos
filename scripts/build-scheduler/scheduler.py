@@ -89,6 +89,8 @@ MEDIUM = [r'cargo\s+(build|test|check|clippy|run|nextest|doc)\b', r'\b(npm|pnpm|
           r'\bms\s+render', r'e2e']
 LIGHT = [r'tsc\b[^\n]*--noemit', r'\btypecheck\b', r'\blint\b', r'\bbiome\b', r'\beslint\b', r'\boxlint\b',
          r'\bprettier\b', r'(^|\s)-{1,2}version\b', r'\bjq\b', r'(^|[/\s])adb\s', r'\baapt2?\b', r'apksigner']
+PERMANENT = ('kein macOS', 'Projekt nicht als Snapshot übertragbar', 'kein snapshot_root konfiguriert')
+PERMANENT_PREFIX = 'Werkzeug fehlt'
 DARWIN = [r'\bxcodebuild\b', r'\bxcrun\b', r'\bpod\s+install\b', r'flutter\s+build\s+(ios|ipa|macos)\b',
           r'expo\s+run:ios', r'\bfastlane\s+ios\b', r'eas\s+build\b[^\n]*--platform\s+ios[^\n]*--local']
 TOOLS = [('xcode', r'\bxcodebuild\b|\bxcrun\b'), ('pod', r'\bpod\s+install\b'),
@@ -287,7 +289,7 @@ class Job:
         keys = ['id', 'sequence', 'state', 'klass', 'class_source', 'rule', 'priority', 'agent', 'project', 'cwd',
                 'lock', 'command', 'timeout', 'queue_timeout', 'detach', 'created', 'started', 'finished', 'exit',
                 'reason', 'wait_reason', 'estimate', 'measured', 'signature', 'cache', 'decision', 'label', 'cargo',
-                'gradle', 'worker', 'needs', 'darwin', 'portable', 'artifacts', 'placement']
+                'gradle', 'worker', 'needs', 'darwin', 'portable', 'artifacts', 'placement', 'sccache_port']
         return {key: getattr(self, key, None) for key in keys}
 
     def view(self, full=False):
@@ -398,7 +400,9 @@ class Scheduler:
         worker_name = req.get('worker') or 'local'
         if not isinstance(req.get('worker', 'local'), (str, type(None))):
             raise ValueError('worker must be a configured name')
-        if info['darwin'] and worker_name == 'local' and self.worker_names():
+        if info['darwin'] and worker_name == 'local':
+            if not self.worker_names():
+                raise ValueError('iOS/Xcode braucht einen aktivierten macOS-Worker; keiner ist aktiviert')
             worker_name = 'auto'
         if worker_name == 'local' and self.config.get('auto_placement') and info['portable']:
             worker_name = 'auto'
@@ -489,9 +493,16 @@ class Scheduler:
             return 'leichte Jobs bleiben lokal'
         return None
 
+    def similar_wall(self, job, name):
+        key = [arg for arg in job.command if not arg.startswith('-')]
+        walls = sorted(r['wall'] for runs in self.history.values() for r in runs
+                       if r.get('wall') and r.get('project') == job.project and r.get('worker', 'local') == name
+                       and [a for a in r.get('command', '').split() if not a.startswith('-')] == key)
+        return walls[len(walls) // 2] if walls else None
+
     def expected_wall(self, job, name):
         default = dict(light=30, medium=120, heavy=600)[job.klass]
-        local = job.estimate.get('wall') or default
+        local = job.estimate.get('wall') or self.similar_wall(job, 'local') or default
         if name == 'local':
             return local
         spec = (self.config.get('workers') or {}).get(name, {})
@@ -499,9 +510,17 @@ class Scheduler:
         if runs:
             walls = sorted(r['wall'] for r in runs)
             return walls[len(walls) // 2]
+        similar = self.similar_wall(job, name)
+        if similar:
+            return similar
         warm = any(r.get('worker') == name and r.get('project') == job.project
                    for runs in self.history.values() for r in runs)
         return local * spec.get('speed_factor', 0.8) * (1 if warm else spec.get('cold_factor', 1.5))
+
+    def has_remote_history(self, job, name):
+        if self.history.get(signature(job.project + ':' + name, job.command)):
+            return True
+        return self.similar_wall(job, name) is not None
 
     def expected_sync(self, job, name):
         if name == 'local':
@@ -536,8 +555,9 @@ class Scheduler:
             if name != 'local' and not reason:
                 reason = self.protect_worker(job, name)
             wall = self.expected_wall(job, name)
-            sync = self.expected_sync(job, name)
-            transfer = 10 * len(job.artifacts) if name != 'local' else 0
+            measured_remote = name != 'local' and self.has_remote_history(job, name)
+            sync = 0 if measured_remote else self.expected_sync(job, name)
+            transfer = 10 * len(job.artifacts) if name != 'local' and not measured_remote else 0
             eta = self.expected_wait(name, reason) + sync + wall + transfer
             candidates.append(dict(worker=name, reason=reason, eta=round(eta), wall=round(wall), sync=round(sync),
                                    snap=snap))
@@ -560,7 +580,12 @@ class Scheduler:
         view = [{k: v for k, v in c.items() if k != 'snap'} for c in candidates]
         if not choice:
             if job.darwin and not usable:
-                return None, 'wartet auf Mac-Worker (iOS)', view
+                blocked = [c for c in candidates if c['worker'] != 'local']
+                if blocked and all(c['blocked'] in PERMANENT or c['blocked'].startswith(PERMANENT_PREFIX)
+                                   for c in blocked):
+                    return None, 'PERMANENT: ' + '; '.join(c['worker'] + ': ' + c['blocked'] for c in blocked), view
+                detail = '; '.join(c['worker'] + ': ' + c['blocked'] for c in blocked) or 'kein Mac-Worker aktiviert'
+                return None, 'wartet auf Mac-Worker (iOS): ' + detail, view
             if not usable:
                 return None, 'kein passender Worker', view
             return None, '; '.join(c['worker'] + ': ' + c['reason'] for c in sorted(usable, key=lambda c: c['eta'])), view
@@ -794,6 +819,10 @@ class Scheduler:
         for job in queued:
             if job.worker == 'auto':
                 choice, reason, view = self.place(job, reserved)
+                if reason and reason.startswith('PERMANENT: '):
+                    self.log('rejected', job, reason=reason[11:], candidates=view)
+                    await self.finish(job, 125, 'kein passender Worker: ' + reason[11:])
+                    continue
                 if choice:
                     await self.bind(job, choice, view)
                     reason = None
@@ -844,15 +873,25 @@ class Scheduler:
         job.state = 'starting'
         job.started = now()
         job.wait_reason = None
+        self.assign_sccache_port(job)
         self.save()
-        proc = await asyncio.create_subprocess_exec(*args, stdin=asyncio.subprocess.DEVNULL,
-                                                   stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        try:
+            proc = await asyncio.create_subprocess_exec(*args, stdin=asyncio.subprocess.DEVNULL,
+                                                       stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        except OSError as exc:
+            self.log('start_failed', job, error=type(exc).__name__ + ': ' + str(exc)[:200])
+            await self.finish(job, 125, 'queue execution failed: spawn')
+            return
         try:
             _, err = await asyncio.wait_for(proc.communicate(), 30)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()
             err = b'systemd-run timed out'
+        if job.state != 'starting':
+            await self.control('stop', job.unit)
+            await self.control('reset-failed', job.unit)
+            return
         if proc.returncode:
             self.log('start_failed', job, error=err.decode()[-400:])
             await self.finish(job, 125, 'queue execution failed: systemd-run')
@@ -862,6 +901,16 @@ class Scheduler:
                  capacity=job.decision['capacity'])
         await self.notify(job, event='running')
         self.save()
+
+    def assign_sccache_port(self, job):
+        used = {getattr(j, 'sccache_port', None) for j in self.jobs.values() if j.state in ('running', 'starting')}
+        port = next(p for p in range(20000, 29000) if p not in used)
+        job.sccache_port = port
+        with contextlib.suppress(OSError, ValueError):
+            path = job.directory / 'request.json'
+            req = json.loads(path.read_text())
+            req['sccache_port'] = port
+            atomic_write(path, json.dumps(req), 0o640, self.account.pw_gid)
 
     async def control(self, *args):
         proc = await asyncio.create_subprocess_exec('/usr/bin/systemctl', *args, stdout=asyncio.subprocess.PIPE,
@@ -916,7 +965,8 @@ class Scheduler:
         for key in ('peak_memory', 'cpu_seconds', 'io_read', 'io_written'):
             if data.get(key) is not None:
                 measured[key] = max(data[key], measured.get(key, 0)) if key == 'peak_memory' else data[key]
-        measured['wall'] = data.get('wall') or round(now() - job.started, 1)
+        measured['wall'] = round(now() - job.started, 1) if job.worker != 'local' else (
+            data.get('wall') or round(now() - job.started, 1))
         job.measured = measured
         cache = {}
         with contextlib.suppress(OSError):
@@ -1233,9 +1283,11 @@ def worker(directory):
     sccache = config.get('sccache')
     use_sccache = sccache and Path(sccache).exists() and 'RUSTC_WRAPPER' not in env
     if use_sccache:
-        with socket.socket() as probe:
-            probe.bind(('127.0.0.1', 0))
-            port = probe.getsockname()[1]
+        port = req.get('sccache_port')
+        if not port:
+            with socket.socket() as probe:
+                probe.bind(('127.0.0.1', 0))
+                port = probe.getsockname()[1]
         env.update(RUSTC_WRAPPER=sccache, SCCACHE_SERVER_PORT=str(port))
         env.setdefault('SCCACHE_DIR', home + '/.cache/sccache')
         env.setdefault('SCCACHE_CACHE_SIZE', '40G')
@@ -1355,7 +1407,9 @@ def human_status(data):
         when = time.strftime('%H:%M:%S', time.localtime(job['finished'] or job['started'] or job['created']))
         usage = job.get('usage') or {}
         measured = job.get('measured') or {}
-        if job['state'] == 'running':
+        if job['state'] == 'starting':
+            detail = 'startet'
+        elif job['state'] == 'running':
             detail = 'läuft, %.1f GiB, %.1f Kerne' % (usage.get('memory_gib', 0), usage.get('cores', 0))
         elif job['state'] == 'queued':
             detail = 'wartet %ds: %s' % (job['waited'] or 0, job.get('wait_reason') or 'prüfe Kapazität')
