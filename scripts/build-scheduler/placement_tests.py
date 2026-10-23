@@ -200,6 +200,43 @@ class PlacementTests(unittest.TestCase):
         self.assertIsNone(choice)
         self.assertIn('wartet auf schnelleren Host macbook', reason)
 
+    def test_unconfirmed_start_is_requeued_and_confirmed_start_adopted(self):
+        import asyncio
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory, patch.object(scheduler, 'JOBS', scheduler.Path(directory)), \
+                patch.object(scheduler.asyncio, 'sleep', return_value=None):
+            lost, alive = job('lost', state='running'), job('alive', state='running')
+            lost.state = alive.state = 'starting'
+            self.instance.jobs.update(lost=lost, alive=alive)
+
+            async def unit_state(item):
+                return dict(LoadState='loaded' if item.id == 'alive' else 'not-found')
+
+            async def control(*args):
+                return 0, '', ''
+
+            self.instance.unit_state = unit_state
+            self.instance.control = control
+            asyncio.run(self.instance.adopt())
+            self.assertEqual((lost.state, lost.started), ('queued', None))
+            self.assertEqual(alive.state, 'running')
+
+    def test_waiting_ios_job_does_not_reserve_the_zotac(self):
+        self.instance.workers['macbook'] = dict(error='offline')
+        ios = job('ios', needs=['xcode'], darwin=True)
+        self.assertFalse(self.instance.reserves(ios, 'local'))
+        choice, reason, _ = self.instance.place(job('android', lock='/home/admin/projects/other'), ios)
+        self.assertEqual(choice['worker'], 'local')
+
+    def test_remote_candidate_uses_the_worker_measurements(self):
+        self.instance.workers['macbook'] = mac()
+        item = job()
+        sig = scheduler.signature(item.project + ':macbook', item.command)
+        self.instance.history[sig].append(dict(wall=100, cpu_seconds=200, peak_memory=10 * GIB))
+        estimate = self.instance.remote_estimate(item, 'macbook')
+        self.assertGreater(estimate['memory_gib'], 11)
+        self.assertEqual(estimate['wall'], 100)
+
     def test_bind_moves_history_to_the_chosen_worker(self):
         import json
         import tempfile
@@ -230,7 +267,7 @@ class PlacementTests(unittest.TestCase):
                 return b'', b''
 
         async def spawn(*args, **kwargs):
-            self.assertEqual(saved, ['running'])
+            self.assertEqual(saved, ['starting'])
             return Process()
 
         with tempfile.TemporaryDirectory() as directory, patch.object(scheduler, 'JOBS', scheduler.Path(directory)), \

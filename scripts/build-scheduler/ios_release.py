@@ -66,7 +66,19 @@ def status(args):
                                 for v in versions])
 
 
+def project_relative(value, project):
+    if not value or not os.path.isabs(value):
+        return value
+    path = Path(value).resolve()
+    try:
+        return str(path.relative_to(Path(project).resolve()))
+    except ValueError:
+        raise SystemExit('ios-release: %s lies outside the project; pass a path inside %s' % (value, project))
+
+
 def build_script(args, key_id, issuer):
+    for name in ('workspace', 'xcodeproj', 'export_options'):
+        setattr(args, name, project_relative(getattr(args, name), args.project))
     key = '"$HOME/.appstoreconnect/private_keys/AuthKey_%s.p8"' % key_id
     auth = '-authenticationKeyPath %s -authenticationKeyID %s -authenticationKeyIssuerID %s' % (
         key, shlex.quote(key_id), shlex.quote(issuer))

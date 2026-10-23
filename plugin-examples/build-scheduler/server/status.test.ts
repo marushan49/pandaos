@@ -57,6 +57,26 @@ describe("summarize", () => {
     ]);
   });
 
+  it("reports a scheduler error instead of an empty queue", () => {
+    expect(summarize({ event: "error", error: "unauthorized or too many clients" })).toEqual({
+      available: false,
+      error: "unauthorized or too many clients",
+      jobs: [],
+      workers: [],
+    });
+  });
+
+  it("shows remaining jobs of the old broker and starting jobs as running", () => {
+    const status = summarize({
+      jobs: [{ ...base, state: "starting", started: Date.now() / 1000 }],
+      legacy_jobs: [{ id: "x", sequence: 339, state: "running" }],
+    });
+    expect(status.jobs.map((job) => [job.state, job.project])).toEqual([
+      ["running", "alter Broker"],
+      ["running", "chillbro"],
+    ]);
+  });
+
   it("explains the worker choice and lists fetched artifacts", () => {
     const status = summarize({
       jobs: [

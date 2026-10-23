@@ -458,6 +458,12 @@ class Scheduler:
                                         min(self.config['job_memory_max_gib'], spec['memory_budget_gib']))
         return dict(spec=spec, payload=payload, snapshot=mapping, artifacts=artifacts)
 
+    def remote_estimate(self, job, name):
+        measured = self.estimate(signature(job.project + ':' + name, job.command), job.klass)
+        if measured['source'] == 'heuristic':
+            return dict(job.estimate)
+        return dict(job.estimate, memory_gib=gib(measured['memory']), cores=measured['cores'], wall=measured['wall'])
+
     def worker_names(self):
         return [name for name, spec in (self.config.get('workers') or {}).items()
                 if isinstance(spec, dict) and spec.get('enabled') is True]
@@ -524,8 +530,8 @@ class Scheduler:
                 spec = remote_worker.worker_config(self.config, name)
                 mapping = remote_worker.snapshot_mapping(spec, job.project)
                 probe = Job(dict(job.record(), lock=remote_worker.map_path(
-                    job.lock, remote_worker.with_mapping(spec, mapping))))
-            applies = reserved if reserved and reserved.id != job.id and reserved.worker in (name, 'auto') else None
+                    job.lock, remote_worker.with_mapping(spec, mapping)), estimate=self.remote_estimate(job, name)))
+            applies = reserved if reserved and reserved.id != job.id and self.reserves(reserved, name) else None
             reason = self.blocker(probe, snap, applies)
             if name != 'local' and not reason:
                 reason = self.protect_worker(job, name)
@@ -560,6 +566,11 @@ class Scheduler:
             return None, '; '.join(c['worker'] + ': ' + c['reason'] for c in sorted(usable, key=lambda c: c['eta'])), view
         return choice, None, view
 
+    def reserves(self, reserved, name):
+        if reserved.worker == name:
+            return True
+        return reserved.worker == 'auto' and self.compatible(reserved, name) is None
+
     @staticmethod
     def waitable(reason):
         return reason.startswith(('gleicher Build-Ordner', 'Parallel-Limit', 'Heavy-Limit', 'CPU:', 'Build-RAM-Budget'))
@@ -587,6 +598,7 @@ class Scheduler:
             info = dict(project=job.project)
             remote = self.remote_request(req, choice['worker'], info, job.id, job.artifacts)
             job.lock = remote_worker.map_path(job.lock, remote_worker.with_mapping(remote['spec'], remote['snapshot']))
+            job.estimate = self.remote_estimate(job, choice['worker'])
             job.signature = signature(job.project + ':' + choice['worker'], job.command)
             atomic_write(path, json.dumps(dict(command=job.command, env={}, cwd=job.cwd, remote=remote,
                                                timeout=job.timeout, artifacts=job.artifacts)),
@@ -788,7 +800,7 @@ class Scheduler:
                 snap = choice['snap'] if choice else self.snapshot('local')
             else:
                 snap = self.snapshot(job.worker)
-                applies = reserved if reserved and reserved.worker in (job.worker, 'auto') else None
+                applies = reserved if reserved and self.reserves(reserved, job.worker) else None
                 reason = self.blocker(job, snap, applies)
                 if reason is None and job.worker != 'local':
                     reason = self.compatible(job, job.worker, pinned=True) or self.protect_worker(job, job.worker)
@@ -829,7 +841,7 @@ class Scheduler:
                 '--description=' + ('#%d %s' % (job.sequence, ' '.join(job.command)))[:200]]
         args += ['--property=' + p for p in self.properties(job)]
         args += ['/usr/bin/python3', str(INSTALL / 'scheduler.py'), 'worker', str(job.directory)]
-        job.state = 'running'
+        job.state = 'starting'
         job.started = now()
         job.wait_reason = None
         self.save()
@@ -845,6 +857,7 @@ class Scheduler:
             self.log('start_failed', job, error=err.decode()[-400:])
             await self.finish(job, 125, 'queue execution failed: systemd-run')
             return
+        job.state = 'running'
         self.log('started', job, waited=round(job.started - job.created, 1), why=job.decision['why'],
                  capacity=job.decision['capacity'])
         await self.notify(job, event='running')
@@ -960,7 +973,7 @@ class Scheduler:
     async def cancel(self, job, reason='canceled'):
         if job.state == 'queued':
             await self.finish(job, 130, reason)
-        elif job.state == 'running':
+        elif job.state in ('running', 'starting'):
             job.reason = reason
             await self.control('stop', job.unit)
             await self.control('reset-failed', job.unit)
@@ -1094,6 +1107,19 @@ class Scheduler:
                 await self.cancel(job, 'client disconnected')
 
     async def adopt(self):
+        starting = [j for j in self.jobs.values() if j.state == 'starting']
+        if starting:
+            await asyncio.sleep(2)
+        for job in starting:
+            state = await self.unit_state(job)
+            if state.get('LoadState') == 'loaded' or (job.directory / 'out' / 'result.json').exists():
+                job.state = 'running'
+                self.log('start_confirmed', job)
+            else:
+                job.state = 'queued'
+                job.started = None
+                job.detached_at = time.monotonic()
+                self.log('start_not_reached', job, action='requeued')
         code, out, _ = await self.control('list-units', '--all', '--plain', '--no-legend', PREFIX + '*.service')
         known = {j.unit for j in self.jobs.values() if j.state == 'running'}
         units = [line.split()[0] for line in out.splitlines() if line.split()]

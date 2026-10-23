@@ -8,7 +8,10 @@ const CLI = "/usr/local/bin/pandaos-build-scheduler";
 
 type RawJob = Record<string, unknown>;
 interface RawStatus {
+  event?: string;
+  error?: string;
   jobs?: RawJob[];
+  legacy_jobs?: RawJob[];
   workers?: Record<string, Record<string, unknown>>;
   config?: { workers?: Record<string, boolean> };
 }
@@ -43,7 +46,7 @@ export function summarizeJob(job: RawJob): BuildJob {
   const cache = (job.cache ?? {}) as { artifacts?: { paths?: string[]; directory?: string } };
   const started = number(job.started);
   const finished = number(job.finished);
-  const state = text(job.state) as BuildJob["state"];
+  const state = (text(job.state) === "starting" ? "running" : text(job.state)) as BuildJob["state"];
   const elapsed = started ? Math.round((finished ?? Date.now() / 1000) - started) : null;
   const seconds = number(measured.wall) ?? elapsed;
   const directory = cache.artifacts?.directory;
@@ -90,8 +93,42 @@ export function summarizeWorkers(raw: RawStatus): BuildWorker[] {
   return workers;
 }
 
+function legacyJob(job: RawJob): BuildJob {
+  const state = text(job.state) === "queued" ? "queued" : "running";
+  return {
+    id: `legacy-${text(job.id)}`,
+    sequence: number(job.sequence) ?? 0,
+    state,
+    project: "alter Broker",
+    task: `Job #${number(job.sequence) ?? "?"}`,
+    worker: "local",
+    klass: "",
+    priority: "",
+    agent: "",
+    seconds: null,
+    waited: null,
+    exit: null,
+    reason: state === "queued" ? "wartet im alten Einzelslot-Broker" : null,
+    placement: null,
+    memoryGib: null,
+    artifacts: [],
+    finishedAt: null,
+  };
+}
+
 export function summarize(raw: RawStatus): BuildStatus {
+  if (raw.event === "error") {
+    return {
+      available: false,
+      error: raw.error ?? "Scheduler meldet einen Fehler",
+      jobs: [],
+      workers: [],
+    };
+  }
   const jobs = (raw.jobs ?? []).map(summarizeJob);
+  jobs.push(
+    ...(raw.legacy_jobs ?? []).filter((job) => text(job.state) !== "finished").map(legacyJob),
+  );
   const order = { running: 0, queued: 1, finished: 2 } as const;
   jobs.sort((a, b) => {
     if (order[a.state] !== order[b.state]) return order[a.state] - order[b.state];

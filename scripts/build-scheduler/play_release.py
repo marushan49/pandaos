@@ -162,6 +162,7 @@ def upload(args, play):
     if args.track == 'production' and not args.allow_production:
         raise SystemExit('play-release: production needs --allow-production and the owner\'s approval')
     edit = play.edit()
+    committed = False
     try:
         highest = highest_version(play, edit)
         if meta['version_code'] <= highest:
@@ -175,22 +176,31 @@ def upload(args, play):
             release['name'] = args.release_name
         play.call('PUT', '/edits/%s/tracks/%s' % (edit, args.track), body=dict(track=args.track, releases=[release]))
         play.call('POST', '/edits/%s:validate' % edit)
-        if args.commit:
-            play.call('POST', '/edits/%s:commit' % edit)
-            after = play.edit()
-            state = tracks(play, after).get(args.track)
-            play.discard(after)
-            return dict(committed=True, track=args.track, release=release, readback=state, aab=meta)
-        play.discard(edit)
-        return dict(committed=False, validated=True, track=args.track, release=release, aab=meta,
-                    note='validation only; the edit was discarded')
-    except BaseException:
         if not args.commit:
-            try:
-                play.discard(edit)
-            except RuntimeError:
-                pass
-        raise
+            return dict(committed=False, validated=True, track=args.track, release=release, aab=meta,
+                        note='validation only; the edit was discarded')
+        play.call('POST', '/edits/%s:commit' % edit)
+        committed = True
+    finally:
+        if not committed:
+            discard_safely(play, edit)
+    result = dict(committed=True, track=args.track, release=release, aab=meta)
+    try:
+        after = play.edit()
+        try:
+            result['readback'] = tracks(play, after).get(args.track)
+        finally:
+            discard_safely(play, after)
+    except (RuntimeError, OSError) as error:
+        result['readback_error'] = str(error)[:300]
+    return result
+
+
+def discard_safely(play, edit):
+    try:
+        play.discard(edit)
+    except (RuntimeError, OSError) as error:
+        log('could not discard edit %s: %s' % (edit, str(error)[:200]))
 
 
 def build(args):
