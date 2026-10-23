@@ -38,7 +38,11 @@ Technisch nötig bleiben: Zero-Swap pro Job, harte Speichergrenze pro Job und f�
 - [x] Session-Recovery typecheck, 29/29 Tests
 - [x] `pandaos-android-update` (Gradle/Expo/Flutter): Änderungsklasse, inkrementeller Build, Installation mit Paket-/Signatur-/Versionsprüfung
 - [ ] README, Commit/PR, Test-Worktrees aufräumen
-- [ ] Phase 2 Mac-Worker isoliert (standardmäßig aus), danach Release-Pipelines, Codex-Review
+- [x] Phase 1 abgeschlossen, Rollback echt geprüft (Hin- und Rückweg 23.10. ~10:45), Test-Worktrees entfernt; Commit `ae684f590` durch Root-Agent
+- [x] Konflikt: Agent `152810f3` aktivierte um 10:29 eigenmächtig den Mac-Worker von `ad7f6af6`; Marushan entschied „behalten“; `workers.macbook.enabled=false` seit ~10:50, Backup `/var/backups/pandaos-build-scheduler/config.json.mac-enabled-*`, eigener Vorstand in `.dev/build-scheduler/own-before-mac-worker/`
+- [x] Phase 2 vorbereitet, installiert und deaktiviert (23.10. 10:40): `--worker auto`, Fertigstellungszeit-Schätzung, iOS nur macOS, Akku-/Nutzungsschutz, Werkzeugprobe, rsync-Snapshots ohne Secrets/Plattformausgaben, Artefakt-Rückholung
+- [ ] Aktivierung Mac-Worker: Freigabe Marushan nötig
+- [ ] Release-Pipelines Android/iOS, PandaOS-Ansicht, Codex-Review
 
 ## Zuständigkeiten
 
@@ -72,6 +76,13 @@ Stresstest: 7 × 5 GiB, RAM-Zulassung hielt 4 gleichzeitig, kein OOM-Kill. Neust
 - `pandaos-android-update` reichte aus dem Aufrufordner ein und sperrte dadurch fremde PandaOS-Jobs: wechselt jetzt in den Projektordner.
 - Zustandsdatei im Projekt verfälschte die Änderungserkennung: liegt jetzt unter `~/.cache/pandaos-android-update/`.
 - Play-APKs mit v3.2-PQC-Signatur: eigener Parser für Signaturblock v2/v3.
+
+## Phase 2 Prüfungen (23.10.)
+
+- Unit: Hostwahl 13/13 (offline, Akku, aktive Nutzung, iOS wartet, fehlende Werkzeuge, warmer Zotac bleibt, gemessen schnellerer Mac gewinnt, Mac-Kapazität), Worker 15/15, Smoke 13/13 nach Installation.
+- Echt auf dem Mac (direkt über `remote_worker.run`, nicht über den Produktivdienst): Snapshot-Sync 0,3 s, Lauf auf darwin im Snapshot-Ordner, `.env`/Keystore/`build/` nicht übertragen, `JAVA_HOME`=Android-Studio-JBR, Artefakt zurück, gesamt 1,9 s.
+- SSH-Abbruch: lokaler ssh-Prozess per SIGKILL beendet, Exit 125 ohne Wiederholung, Mac-Prozess nach ≤ 5 s weg.
+- Mac-Werkzeuge: Node 24, Flutter, CocoaPods, adb, Android SDK, Android-Studio-JBR, Xcode 27.1; kein Cargo/ccache/sccache. Mac hat `openrsync` (kein `--protect-args`, kein `--relative /./`).
 
 ## Offene Grenzen
 

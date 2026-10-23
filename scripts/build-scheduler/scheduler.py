@@ -37,6 +37,7 @@ JOB_CGROUPS = ('/pandaos.slice/pandaos-build.slice/' + PREFIX,
 MAX_REQUEST = 1024 * 1024
 MAX_RUNTIME = 7200
 MAX_WAIT = 3600
+MAX_WAIT_DARWIN = 86400
 GIB = 1024 ** 3
 LEVELS = ['interactive', 'blocking', 'normal', 'background']
 CLASSES = ['light', 'medium', 'heavy']
@@ -88,6 +89,13 @@ MEDIUM = [r'cargo\s+(build|test|check|clippy|run|nextest|doc)\b', r'\b(npm|pnpm|
           r'\bms\s+render', r'e2e']
 LIGHT = [r'tsc\b[^\n]*--noemit', r'\btypecheck\b', r'\blint\b', r'\bbiome\b', r'\beslint\b', r'\boxlint\b',
          r'\bprettier\b', r'(^|\s)-{1,2}version\b', r'\bjq\b', r'(^|[/\s])adb\s', r'\baapt2?\b', r'apksigner']
+DARWIN = [r'\bxcodebuild\b', r'\bxcrun\b', r'\bpod\s+install\b', r'flutter\s+build\s+(ios|ipa|macos)\b',
+          r'expo\s+run:ios', r'\bfastlane\s+ios\b', r'eas\s+build\b[^\n]*--platform\s+ios[^\n]*--local']
+TOOLS = [('xcode', r'\bxcodebuild\b|\bxcrun\b'), ('pod', r'\bpod\s+install\b'),
+         ('flutter', r'(^|[/\s])flutter\s'), ('cargo', r'(^|[/\s])cargo\s'),
+         ('java_home', r'gradlew|\bgradle\b|expo\s+run:android|flutter\s+build\s+(apk|appbundle)'),
+         ('android_sdk', r'gradlew|expo\s+run:android|flutter\s+build\s+(apk|appbundle)'),
+         ('node', r'(^|[/\s])(node|npm|npx|pnpm|yarn|bun)\s')]
 INTERACTIVE = [r'(^|[/\s])adb\s[^\n]*\binstall', r'pandaos-android-build[^\n]*--install']
 CARGO_TARGET = re.compile(r'CARGO_TARGET_DIR=("[^"]+"|\'[^\']+\'|\S+)')
 
@@ -222,7 +230,13 @@ def classify(command, cwd, env):
         target = found.group(1).strip('"\'').replace('$HOME', env.get('HOME', '/home/admin'))
     root = project_root(cwd)
     lock = target if target and 'cargo' in lowered else root
-    return dict(klass=klass, rule=matched, interactive=interactive, project=root, lock=lock,
+    needs = sorted({name for name, pattern in TOOLS if re.search(pattern, lowered, re.M)})
+    argv = ' '.join(command).lower()
+    darwin = 'ssh' not in argv and any(re.search(p, argv, re.M) for p in DARWIN)
+    outside = [a for a in command if a.startswith('/') and not a.startswith(('/usr/', '/bin/', '/opt/homebrew/'))
+               and not (a + '/').startswith(root.rstrip('/') + '/')]
+    return dict(klass=klass, rule=matched, interactive=interactive, project=root, lock=lock, needs=needs,
+                darwin=darwin, portable=os.path.exists(os.path.join(root, '.git')) and not outside,
                 cargo='cargo' in lowered, gradle=bool(re.search(r'gradlew|gradle|expo\s+run|flutter', lowered)))
 
 
@@ -251,6 +265,10 @@ class Job:
         self.sample = None
         self.wait_reason = getattr(self, 'wait_reason', None)
         self.worker = getattr(self, 'worker', 'local')
+        for key, default in (('needs', []), ('darwin', False), ('portable', False), ('artifacts', []),
+                             ('placement', None)):
+            if getattr(self, key, None) is None:
+                setattr(self, key, default)
         self.changed = asyncio.Event()
 
     @property
@@ -269,7 +287,7 @@ class Job:
         keys = ['id', 'sequence', 'state', 'klass', 'class_source', 'rule', 'priority', 'agent', 'project', 'cwd',
                 'lock', 'command', 'timeout', 'queue_timeout', 'detach', 'created', 'started', 'finished', 'exit',
                 'reason', 'wait_reason', 'estimate', 'measured', 'signature', 'cache', 'decision', 'label', 'cargo',
-                'gradle', 'worker']
+                'gradle', 'worker', 'needs', 'darwin', 'portable', 'artifacts', 'placement']
         return {key: getattr(self, key, None) for key in keys}
 
     def view(self, full=False):
@@ -365,9 +383,14 @@ class Scheduler:
             raise ValueError('invalid environment')
         if not isinstance(cwd, str) or not os.path.isabs(cwd) or '\0' in cwd:
             raise ValueError('cwd must be absolute')
-        for key, maximum in [('timeout', MAX_RUNTIME), ('queue_timeout', MAX_WAIT)]:
+        info = classify(command, cwd, env)
+        for key, maximum in [('timeout', MAX_RUNTIME), ('queue_timeout', MAX_WAIT_DARWIN if info['darwin'] else MAX_WAIT)]:
             if not isinstance(req.get(key), int) or not 1 <= req[key] <= maximum:
                 raise ValueError(key + ' outside host bounds')
+        artifacts = req.get('artifacts') or []
+        if not isinstance(artifacts, list) or len(artifacts) > 32 or any(
+                not isinstance(a, str) or not a or a.startswith('/') or '..' in Path(a).parts for a in artifacts):
+            raise ValueError('artifacts must be relative project paths')
         if req.get('priority') not in (None, *LEVELS) or req.get('klass') not in (None, *CLASSES):
             raise ValueError('unknown priority or class')
         if sum(j.state == 'queued' for j in self.jobs.values()) >= 128:
@@ -375,18 +398,19 @@ class Scheduler:
         worker_name = req.get('worker') or 'local'
         if not isinstance(req.get('worker', 'local'), (str, type(None))):
             raise ValueError('worker must be a configured name')
-        remote = None
-        if worker_name != 'local':
-            spec = remote_worker.worker_config(self.config, worker_name)
-            remote = dict(spec=spec, payload=remote_worker.prepare(req, spec, 'pending', req['timeout'],
-                min(self.config['job_memory_max_gib'], spec['memory_budget_gib'])))
-        info = classify(command, cwd, env)
+        if info['darwin'] and worker_name == 'local' and self.worker_names():
+            worker_name = 'auto'
+        if worker_name == 'local' and self.config.get('auto_placement') and info['portable']:
+            worker_name = 'auto'
         self.sequence += 1
         job_id = uuid.uuid4().hex
+        remote = None
+        if worker_name not in ('local', 'auto'):
+            remote = self.remote_request(req, worker_name, info, job_id, artifacts)
+            spec = remote['spec']
         sig = signature(info['project'], command)
         if remote:
             sig = signature(info['project'] + ':' + worker_name, command)
-            remote['payload']['env']['PANDAOS_BUILD_JOB_ID'] = job_id
         estimate = self.estimate(sig, info['klass'])
         klass = req.get('klass') or (estimate['klass'] if estimate['source'] != 'heuristic' else info['klass'])
         source = 'requested' if req.get('klass') else estimate['source']
@@ -397,13 +421,15 @@ class Scheduler:
         job = Job(dict(id=job_id, sequence=self.sequence, state='queued', klass=klass, class_source=source,
                        rule=info['rule'], priority=priority, agent=env.get('PASEO_AGENT_ID') or 'uid:' + str(uid),
                        project=info['project'], cwd=cwd,
-                       lock=remote_worker.map_path(info['lock'], spec) if remote else info['lock'], command=command,
+                       lock=remote_worker.map_path(info['lock'], remote_worker.with_mapping(spec, remote.get('snapshot')))
+                       if remote else info['lock'], command=command,
                        timeout=req['timeout'], queue_timeout=req['queue_timeout'], detach=bool(req.get('detach')),
                        created=now(), started=None, finished=None, exit=None, reason=None, wait_reason=None,
                        estimate=dict(memory_gib=gib(estimate['memory']), cores=estimate['cores'],
                                      wall=estimate['wall'], measured_class=estimate['klass']),
                        measured=None, signature=sig, cache=None, decision=None, label=req.get('label'),
-                       cargo=info['cargo'], gradle=info['gradle'], worker=worker_name))
+                       cargo=info['cargo'], gradle=info['gradle'], worker=worker_name, needs=info['needs'],
+                       darwin=info['darwin'], portable=info['portable'], artifacts=artifacts, placement=None))
         job.directory.mkdir(mode=0o750)
         os.chown(job.directory, 0, self.account.pw_gid)
         out = job.directory / 'out'
@@ -413,7 +439,8 @@ class Scheduler:
             (job.directory / name).touch(0o640)
             os.chown(job.directory / name, 0, self.account.pw_gid)
         atomic_write(job.directory / 'request.json', json.dumps(dict(command=command, env=env if not remote else {},
-                                                                   cwd=cwd, remote=remote)), 0o640,
+                                                                   cwd=cwd, remote=remote, timeout=req['timeout'],
+                                                                   artifacts=artifacts)), 0o640,
                      self.account.pw_gid)
         self.jobs[job.id] = job
         self.log('queued', job, command=' '.join(command)[:300], class_source=source, rule=info['rule'],
@@ -421,6 +448,127 @@ class Scheduler:
         self.save()
         self.wakeup.set()
         return job
+
+    def remote_request(self, req, name, info, job_id, artifacts):
+        spec = remote_worker.worker_config(self.config, name)
+        mapping = remote_worker.snapshot_mapping(spec, info['project'])
+        payload = remote_worker.prepare(req, remote_worker.with_mapping(spec, mapping), job_id, req['timeout'],
+                                        min(self.config['job_memory_max_gib'], spec['memory_budget_gib']))
+        return dict(spec=spec, payload=payload, snapshot=mapping, artifacts=artifacts)
+
+    def worker_names(self):
+        return [name for name, spec in (self.config.get('workers') or {}).items()
+                if isinstance(spec, dict) and spec.get('enabled') is True]
+
+    def compatible(self, job, name):
+        if name == 'local':
+            return None if not job.darwin else 'iOS/Xcode nur auf macOS'
+        probe = self.workers.get(name) or {}
+        if probe.get('error') or not probe.get('sampled_at'):
+            return 'nicht erreichbar'
+        if job.darwin and probe.get('platform') != 'darwin':
+            return 'kein macOS'
+        if not job.darwin and not job.portable:
+            return 'Projekt nicht als Snapshot übertragbar'
+        missing = [tool for tool in job.needs if tool not in (probe.get('tools') or {})]
+        if missing:
+            return 'Werkzeug fehlt: ' + ', '.join(missing)
+        if job.klass == 'light' and not job.darwin:
+            return 'leichte Jobs bleiben lokal'
+        return None
+
+    def expected_wall(self, job, name):
+        default = dict(light=30, medium=120, heavy=600)[job.klass]
+        local = job.estimate.get('wall') or default
+        if name == 'local':
+            return local
+        spec = (self.config.get('workers') or {}).get(name, {})
+        runs = [r for r in self.history.get(signature(job.project + ':' + name, job.command), ()) if r.get('wall')]
+        if runs:
+            walls = sorted(r['wall'] for r in runs)
+            return walls[len(walls) // 2]
+        warm = any(r.get('worker') == name and r.get('project') == job.project
+                   for runs in self.history.values() for r in runs)
+        return local * spec.get('speed_factor', 0.8) * (1 if warm else spec.get('cold_factor', 1.5))
+
+    def expected_sync(self, job, name):
+        if name == 'local':
+            return 0
+        times = [r['sync_seconds'] for runs in self.history.values() for r in runs
+                 if r.get('worker') == name and r.get('project') == job.project and r.get('sync_seconds')]
+        return sorted(times)[len(times) // 2] if times else 30
+
+    def expected_wait(self, name, reason):
+        if not reason:
+            return 0
+        running = [j for j in self.jobs.values() if j.state == 'running' and j.worker == name]
+        remaining = [max((j.estimate.get('wall') or 120) - (now() - (j.started or now())), 10) for j in running]
+        return min(remaining) if remaining else 60
+
+    def place(self, job, reserved):
+        candidates = []
+        for name in ['local'] + self.worker_names():
+            incompatible = self.compatible(job, name)
+            if incompatible:
+                candidates.append(dict(worker=name, blocked=incompatible))
+                continue
+            snap = self.snapshot(name)
+            reason = self.blocker(job, snap, reserved if reserved and reserved.worker == name else None)
+            if name != 'local' and not reason:
+                reason = self.protect_worker(job, name)
+            wall = self.expected_wall(job, name)
+            sync = self.expected_sync(job, name)
+            transfer = 10 * len(job.artifacts) if name != 'local' else 0
+            eta = self.expected_wait(name, reason) + sync + wall + transfer
+            candidates.append(dict(worker=name, reason=reason, eta=round(eta), wall=round(wall), sync=round(sync),
+                                   snap=snap))
+        usable = [c for c in candidates if 'eta' in c]
+        ready = [c for c in usable if not c['reason']]
+        local = next((c for c in ready if c['worker'] == 'local'), None)
+        choice = None
+        if ready:
+            choice = min(ready, key=lambda c: c['eta'])
+            if local and choice['worker'] != 'local' and choice['eta'] > local['eta'] * self.config.get(
+                    'remote_advantage', 0.85):
+                choice = local
+        view = [{k: v for k, v in c.items() if k != 'snap'} for c in candidates]
+        if not choice:
+            if job.darwin and not usable:
+                return None, 'wartet auf Mac-Worker (iOS)', view
+            if not usable:
+                return None, 'kein passender Worker', view
+            return None, '; '.join(c['worker'] + ': ' + c['reason'] for c in sorted(usable, key=lambda c: c['eta'])), view
+        return choice, None, view
+
+    def protect_worker(self, job, name):
+        spec = self.config['workers'][name]
+        probe = self.workers.get(name) or {}
+        if probe.get('on_ac') is False:
+            if not job.darwin:
+                return 'Mac im Akkubetrieb'
+            if (probe.get('battery') or 0) < spec.get('battery_min_percent', 50):
+                return 'Mac-Akku unter %d %%' % spec.get('battery_min_percent', 50)
+        idle = probe.get('idle_seconds')
+        if idle is not None and idle < spec.get('active_idle_seconds', 120) and not job.darwin and job.klass == 'heavy' \
+                and job.priority not in ('interactive', 'blocking'):
+            return 'Mac wird gerade benutzt'
+        return None
+
+    async def bind(self, job, choice, view):
+        job.placement = dict(worker=choice['worker'], eta=choice['eta'], candidates=view)
+        if choice['worker'] != 'local':
+            path = job.directory / 'request.json'
+            req = json.loads(path.read_text())
+            req.update(timeout=job.timeout, queue_timeout=job.queue_timeout)
+            info = dict(project=job.project)
+            remote = self.remote_request(req, choice['worker'], info, job.id, job.artifacts)
+            job.lock = remote_worker.map_path(job.lock, remote_worker.with_mapping(remote['spec'], remote['snapshot']))
+            atomic_write(path, json.dumps(dict(command=job.command, env={}, cwd=job.cwd, remote=remote,
+                                               timeout=job.timeout, artifacts=job.artifacts)),
+                         0o640, self.account.pw_gid)
+        job.worker = choice['worker']
+        self.log('placed', job, worker=job.worker, eta=choice['eta'], candidates=view,
+                 why='kürzeste erwartete Fertigstellung' if len(view) > 1 else 'einziger Worker')
 
     def effective_level(self, job):
         waited = now() - job.created
@@ -590,7 +738,10 @@ class Scheduler:
 
     async def schedule(self):
         self.measure()
-        self.refresh_workers({j.worker for j in self.jobs.values() if j.state in ('running', 'queued')})
+        names = {j.worker for j in self.jobs.values() if j.state in ('running', 'queued')}
+        if 'auto' in names:
+            names |= set(self.worker_names())
+        self.refresh_workers(names - {'auto'})
         snap = self.snapshot()
         queued = [j for j in self.jobs.values() if j.state == 'queued']
         for job in queued:
@@ -604,8 +755,17 @@ class Scheduler:
         queued.sort(key=lambda j: (self.effective_level(j), agent_load[j.agent], j.sequence))
         reserved = None
         for job in queued:
-            snap = self.snapshot(job.worker)
-            reason = self.blocker(job, snap, reserved if reserved and reserved.worker == job.worker else None)
+            if job.worker == 'auto':
+                choice, reason, view = self.place(job, reserved)
+                if choice:
+                    await self.bind(job, choice, view)
+                    reason = None
+                snap = choice['snap'] if choice else self.snapshot('local')
+            else:
+                snap = self.snapshot(job.worker)
+                reason = self.blocker(job, snap, reserved if reserved and reserved.worker == job.worker else None)
+                if reason is None and job.worker != 'local':
+                    reason = self.protect_worker(job, job.worker)
             if reason is None:
                 job.decision = dict(capacity=dict(snap['metrics']), why='Kapazität frei')
                 await self.start(job)
@@ -732,6 +892,10 @@ class Scheduler:
         for key in ('sccache', 'ccache'):
             if data.get(key):
                 cache[key] = data[key]
+        if data.get('artifacts'):
+            cache['artifacts'] = dict(paths=data['artifacts'], directory=str(job.directory / 'out' / 'artifacts'))
+        if data.get('sync_seconds') is not None:
+            cache['sync_seconds'] = data['sync_seconds']
         job.cache = cache or None
         code = data.get('exit', 125)
         if not reason and not job.reason and measured['wall'] >= job.timeout - 1:
@@ -743,7 +907,8 @@ class Scheduler:
                          class_source=job.class_source, peak_memory=measured['peak_memory'],
                          cpu_seconds=measured['cpu_seconds'], wall=measured['wall'],
                          waited=round(job.started - job.created, 1), exit=code, agent=job.agent,
-                         command=' '.join(job.command)[:200], cache=job.cache, io_written=measured.get('io_written'))
+                         command=' '.join(job.command)[:200], cache=job.cache, io_written=measured.get('io_written'),
+                         worker=job.worker, sync_seconds=(job.cache or {}).get('sync_seconds'))
             self.history[job.signature].append(entry)
             with open(STATE / 'history.jsonl', 'a') as f:
                 f.write(json.dumps(entry) + '\n')
@@ -826,10 +991,14 @@ class Scheduler:
                            capacity=self.snapshot(name)['metrics'])
                 return
             if operation == 'status':
+                self.refresh_workers(set(self.worker_names()))
                 self.snapshot()
                 active = [j.view() for j in self.jobs.values() if j.state != 'finished']
                 recent = [j.view() for j in self.jobs.values() if j.state == 'finished'][-int(req.get('recent', 20)):] if int(req.get('recent', 20)) else []
                 await send(writer, jobs=recent + active, capacity=self.capacity, workers=self.workers, config=dict(
+                    workers={n: bool(isinstance(w, dict) and w.get('enabled') is True)
+                             for n, w in (self.config.get('workers') or {}).items()},
+                    auto_placement=bool(self.config.get('auto_placement')),
                     max_running=self.config['max_running'], max_heavy=self.config['max_heavy'],
                     build_memory_budget_gib=self.config['build_memory_budget_gib']))
                 return
@@ -1098,6 +1267,25 @@ def legacy_request(payload):
         sock.close()
 
 
+def human_workers(data):
+    cap = data.get('capacity') or {}
+    print('local (Zotac): RAM frei für Builds %.1f GiB, CPU %.1f/%.1f Kerne, %d Jobs' % (
+        cap.get('memory_free_for_builds_gib', 0), cap.get('cpu_committed', 0), cap.get('cpu_capacity', 0),
+        cap.get('running', 0)))
+    configured = (data.get('config') or {}).get('workers') or {}
+    for name, enabled in configured.items():
+        probe = (data.get('workers') or {}).get(name) or {}
+        if not enabled:
+            print('%s: deaktiviert' % name)
+        elif probe.get('error') or not probe:
+            print('%s: nicht erreichbar' % name)
+        else:
+            power = 'Netzteil' if probe.get('on_ac') else 'Akku %s %%' % probe.get('battery')
+            print('%s: %s, %d Kerne, %.1f GiB frei, Last %.1f, %s, Leerlauf %ss, Werkzeuge: %s' % (
+                name, probe.get('platform'), probe.get('cores', 0), probe.get('available_memory', 0) / GIB,
+                probe.get('load', 0), power, probe.get('idle_seconds'), ', '.join(sorted(probe.get('tools') or {}))))
+
+
 def human_status(data):
     cap = data['capacity']
     print('Kapazität: RAM frei für Builds %.1f GiB (verfügbar %.1f), CPU %.1f/%.1f Kerne, Druck CPU %.0f %% RAM %.0f %%' % (
@@ -1179,7 +1367,8 @@ def client(argv, legacy):
     parser.add_argument('--class', dest='klass', choices=CLASSES, default=os.environ.get('PANDAOS_BUILD_CLASS') or None)
     parser.add_argument('--detach', action='store_true')
     parser.add_argument('--label')
-    parser.add_argument('--worker', default='local', help='optional configured worker; default: local Zotac')
+    parser.add_argument('--worker', default='local', help='local (default), auto or a configured worker name')
+    parser.add_argument('--artifact', action='append', default=[], help='project-relative path to fetch from a remote worker')
     parser.add_argument('--json', action='store_true')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
@@ -1194,6 +1383,13 @@ def client(argv, legacy):
             print(json.dumps(data, indent=2))
             probe = data.get('probe')
             return 0 if data.get('event') != 'error' and isinstance(probe, dict) and probe and not probe.get('error') else 125
+        if cmd == ['workers']:
+            data = request(dict(operation='status', recent=0))
+            if args.json:
+                print(json.dumps(dict(workers=data.get('workers'), local=data.get('capacity')), indent=2))
+            else:
+                human_workers(data)
+            return 0
         if cmd[:1] == ['status']:
             data = request(dict(operation='status', recent=int(cmd[1]) if len(cmd) > 1 else 20))
             legacy_data = legacy_request(dict(operation='status'))
@@ -1220,7 +1416,7 @@ def client(argv, legacy):
         return 125
     if not cmd:
         parser.error('use -- COMMAND, status, cancel JOB, attach JOB, logs JOB or report [DAYS]')
-    if not 1 <= args.timeout <= MAX_RUNTIME or not 1 <= args.queue_timeout <= MAX_WAIT:
+    if not 1 <= args.timeout <= MAX_RUNTIME or not 1 <= args.queue_timeout <= MAX_WAIT_DARWIN:
         parser.error('timeout exceeds host bounds')
     if isolated():
         if args.worker != 'local':
@@ -1228,7 +1424,7 @@ def client(argv, legacy):
         os.execvpe(cmd[0], cmd, dict(os.environ))
     payload = dict(operation='submit', command=cmd, env=dict(os.environ), cwd=os.getcwd(), timeout=args.timeout,
                    queue_timeout=args.queue_timeout, priority=args.priority, klass=args.klass, detach=args.detach,
-                   label=args.label, worker=args.worker)
+                   label=args.label, worker=args.worker, artifacts=args.artifact)
     if len((json.dumps(payload) + '\n').encode()) > MAX_REQUEST:
         print(tag + ': request exceeds 1 MiB', file=sys.stderr)
         return 125

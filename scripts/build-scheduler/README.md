@@ -84,81 +84,65 @@ Installation picks the only connected physical device or requires `--device`, co
 
 PandaOS itself uses its own persistent builder, see [Android](../../docs/android.md).
 
-## Optional Mac development worker
+## Remote workers
 
-Zotac remains the default. `--worker NAME` selects an enabled SSH worker inside the
-existing scheduler. Priorities, job IDs, cancellation, output, reconnects and
-history keep using the same queue and local systemd job. No worker daemon or
-second queue runs on the Mac.
+The Zotac stays the controller. A remote worker such as the MacBook runs jobs over SSH; the job keeps its ID, output, cancellation, history and local systemd unit on the Zotac. No daemon or second queue runs on the worker. The worker is optional: when it is off, asleep or unreachable, every compatible job runs on the Zotac.
 
-Merge a worker entry into `/etc/pandaos-build-scheduler/config.json` only when
-activation is coordinated with the scheduler owner. This example is configuration,
-not an installed or tested development checkout:
+Configure workers in `/etc/pandaos-build-scheduler/config.json`:
 
 ```json
 {
+  "auto_placement": false,
   "workers": {
     "macbook": {
-      "enabled": true,
+      "enabled": false,
       "ssh": "macbook",
       "node": "/usr/local/bin/node",
       "path_maps": [{ "local": "/home/admin/projects", "remote": "/Users/mau/projects" }],
-      "env": { "PATH": "/usr/local/bin:/usr/bin:/bin" },
-      "memory_budget_gib": 4,
-      "reserve_memory_gib": 4,
-      "max_cores": 2,
-      "max_running": 1
+      "snapshot_root": "/Users/mau/.pandaos-worker/snapshots",
+      "env": {},
+      "memory_budget_gib": 16,
+      "reserve_memory_gib": 8,
+      "max_cores": 8,
+      "max_running": 2,
+      "speed_factor": 0.8,
+      "battery_min_percent": 50,
+      "active_idle_seconds": 120
     }
   }
 }
 ```
 
-The SSH alias belongs to the configured scheduler user. The configured Mac SSH
-account is trusted with the same user authority as local queued commands. Node
-must already exist on that host. No packages, source, credentials or environment files are copied.
-Only CI, NODE_ENV, TERM, LANG, LC_ALL, TZ and EXPO_NO_TELEMETRY are forwarded.
-The worker keeps its native HOME, Java and Android environment; put required
-native tool paths in its explicit `env` configuration. Caller PATH and SDK paths
-never cross hosts.
+`ssh` is an alias of the scheduler account's `~/.ssh/config`. Leave `env` empty: the worker sets `JAVA_HOME` from Android Studio's JBR, `ANDROID_HOME`, Homebrew and Cargo paths itself. Only `CI`, `NODE_ENV`, `TERM`, `LANG`, `LC_ALL`, `TZ` and `EXPO_NO_TELEMETRY` cross hosts; caller credentials, tokens and SDK paths never do.
 
-One root mapping covers every project below it. The remote source and its
-dependencies must already exist. The working directory, absolute argv paths and
-`--option=/absolute/path` values use the longest matching root mapping. `/bin`
-and `/usr/bin` executables use the host-native path. Paths inside shell strings,
-embedded options such as `-I/path`, relative scripts and generated artifacts are interpreted on the worker; there
-is no automatic source sync, artifact download or network tunnel. A Mac Metro
-server additionally needs a prepared checkout and a reachable device URL.
+### Placement
+
+`--worker local` (default) pins the Zotac, `--worker NAME` pins a worker, `--worker auto` lets the scheduler choose. With `auto_placement: true`, medium and heavy jobs in a git project become `auto`. iOS commands (`xcodebuild`, `xcrun`, `pod install`, `flutter build ios|ipa`, `expo run:ios`, `fastlane ios`) become `auto` whenever a worker is enabled and wait for a macOS worker, up to their `--queue-timeout` (24 h maximum); they never run on Linux. Commands that reach the Mac themselves through `ssh` stay local.
+
+For each candidate the scheduler checks platform, the toolchains the command needs (reported by the worker probe), whether the project can be copied as a snapshot, and admission. Light jobs stay local. Then it estimates completion time as expected wait + snapshot sync + build time + artifact transfer. Build time comes from the job's history on that worker; without history it is the Zotac estimate × `speed_factor`, × 1.5 until the worker built the project once. A remote worker wins only if it is at least 15 % faster than an available Zotac, so a warm Zotac keeps its builds. The binding happens when the job starts; a running job never moves. The `placed` decision records every candidate with its estimate or blocking reason.
+
+The MacBook is protected:
+
+| State                              | Effect                                                                                                                        |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Battery power                      | Only iOS jobs, and only from `battery_min_percent`                                                                            |
+| Input within `active_idle_seconds` | No background heavy jobs; interactive and blocking jobs still run                                                             |
+| Load and free memory               | Reported by the probe, admission like on the Zotac with `memory_budget_gib`, `reserve_memory_gib`, `max_cores`, `max_running` |
+
+macOS has no cgroups: CPU admission is a reservation and memory is sampled once per second; a job above the memory limit is stopped.
+
+### Snapshots and artifacts
+
+Before a remote job starts, the job copies the project worktree with rsync into `snapshot_root/<project>-<hash>`, including uncommitted and untracked files. `.git`, `.gitignore` entries, `node_modules`, `build`, `.gradle`, `.cxx`, `Pods`, `DerivedData`, `target`, `.dart_tool`, keystores, provisioning profiles, `.env` files, `key.properties` and `local.properties` stay on the Zotac. Platform outputs and dependencies therefore stay separate per host and stay warm between runs. Each worktree gets its own snapshot; the scheduler serializes jobs on the same snapshot. Builds that need signing material or `npm ci` must find them on the worker.
+
+`--artifact PATH` (project-relative, repeatable) copies results back into `jobs/<id>/out/artifacts/` after a successful run; `status --json` lists them under `cache.artifacts`.
+
+If the SSH connection breaks, the worker's lease expires and it kills the job's process group; the Zotac job ends with 125 and is not retried.
 
 ```bash
+pandaos-build-scheduler workers
 pandaos-build-scheduler --worker macbook worker-probe
-pandaos-android-queue --worker macbook --priority interactive -- node script.mjs
-pandaos-build-scheduler --json status
-pandaos-build-scheduler cancel JOB
-```
-
-Probes run only for explicit requests or queued/running worker jobs, with bounded
-SSH timeouts and a ten-second cache. The scheduler reserves memory and cores per
-host; unavailable workers defer their own jobs without moving them to Zotac.
-Each worker shares one bounded background probe. Scheduling and reaping never
-wait for SSH; an explicit `worker-probe` request waits for that same task.
-Remote admission uses free/reclaimable memory and system load. Mac memory and CPU
-measurements sample the process group once per second, so they can miss short
-peaks and exited children. Mac CPU admission is a reservation, not a hard cgroup
-quota; macOS cannot provide the Linux cgroup guarantees. The memory watchdog
-stops a group exceeding the existing job memory limit after a sample.
-
-Timeouts, disconnects and cancellation terminate the job's process group, with
-SIGKILL after one second. Loss of the SSH input lease stops it within about ten
-seconds plus sampling/kill delay. Commands must stay in that process group and
-must not launch detached services. The local transport remains in the existing
-build slice and keeps its current limits. A scheduler restart preserves the
-local systemd wrapper and normal adoption; do not replace helper files while
-jobs are starting. This change does not implement a live configuration reload.
-
-Focused verification, through the existing host queue:
-
-```bash
-pandaos-android-queue --priority blocking -- python3 scripts/build-scheduler/smoke.py --optional-worker
+pandaos-build-scheduler --worker auto --artifact app/build/outputs/apk/debug/app-debug.apk -- ./gradlew assembleDebug
 ```
 
 ## Recovery
@@ -181,6 +165,8 @@ The legacy queue must be installed first; it provides the JDK/SDK facades and `a
 
 ```sh
 python3 scripts/build-scheduler/smoke.py
+pandaos-android-queue --priority blocking -- python3 scripts/build-scheduler/smoke.py --optional-worker
+python3 -B scripts/build-scheduler/placement_tests.py
 ```
 
 The smoke check covers exit codes, separate streams, missing executables, nested calls, parallel start, build-directory locks, SIGTERM, killed clients, runtime limits, detached jobs with log replay, scheduler restart with reattach, and legacy status. It starts no Android build and runs on a live scheduler.

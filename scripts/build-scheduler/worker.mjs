@@ -1,6 +1,50 @@
 import os from "node:os";
 import { spawn, execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import readline from "node:readline";
+
+function toolCandidates() {
+  const home = os.homedir();
+  return {
+    java_home: [
+      process.env.JAVA_HOME,
+      "/Applications/Android Studio.app/Contents/jbr/Contents/Home",
+      "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+    ].filter(Boolean),
+    android_sdk: [
+      process.env.ANDROID_HOME,
+      `${home}/Library/Android/sdk`,
+      "/home/admin/Android/Sdk",
+    ].filter(Boolean),
+    flutter: [
+      "/opt/homebrew/bin/flutter",
+      `${home}/flutter/bin/flutter`,
+      `${home}/development/flutter/bin/flutter`,
+    ],
+    cargo: [`${home}/.cargo/bin/cargo`, "/opt/homebrew/bin/cargo"],
+    node: [process.execPath],
+    xcode: ["/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild"],
+    pod: ["/opt/homebrew/bin/pod", "/usr/local/bin/pod"],
+    rsync: ["/usr/bin/rsync", "/opt/homebrew/bin/rsync"],
+  };
+}
+
+function toolEnvironment() {
+  const env = {};
+  const candidates = toolCandidates();
+  const java = candidates.java_home.find((path) => existsSync(path));
+  const sdk = candidates.android_sdk.find((path) => existsSync(path));
+  if (java) env.JAVA_HOME = java;
+  if (sdk) {
+    env.ANDROID_HOME = sdk;
+    env.ANDROID_SDK_ROOT = sdk;
+  }
+  const bins = ["/opt/homebrew/bin", "/usr/local/bin", `${os.homedir()}/.cargo/bin`];
+  if (java) bins.unshift(`${java}/bin`);
+  if (sdk) bins.push(`${sdk}/platform-tools`);
+  env.PATH = [...bins, process.env.PATH ?? "/usr/bin:/bin"].join(":");
+  return env;
+}
 
 function send(event) {
   process.stdout.write(`${JSON.stringify(event)}\n`);
@@ -16,6 +60,32 @@ if (process.argv[1] === "probe") {
       return total + Number(match?.[1] ?? 0) * page;
     }, 0);
   }
+  const power = {};
+  const tools = {};
+  if (process.platform === "darwin") {
+    try {
+      const batt = execFileSync("/usr/bin/pmset", ["-g", "batt"], {
+        encoding: "utf8",
+        timeout: 2000,
+      });
+      power.on_ac = batt.includes("AC Power");
+      const percent = batt.match(/(\d+)%/);
+      power.battery = percent ? Number(percent[1]) : null;
+    } catch {}
+    try {
+      const hid = execFileSync("/usr/sbin/ioreg", ["-c", "IOHIDSystem", "-d", "4"], {
+        encoding: "utf8",
+        timeout: 3000,
+        maxBuffer: 16 * 1024 * 1024,
+      });
+      const idle = hid.match(/"HIDIdleTime" = (\d+)/);
+      power.idle_seconds = idle ? Math.floor(Number(idle[1]) / 1e9) : null;
+    } catch {}
+  }
+  for (const [name, candidates] of Object.entries(toolCandidates())) {
+    const found = candidates.find((path) => existsSync(path));
+    if (found) tools[name] = found;
+  }
   send({
     platform: process.platform,
     available_memory: available,
@@ -23,6 +93,8 @@ if (process.argv[1] === "probe") {
     cores: os.availableParallelism(),
     load: os.loadavg()[0],
     node: process.version,
+    ...power,
+    tools,
   });
 } else {
   const input = readline.createInterface({ input: process.stdin });
@@ -145,7 +217,7 @@ if (process.argv[1] === "probe") {
       started = Date.now();
       child = spawn(payload.command[0], payload.command.slice(1), {
         cwd: payload.cwd,
-        env: { ...process.env, ...payload.env },
+        env: { ...process.env, ...toolEnvironment(), ...payload.env },
         detached: true,
         stdio: ["ignore", "pipe", "pipe"],
       });

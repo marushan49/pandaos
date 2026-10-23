@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import contextlib
+import hashlib
 import json
 import math
 import os
@@ -48,6 +49,59 @@ def worker_config(config, name):
                                      or not isinstance(v, str) or '\0' in v for k, v in env.items()):
         raise ValueError('invalid worker environment')
     return dict(spec, node=node, env=env)
+
+
+SNAPSHOT_EXCLUDES = ['/.git', '.git/', 'node_modules/', '.worktrees/', '.dev/', '__pycache__/', '.gradle/',
+                     '.cxx/', 'build/', 'DerivedData/', 'Pods/', 'target/', '.dart_tool/', '*.keystore', '*.jks',
+                     '*.p12', '*.mobileprovision', '.env', '.env.*', 'key.properties', 'local.properties']
+SSH_OPTIONS = ['-oBatchMode=yes', '-oConnectTimeout=5', '-oServerAliveInterval=3', '-oServerAliveCountMax=2']
+
+
+def snapshot_mapping(spec, project):
+    root = spec.get('snapshot_root')
+    if not root:
+        return None
+    if not isinstance(root, str) or not root.startswith('/') or '..' in Path(root).parts:
+        raise ValueError('worker snapshot_root must be absolute')
+    name = re.sub(r'[^A-Za-z0-9_.-]', '-', Path(project).name)[:40] or 'project'
+    key = name + '-' + hashlib.sha1(project.encode()).hexdigest()[:8]
+    return dict(local=project, remote=root.rstrip('/') + '/' + key)
+
+
+def with_mapping(spec, mapping):
+    if not mapping:
+        return spec
+    return dict(spec, path_maps=[mapping] + list(spec['path_maps']))
+
+
+def rsync(args, timeout):
+    command = ['/usr/bin/rsync', '-a', '-e', ' '.join(['/usr/bin/ssh', *SSH_OPTIONS])] + args
+    started = time.monotonic()
+    result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout)
+    if result.returncode:
+        raise ValueError('rsync failed with exit %d' % result.returncode)
+    return round(time.monotonic() - started, 2)
+
+
+def sync_snapshot(spec, mapping, timeout=900):
+    subprocess.run(['/usr/bin/ssh', *SSH_OPTIONS, spec['ssh'], shlex.join(['mkdir', '-p', mapping['remote']])],
+                   stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+    excludes = [arg for pattern in SNAPSHOT_EXCLUDES for arg in ('--exclude', pattern)]
+    return rsync(['--delete', '--filter', ':- .gitignore', *excludes, mapping['local'].rstrip('/') + '/',
+                  spec['ssh'] + ':' + mapping['remote'] + '/'], timeout)
+
+
+def fetch_artifacts(spec, mapping, patterns, destination, timeout=900):
+    destination.mkdir(parents=True, exist_ok=True)
+    fetched = []
+    for pattern in patterns:
+        if pattern.startswith('/') or '..' in Path(pattern).parts or '\0' in pattern:
+            raise ValueError('artifact paths must be relative to the project')
+        target = destination / pattern
+        target.parent.mkdir(parents=True, exist_ok=True)
+        rsync([spec['ssh'] + ':' + mapping['remote'] + '/' + pattern.rstrip('/'), str(target.parent) + '/'], timeout)
+        fetched.append(pattern)
+    return fetched
 
 
 def map_path(value, spec):
@@ -109,6 +163,29 @@ async def probe(spec, account=None):
 def run(req, directory):
     directory = Path(directory)
     spec, payload = req['remote']['spec'], req['remote']['payload']
+    mapping = req['remote'].get('snapshot')
+    sync_seconds = None
+    if mapping:
+        try:
+            sync_seconds = sync_snapshot(spec, mapping)
+            print('build-scheduler: snapshot synced to %s in %.1fs' % (spec['ssh'], sync_seconds), file=sys.stderr,
+                  flush=True)
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            print('build-scheduler: snapshot sync failed: ' + type(exc).__name__, file=sys.stderr, flush=True)
+            return dict(exit=125, reason='snapshot sync failed', wall=0)
+    result = transport(spec, payload, directory)
+    result['sync_seconds'] = sync_seconds
+    patterns = req['remote'].get('artifacts') or []
+    if mapping and patterns and result.get('exit') == 0:
+        try:
+            result['artifacts'] = fetch_artifacts(spec, mapping, patterns, directory / 'out' / 'artifacts')
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            print('build-scheduler: artifact download failed: ' + type(exc).__name__, file=sys.stderr, flush=True)
+            result.update(exit=125, reason='artifact download failed')
+    return result
+
+
+def transport(spec, payload, directory):
     proc = subprocess.Popen(ssh_command(spec, 'run'), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=None, bufsize=0)
     stopped = []
