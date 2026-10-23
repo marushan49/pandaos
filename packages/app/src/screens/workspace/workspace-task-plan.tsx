@@ -52,7 +52,7 @@ export function WorkspaceTaskPlan({
       : EMPTY_STREAM,
   );
   const sessionTitle = useSessionStore((state) =>
-    agentId ? state.sessions[serverId]?.agents.get(agentId)?.title : undefined,
+    agentId ? (state.sessions[serverId]?.agents.get(agentId)?.title ?? "") : "",
   );
   const request = useMemo(() => {
     const message =
@@ -123,8 +123,9 @@ export function WorkspaceTaskPlan({
             accessibilityState={expandedState}
             style={styles.headingButton}
             textStyle={styles.title}
+            numberOfLines={1}
           >
-            {t("message.todo.title")}
+            {agentId ? sessionTitle : t("sessions.empty")}
           </Button>
           {progress ? <Text style={styles.progress}>{progress}</Text> : null}
           {agentId ? (
@@ -148,7 +149,7 @@ export function WorkspaceTaskPlan({
               <View style={styles.requestRow}>
                 {request ? <ThemedCircleDot size={16} uniProps={mutedIconColorMapping} /> : null}
                 <Text style={styles.request} numberOfLines={3}>
-                  {request || sessionTitle || t("message.todo.empty")}
+                  {request || t("message.todo.empty")}
                 </Text>
               </View>
             ) : null}
@@ -219,6 +220,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   headingButton: { flex: 1, minWidth: 0, justifyContent: "flex-start" },
   title: {
+    flexShrink: 1,
     color: theme.colors.foreground,
     fontSize: theme.fontSize.base,
     fontWeight: theme.fontWeight.medium,
