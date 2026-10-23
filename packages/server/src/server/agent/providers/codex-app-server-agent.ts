@@ -67,6 +67,7 @@ import {
   type ProviderRuntimeSettings,
   type ResolvedProviderLaunch,
 } from "../provider-launch-config.js";
+import { readCodexRolloutPlans, type CodexRolloutPlan } from "./codex/rollout-plans.js";
 import {
   findExecutable,
   probeExecutable,
@@ -2118,6 +2119,7 @@ async function loadCodexThreadHistoryTimeline(params: {
   const response = await requestCodexThreadHistory(params.requestThread, params.threadId);
   const timeline: PersistedTimelineEntry[] = [];
   const subAgentTimelineIndexByThreadId = new Map<string, number>();
+  const turnEndIndexById = new Map<string, number>();
   for (const turn of response.thread.turns) {
     for (const item of turn.items) {
       const historicalSubAgentActivity = readCodexSubAgentActivity(item);
@@ -2158,6 +2160,7 @@ async function loadCodexThreadHistoryTimeline(params: {
         }
       }
     }
+    if (typeof turn.id === "string") turnEndIndexById.set(turn.id, timeline.length);
   }
   const subAgentRoutes = Array.from(subAgentTimelineIndexByThreadId.entries()).flatMap(
     ([childThreadId, timelineIndex]): PersistedSubAgentRoute[] => {
@@ -2167,7 +2170,34 @@ async function loadCodexThreadHistoryTimeline(params: {
         : [];
     },
   );
-  return { timeline, subAgentRoutes };
+  const rolloutPath = response.thread.path;
+  const plans = typeof rolloutPath === "string" ? await readCodexRolloutPlans(rolloutPath) : [];
+  return { timeline: withRolloutPlans(timeline, plans, turnEndIndexById), subAgentRoutes };
+}
+
+function withRolloutPlans(
+  timeline: PersistedTimelineEntry[],
+  plans: readonly CodexRolloutPlan[],
+  turnEndIndexById: ReadonlyMap<string, number>,
+): PersistedTimelineEntry[] {
+  if (plans.length === 0) return timeline;
+  const insertsByIndex = new Map<number, PersistedTimelineEntry[]>();
+  for (const plan of plans) {
+    const index = (plan.turnId ? turnEndIndexById.get(plan.turnId) : undefined) ?? timeline.length;
+    const inserts = insertsByIndex.get(index) ?? [];
+    inserts.push({
+      item: mapCodexPlanUpdateToTodo(plan.steps),
+      ...(plan.timestamp ? { timestamp: plan.timestamp } : {}),
+    });
+    insertsByIndex.set(index, inserts);
+  }
+  const merged: PersistedTimelineEntry[] = [];
+  for (let index = 0; index <= timeline.length; index += 1) {
+    merged.push(...(insertsByIndex.get(index) ?? []));
+    const entry = timeline[index];
+    if (entry) merged.push(entry);
+  }
+  return merged;
 }
 
 function readCodexThread(client: CodexAppServerClientLike, threadId: string): Promise<unknown> {

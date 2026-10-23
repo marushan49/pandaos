@@ -488,6 +488,12 @@ async function startCompactionTurnTest(): Promise<{
   return { appServer, session, events, terminalEvent };
 }
 
+function timelineKind(event: AgentStreamEvent): string[] {
+  if (event.type !== "timeline") return [];
+  if (event.item.type !== "todo") return [event.item.type];
+  return [`todo:${event.item.items.map((task) => task.status).join(",")}`];
+}
+
 function archivedThreadHandle() {
   return {
     sessionId: "archived-thread-id",
@@ -4945,6 +4951,85 @@ describe("Codex app-server provider", () => {
         parentSubagentId: "persisted-child",
       }),
     ]);
+  });
+
+  test("restores plan updates from the Codex rollout at the end of their turns", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-rollout-plan-"));
+    const rolloutPath = path.join(dir, "rollout.jsonl");
+    writeFileSync(
+      rolloutPath,
+      [
+        { type: "turn_context", payload: { turn_id: "turn-1" } },
+        {
+          type: "response_item",
+          payload: {
+            type: "custom_tool_call",
+            name: "exec",
+            input: 'text(await tools.update_plan({plan:[{step:"Count",status:"in_progress"}]}));',
+          },
+        },
+        { type: "event_msg", payload: { type: "task_started", turn_id: "turn-2" } },
+        {
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            name: "update_plan",
+            arguments: JSON.stringify({ plan: [{ step: "Count", status: "completed" }] }),
+          },
+        },
+      ]
+        .map((record) => JSON.stringify(record))
+        .join("\n"),
+    );
+    const session = createSession();
+    session.client = {
+      request: vi.fn(async (method: string) =>
+        method === "thread/read"
+          ? {
+              thread: {
+                path: rolloutPath,
+                turns: [
+                  {
+                    id: "turn-1",
+                    items: [
+                      { type: "userMessage", id: "u1", content: [{ type: "text", text: "first" }] },
+                      { type: "agentMessage", id: "a1", text: "Counted." },
+                    ],
+                  },
+                  {
+                    id: "turn-2",
+                    items: [
+                      {
+                        type: "userMessage",
+                        id: "u2",
+                        content: [{ type: "text", text: "second" }],
+                      },
+                    ],
+                  },
+                ],
+              },
+            }
+          : {},
+      ),
+    };
+
+    try {
+      await asInternals(session).loadPersistedHistory(session.client);
+      const history: AgentStreamEvent[] = [];
+      for await (const event of session.streamHistory()) {
+        history.push(event);
+      }
+      const kinds = history.flatMap(timelineKind);
+      expect(kinds).toEqual([
+        "user_message",
+        "assistant_message",
+        "todo:in_progress",
+        "user_message",
+        "todo:completed",
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("coalesces persisted MultiAgentV2 activity for one child into one terminal card", async () => {
