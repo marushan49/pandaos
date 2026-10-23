@@ -89,7 +89,20 @@ Stresstest: 7 × 5 GiB, RAM-Zulassung hielt 4 gleichzeitig, kein OOM-Kill. Neust
 - SSH-Abbruch: lokaler ssh-Prozess per SIGKILL beendet, Exit 125 ohne Wiederholung, Mac-Prozess nach ≤ 5 s weg.
 - Mac-Werkzeuge: Node 24, Flutter, CocoaPods, adb, Android SDK, Android-Studio-JBR, Xcode 27.1; kein Cargo/ccache/sccache. Mac hat `openrsync` (kein `--protect-args`, kein `--relative /./`).
 
+## Aktivierung Mac-Worker (nur mit Freigabe)
+
+Vorbedingungen geprüft am 23.10.: Mac→Zotac-SSH über `zotac` (LAN) funktioniert, Zotac→Mac über `macbook`; Rollback in einem Schritt; Backups in `/var/backups/pandaos-build-scheduler/`.
+
+1. Sichern: `sudo cp /etc/pandaos-build-scheduler/config.json /var/backups/pandaos-build-scheduler/config.json.before-mac-$(date +%s)`.
+2. `workers.macbook.enabled=true` setzen, `auto_placement` zunächst `false` lassen; `sudo systemctl restart pandaos-build-scheduler` (0,15 s, laufende Jobs bleiben).
+3. Healthcheck: `pandaos-build-scheduler workers`, `pandaos-build-scheduler --worker macbook worker-probe`, ein lokaler Job, ein `--worker macbook`-Job, `python3 smoke.py`.
+4. Realtests: Android-Build `--worker macbook` und `--worker auto` gegen Zotac, iOS `pandaos-ios-release build` (Export ohne Upload), Mac-Akkubetrieb und -Nutzung, SSH-Abbruch, Neustart mit wartendem Mac-Job.
+5. Danach optional `auto_placement=true`.
+6. Rollback: `enabled=false` (bzw. Backup zurückkopieren) und Neustart; Mac-Snapshots liegen nur unter `~/.pandaos-worker/snapshots`.
+
 ## Offene Grenzen
+
+- Meshnet-Weg Mac→Zotac (`zotac-mesh`) am 23.10. nicht erreichbar; LAN-Weg funktioniert.
 
 - Erfolgreiche Geräteinstallation ungeprüft: Play Protect verlangt auf dem Xiaomi eine Bestätigung am Gerät.
 - Neue `TOOLING_POLICY` erst nach Plugin-Reload aktiv (Freigabe nötig).
