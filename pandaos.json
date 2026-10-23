@@ -3932,6 +3932,44 @@
             "name": "hidden-sessions-reopened"
           }
         ]
+      },
+      "explorer-sidebar-toggle-after-redirect": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/agent/770629c8-40c1-400e-9afc-d9a0443283ae",
+            "action": "navigate"
+          },
+          {
+            "action": "wait-text",
+            "text": "Test: Plan im Tasks-Tab",
+            "timeoutMs": 20000
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Close Explorer sidebar"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Open Explorer sidebar"
+          },
+          {
+            "action": "click",
+            "role": "button",
+            "name": "Open Explorer sidebar"
+          },
+          {
+            "action": "assert-visible",
+            "role": "button",
+            "name": "Close Explorer sidebar"
+          },
+          {
+            "action": "assert-console-errors",
+            "max": 0
+          }
+        ]
       }
     }
   }
