@@ -31,11 +31,11 @@ exhausted even with free disk space. Check `fs.inotify.max_user_watches`,
 services and Metro instances. A per-process sum can count inherited inotify descriptors
 several times; retain that caveat unless open file descriptions were deduplicated.
 
-On the primary Zotac, `/etc/sysctl.d/99-pandaos-inotify.conf` persists262144watches and512instances.
-The prior65536/128limits failed with the active agent workload plus Metro. The64GBhost had
-more than30GiB available at the change. A conservative1.5KiB allowance for every permitted
-watch totals384MiB; this is a planning estimate, not reserved or measured kernel allocation.
-`max_queued_events` remains16384 because there was no queue-overflow evidence. The targeted
+On the primary Zotac, `/etc/sysctl.d/99-pandaos-inotify.conf` persists 262,144 watches and 512 instances.
+The prior limits of 65,536 watches and 128 instances failed with the active agent workload plus Metro.
+The 64GB host had more than 30GiB available at the change. A conservative 1.5KiB allowance for every
+permitted watch totals 384MiB; this is a planning estimate, not reserved or measured kernel allocation.
+`max_queued_events` remains 16,384 because there was no queue-overflow evidence. The targeted
 `sysctl -p` applied only these two keys; no daemon, agent or service needed a restart.
 
 For another host, measure the workload and RAM first. Preserve existing higher limits and
