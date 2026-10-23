@@ -145,6 +145,26 @@ pandaos-build-scheduler --worker macbook worker-probe
 pandaos-build-scheduler --worker auto --artifact app/build/outputs/apk/debug/app-debug.apk -- ./gradlew assembleDebug
 ```
 
+## Store releases
+
+Both tools use the project's existing credentials and never print them.
+
+```bash
+pandaos-play-release status --package app.example --credentials ~/.config/example/play-service-account.json
+pandaos-play-release verify app/build/outputs/bundle/release/app-release.aab
+pandaos-play-release release --project android --package app.example --credentials … --track internal --notes notes.txt
+pandaos-play-release upload app-release.aab --package app.example --credentials … --track alpha --notes notes.txt --commit
+```
+
+`release` runs `testDebugUnitTest` and `:app:bundleRelease` through the scheduler, then `upload`. `verify` reads package, `versionCode` and `versionName` from the bundle manifest, checks the JAR signature and refuses the Android debug key. `upload` refuses a `versionCode` that any track or bundle already uses and names the next free one. Without `--commit` it uploads into a Play edit, updates the track, calls `validate` and discards the edit: nothing is published. `--commit` publishes to `internal`, `alpha` or `beta` and reads the track back. `production` needs `--allow-production`, is always created as a draft and needs the owner's approval. `--evidence FILE` records method, path and status of each API call.
+
+```bash
+pandaos-ios-release status --bundle-id app.example --asc-env ~/.config/example/asc.env
+pandaos-ios-release build --project ios --scheme App --asc-env … --test-destination "platform=iOS Simulator,name=iPhone 17"
+```
+
+`status` lists the newest App Store Connect builds and App Store versions. `build` submits one iOS job (`--worker auto`, waits up to 24 h for a macOS worker): `xcodegen` or `pod install` when the project uses them, optional tests, an unsigned archive and `-exportArchive` with cloud signing through the App Store Connect key in `~/.appstoreconnect/private_keys` on the Mac. By default the export destination is `export` and the IPA comes back as an artifact. `--upload --confirm-upload` switches the destination to `upload` and sends the build to App Store Connect; use it only after the owner approved it. `--dry-run` prints the job without starting it.
+
 ## Recovery
 
 State lives in `/var/lib/pandaos-build-scheduler`: `state.json` for queued and running jobs, `history.jsonl` for measurements, `decisions.jsonl` for every queue, start, deferral and finish with its reason and the capacity snapshot, and `jobs/<id>/` for output. Output is kept for a day; the request file containing the environment is deleted when the job ends.
