@@ -573,6 +573,73 @@ describe("dispatchComposerAgentMessage", () => {
     ).rejects.toBe(transportError);
   });
 
+  it("resends the same message ID on the reconnected host after a lost connection", async () => {
+    const lost = Object.assign(new Error("Liveness check timed out (15000ms)"), {
+      code: "DAEMON_CONNECTION_LOST",
+    });
+    const dropped = createFakeSendClient({ rejection: lost });
+    const reconnected = createFakeSendClient();
+    const stream = createFakeStream();
+
+    await dispatchComposerAgentMessage({
+      client: dropped,
+      agentId: "agent",
+      text: "Aber wozu das am Anfang überhaupt",
+      attachments: [],
+      encodeImages: passthroughEncodeImages,
+      submission: stream,
+      activeTurnBehavior: "steer",
+      reconnectedClient: async () => reconnected,
+    });
+
+    expect(reconnected.calls).toHaveLength(1);
+    expect(reconnected.calls[0]?.options).toEqual(dropped.calls[0]?.options);
+    expect(stream.tail.get("agent")?.[0]).toMatchObject({
+      kind: "user_message",
+      text: "Aber wozu das am Anfang überhaupt",
+    });
+  });
+
+  it("fails a lost send when the host does not come back", async () => {
+    const lost = Object.assign(new Error("Liveness check timed out (15000ms)"), {
+      code: "DAEMON_CONNECTION_LOST",
+    });
+    const stream = createFakeStream();
+
+    await expect(
+      dispatchComposerAgentMessage({
+        client: createFakeSendClient({ rejection: lost }),
+        agentId: "agent",
+        text: "lost prompt",
+        attachments: [],
+        encodeImages: passthroughEncodeImages,
+        submission: stream,
+        reconnectedClient: async () => null,
+      }),
+    ).rejects.toBe(lost);
+
+    expect(stream.tail.get("agent") ?? []).toEqual([]);
+  });
+
+  it("does not resend after a host rejection", async () => {
+    const rejection = new Error("Host rejected prompt");
+    const reconnected = createFakeSendClient();
+
+    await expect(
+      dispatchComposerAgentMessage({
+        client: createFakeSendClient({ rejection }),
+        agentId: "agent",
+        text: "rejected prompt",
+        attachments: [],
+        encodeImages: passthroughEncodeImages,
+        submission: createFakeStream(),
+        reconnectedClient: async () => reconnected,
+      }),
+    ).rejects.toBe(rejection);
+
+    expect(reconnected.calls).toHaveLength(0);
+  });
+
   it("surfaces an ambiguous failure even when a concurrent canonical echo was observed", async () => {
     const transportError = new Error("Connection lost after delivery may have occurred");
     const client = createFakeSendClient({ rejection: transportError });

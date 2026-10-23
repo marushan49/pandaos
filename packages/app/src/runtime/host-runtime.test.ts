@@ -164,6 +164,7 @@ class FakeDaemonClient {
   }
 
   public ownedSubscriptions = true;
+  public agentRequestReceipts = false;
   private daemonVersion: string | null = "0.8.0";
 
   getLastServerInfoMessage(): ReturnType<DaemonClient["getLastServerInfoMessage"]> {
@@ -173,7 +174,10 @@ class FakeDaemonClient {
       serverId: "srv_test",
       hostname: "test",
       version: this.daemonVersion,
-      features: { ownedSubscriptions: this.ownedSubscriptions },
+      features: {
+        ownedSubscriptions: this.ownedSubscriptions,
+        agentRequestReceipts: this.agentRequestReceipts,
+      },
     };
   }
 
@@ -3077,6 +3081,63 @@ describe("HostRuntimeStore", () => {
 
     useSessionStore.getState().clearSession(host.serverId);
   });
+
+  it.each([
+    { receipts: true, sends: 2 },
+    { receipts: false, sends: 1 },
+  ])(
+    "resends a message after a dropped connection only when receipts=$receipts",
+    async ({ receipts, sends }) => {
+      const host = makeHost({
+        serverId: `srv_resend_after_drop_${receipts}`,
+        connections: [{ id: "direct:lan:6767", type: "directTcp", endpoint: "lan:6767" }],
+      });
+      const fakeClient = new FakeDaemonClient();
+      fakeClient.agentRequestReceipts = receipts;
+      fakeClient.setConnectionState({ status: "connected" });
+      const lost = Object.assign(new Error("Liveness check timed out (15000ms)"), {
+        code: "DAEMON_CONNECTION_LOST",
+      });
+      const firstSend = new Deferred<void>();
+      fakeClient.sendAgentMessageResponses.push(firstSend.promise);
+      fakeClient.sendAgentMessageFailures.push(lost);
+      const store = new HostRuntimeStore({
+        deps: {
+          createClient: () => fakeClient as unknown as DaemonClient,
+          connectToDaemon: async () => ({
+            client: fakeClient as unknown as DaemonClient,
+            serverId: host.serverId,
+            hostname: null,
+          }),
+          getClientId: async () => "cid_resend_after_drop",
+        },
+      });
+      store.syncHosts([host]);
+      await waitForHostOnline(store, host.serverId);
+
+      const sending = store.resendAgentMessage(host.serverId, "agent", {
+        kind: "user_message",
+        id: "u1",
+        text: "Aber wozu das am Anfang überhaupt",
+        timestamp: new Date(0),
+      });
+      await fakeClient.waitForSentMessages(1);
+      fakeClient.setConnectionState({ status: "disconnected", reason: lost.message });
+      firstSend.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(fakeClient.sentAgentMessages).toHaveLength(1);
+      fakeClient.setConnectionState({ status: "connected" });
+
+      if (receipts) await sending;
+      else await expect(sending).rejects.toBe(lost);
+      expect(fakeClient.sentAgentMessages).toHaveLength(sends);
+      const messageIds = fakeClient.sentAgentMessages.map(([, , options]) => options?.messageId);
+      expect(new Set(messageIds).size).toBe(1);
+
+      store.syncHosts([]);
+      useSessionStore.getState().clearSession(host.serverId);
+    },
+  );
 
   it("serializes queued-message drains for the same agent", async () => {
     const host = makeHost({ serverId: "srv_serialized_queue_drain" });

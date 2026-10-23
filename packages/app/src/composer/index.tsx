@@ -1533,6 +1533,7 @@ function ComposerContentImpl({
         }),
         encodeImages,
         submission: createMessageSubmissionWriter(serverId),
+        reconnectedClient: () => getHostRuntimeStore().waitForReconnectedClient(serverId),
         activeTurnBehavior,
         activeTurnId:
           activeTurnBehavior === "steer"

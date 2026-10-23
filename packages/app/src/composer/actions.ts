@@ -197,6 +197,11 @@ export interface DispatchComposerAgentMessageInput {
   activeTurnBehavior?: ActiveTurnBehavior;
   activeTurnId?: string;
   agentAttachments?: AgentAttachment[];
+  reconnectedClient?: () => Promise<ComposerSendClient | null>;
+}
+
+function isConnectionLoss(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "DAEMON_CONNECTION_LOST";
 }
 
 export async function dispatchComposerAgentMessage(
@@ -223,12 +228,23 @@ export async function dispatchComposerAgentMessage(
   input.submission.begin(input.agentId, userMessage);
   try {
     const imagesData = await input.encodeImages(wirePayload.images);
-    await input.client.sendAgentMessage(input.agentId, input.text, {
+    const options = {
       messageId: clientMessageId,
       ...(input.activeTurnBehavior ? { activeTurnBehavior: input.activeTurnBehavior } : {}),
       images: imagesData ?? [],
       attachments: wirePayload.attachments,
-    });
+    };
+    let client = input.client;
+    for (;;) {
+      try {
+        await client.sendAgentMessage(input.agentId, input.text, options);
+        break;
+      } catch (error) {
+        const next = isConnectionLoss(error) ? await input.reconnectedClient?.() : null;
+        if (!next) throw error;
+        client = next;
+      }
+    }
     input.submission.accept(input.agentId, clientMessageId);
   } catch (error) {
     input.submission.reject(input.agentId, clientMessageId);

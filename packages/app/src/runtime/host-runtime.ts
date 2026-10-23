@@ -2533,6 +2533,7 @@ export class HostRuntimeStore {
       }),
       encodeImages,
       submission: createMessageSubmissionWriter(serverId),
+      reconnectedClient: () => this.waitForReconnectedClient(serverId),
     });
   }
 
@@ -2604,6 +2605,39 @@ export class HostRuntimeStore {
 
   getClient(serverId: string): DaemonClient | null {
     return this.controllers.get(serverId)?.getClient() ?? null;
+  }
+
+  waitForReconnectedClient(serverId: string): Promise<DaemonClient | null> {
+    return new Promise((resolve) => {
+      let unsubscribe: (() => void) | null = null;
+      let settled = false;
+      const settle = (client: DaemonClient | null) => {
+        if (settled) return;
+        settled = true;
+        unsubscribe?.();
+        resolve(client);
+      };
+      const check = () => {
+        if (!this.getSnapshot(serverId)) {
+          settle(null);
+          return;
+        }
+        const client = this.getClient(serverId);
+        if (
+          this.getSnapshot(serverId)?.connectionStatus !== "online" ||
+          client?.getConnectionState().status !== "connected"
+        ) {
+          return;
+        }
+        settle(
+          client.getLastServerInfoMessage()?.features?.agentRequestReceipts === true
+            ? client
+            : null,
+        );
+      };
+      unsubscribe = this.subscribe(serverId, check);
+      check();
+    });
   }
 
   subscribe(serverId: string, listener: () => void): () => void {
