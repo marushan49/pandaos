@@ -106,6 +106,12 @@ interface RunContext {
   lastScreenshotRef: string | null;
 }
 
+const STALE_REF_ERROR_CODE = "browser_stale_ref";
+const LOGIN_FIELD_MISSING = [
+  "username field missing",
+  "password field missing",
+  "submit button missing",
+];
 const DEFAULT_WAIT_TEXT_TIMEOUT_MS = 15_000;
 const ASSERT_TEXT_TIMEOUT_MS = 3_000;
 
@@ -573,44 +579,48 @@ export class RecipeRunner {
     context: RunContext,
     step: Extract<PaseoRecipeStep, { action: "click" }>,
   ): Promise<RecipeCheckResult> {
-    const ref = await this.resolveRef(context, { role: step.role, name: step.name });
-    if (!ref.ok) {
-      return ref.check;
+    for (let attempt = 0; ; attempt += 1) {
+      const ref = await this.resolveRef(context, { role: step.role, name: step.name });
+      if (!ref.ok) {
+        return ref.check;
+      }
+      const payload = await this.execute(context, {
+        command: "click",
+        args: {
+          browserId: ref.browserId,
+          ref: ref.ref,
+          button: "left",
+          doubleClick: false,
+          modifiers: [],
+        },
+      });
+      if (payload.ok) return { name: "", ok: true };
+      if (attempt === 0 && payload.error.code === STALE_REF_ERROR_CODE) continue;
+      return fail(`click ${step.role} "${step.name}"`, payload.error.message);
     }
-    const payload = await this.execute(context, {
-      command: "click",
-      args: {
-        browserId: ref.browserId,
-        ref: ref.ref,
-        button: "left",
-        doubleClick: false,
-        modifiers: [],
-      },
-    });
-    return payload.ok
-      ? { name: "", ok: true }
-      : fail(`click ${step.role} "${step.name}"`, payload.error.message);
   }
 
   private async runFillStep(
     context: RunContext,
     step: Extract<PaseoRecipeStep, { action: "fill" }>,
   ): Promise<RecipeCheckResult> {
-    const ref = await this.resolveRef(context, { role: step.role, name: step.name });
-    if (!ref.ok) {
-      return ref.check;
-    }
     const value = await this.resolveFillValue(context, step);
     if (!value.ok) {
       return value.check;
     }
-    const payload = await this.execute(context, {
-      command: "fill",
-      args: { browserId: ref.browserId, ref: ref.ref, value: value.value },
-    });
-    return payload.ok
-      ? { name: "", ok: true }
-      : fail(`fill ${step.role} "${step.name}"`, payload.error.message);
+    for (let attempt = 0; ; attempt += 1) {
+      const ref = await this.resolveRef(context, { role: step.role, name: step.name });
+      if (!ref.ok) {
+        return ref.check;
+      }
+      const payload = await this.execute(context, {
+        command: "fill",
+        args: { browserId: ref.browserId, ref: ref.ref, value: value.value },
+      });
+      if (payload.ok) return { name: "", ok: true };
+      if (attempt === 0 && payload.error.code === STALE_REF_ERROR_CODE) continue;
+      return fail(`fill ${step.role} "${step.name}"`, payload.error.message);
+    }
   }
 
   private async runWaitTextStep(
@@ -831,41 +841,24 @@ export class RecipeRunner {
       }
     | { ok: false; check: RecipeCheckResult }
   > {
-    const usernameRef = await this.resolveRef(context, step.login.username);
-    if (!usernameRef.ok) {
+    const resolved = await this.resolveRefs(context, [
+      step.login.username,
+      step.login.password,
+      step.login.submit,
+    ]);
+    if (!resolved.ok) {
+      const missing = LOGIN_FIELD_MISSING[resolved.index] ?? "login field missing";
       return {
         ok: false,
-        check: fail(
-          "authentication",
-          `Login form incomplete: ${usernameRef.check.detail ?? "username field missing"}`,
-        ),
+        check: fail("authentication", `Login form incomplete: ${resolved.check.detail ?? missing}`),
       };
     }
-    const passwordRef = await this.resolveRef(context, step.login.password);
-    if (!passwordRef.ok) {
-      return {
-        ok: false,
-        check: fail(
-          "authentication",
-          `Login form incomplete: ${passwordRef.check.detail ?? "password field missing"}`,
-        ),
-      };
-    }
-    const submitRef = await this.resolveRef(context, step.login.submit);
-    if (!submitRef.ok) {
-      return {
-        ok: false,
-        check: fail(
-          "authentication",
-          `Login form incomplete: ${submitRef.check.detail ?? "submit button missing"}`,
-        ),
-      };
-    }
+    const [username = "", password = "", submit = ""] = resolved.refs;
     return {
       ok: true,
-      username: { browserId: usernameRef.browserId, ref: usernameRef.ref },
-      password: { browserId: passwordRef.browserId, ref: passwordRef.ref },
-      submit: { browserId: submitRef.browserId, ref: submitRef.ref },
+      username: { browserId: resolved.browserId, ref: username },
+      password: { browserId: resolved.browserId, ref: password },
+      submit: { browserId: resolved.browserId, ref: submit },
     };
   }
 
@@ -987,8 +980,22 @@ export class RecipeRunner {
   ): Promise<
     { ok: true; browserId: string; ref: string } | { ok: false; check: RecipeCheckResult }
   > {
+    const resolved = await this.resolveRefs(context, [target]);
+    if (!resolved.ok) return { ok: false, check: resolved.check };
+    return { ok: true, browserId: resolved.browserId, ref: resolved.refs[0] ?? "" };
+  }
+
+  private async resolveRefs(
+    context: RunContext,
+    targets: ReadonlyArray<{ role: string; name: string }>,
+  ): Promise<
+    | { ok: true; browserId: string; refs: string[] }
+    | { ok: false; index: number; check: RecipeCheckResult }
+  > {
+    const first = targets[0];
+    const label = first ? `${first.role} "${first.name}"` : "element";
     if (!context.browserId) {
-      return { ok: false, check: fail(`${target.role} "${target.name}"`, "No browser tab open") };
+      return { ok: false, index: 0, check: fail(label, "No browser tab open") };
     }
     const snapshot = await this.execute(context, {
       command: "snapshot",
@@ -997,23 +1004,27 @@ export class RecipeRunner {
     if (!snapshot.ok || snapshot.result.command !== "snapshot") {
       return {
         ok: false,
-        check: fail(
-          `${target.role} "${target.name}"`,
-          snapshot.ok ? "Snapshot failed" : snapshot.error.message,
-        ),
+        index: 0,
+        check: fail(label, snapshot.ok ? "Snapshot failed" : snapshot.error.message),
       };
     }
-    const ref = findSnapshotRef(snapshotNodesFromYaml(snapshot.result.snapshot), target);
-    if (!ref) {
-      return {
-        ok: false,
-        check: fail(
-          `${target.role} "${target.name}"`,
-          `Element ${target.role} "${target.name}" not found`,
-        ),
-      };
+    const nodes = snapshotNodesFromYaml(snapshot.result.snapshot);
+    const refs: string[] = [];
+    for (const [index, target] of targets.entries()) {
+      const ref = findSnapshotRef(nodes, target);
+      if (!ref) {
+        return {
+          ok: false,
+          index,
+          check: fail(
+            `${target.role} "${target.name}"`,
+            `Element ${target.role} "${target.name}" not found`,
+          ),
+        };
+      }
+      refs.push(ref);
     }
-    return { ok: true, browserId: context.browserId, ref };
+    return { ok: true, browserId: context.browserId, refs };
   }
 
   private async resolveFillValue(
