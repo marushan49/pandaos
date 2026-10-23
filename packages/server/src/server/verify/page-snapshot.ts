@@ -229,8 +229,7 @@ export function collectSnapshotNodes(): CollectedSnapshotNode[] {
     }
     const parts: string[] = [];
     let current: SnapshotDomElement | null = element;
-    let depth = 0;
-    while (current && depth < 10) {
+    while (current) {
       const tag = current.tagName.toLowerCase();
       const parent: SnapshotDomElement | null = current.parentElement;
       if (!parent || tag === "html" || tag === "body") {
@@ -243,8 +242,10 @@ export function collectSnapshotNodes(): CollectedSnapshotNode[] {
         break;
       }
       parts.unshift(withNth(parent, current, tag));
+      if (parts.length >= 10 && doc.querySelectorAll(parts.join(" > ")).length === 1) {
+        break;
+      }
       current = parent;
-      depth += 1;
     }
     return parts.join(" > ");
   }

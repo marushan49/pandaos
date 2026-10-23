@@ -283,6 +283,19 @@ describe.skipIf(!BROWSER_AVAILABLE)("RecipeRunner", () => {
         decisionSource: {
           decide: async (request) => {
             requests.push(request);
+            if (request.questions.goal_kind) {
+              return {
+                answers: {
+                  goal_kind: {
+                    choice: "check",
+                    confidence: 1,
+                    probabilities: { check: 1, act: 0 },
+                  },
+                },
+                model: "jev-test",
+                latencyMs: 1,
+              };
+            }
             const operations = Object.keys(request.questions.operation?.criteria ?? {});
             if (!operations.includes("DONE")) throw new Error("DONE is not offered");
             const probabilities = Object.fromEntries(
@@ -316,7 +329,7 @@ describe.skipIf(!BROWSER_AVAILABLE)("RecipeRunner", () => {
     });
 
     expect(result.status).toBe("pass");
-    expect(requests).toHaveLength(1);
+    expect(requests.map((request) => Object.keys(request.questions)[0])).toEqual(["goal_kind"]);
     expect(result.checks).toEqual([
       expect.objectContaining({ name: 'goal "Show the sign-in form"', ok: true }),
     ]);

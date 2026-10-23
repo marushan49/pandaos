@@ -39,6 +39,13 @@ const DEFAULT_MAX_STEPS = 12;
 const DEFAULT_MIN_CONFIDENCE = 0.5;
 const WAIT_MS = 200;
 const VERIFICATION_TIMEOUT_MS = 1_000;
+const GOAL_KIND_CRITERIA = {
+  check:
+    "The goal only inspects the current page. It needs no click, navigation, input or selection.",
+  act: "The goal asks to change the page: open, click, navigate, fill, select or submit something.",
+};
+const UNACTED_PASS_MESSAGE =
+  "No action ran and the verify checks already held before the goal, so they do not show that it was done. Check the page directly, or use verify text that only appears after the goal.";
 
 const NEXT_ACTION_RULES = [
   "Advance the entire goal from the current page with one operation.",
@@ -354,21 +361,78 @@ export class JevBrowserGoalRunner {
     values: Record<string, ResolvedJevBrowserValue>;
     steps: JevBrowserGoalTraceEntry[];
     lastModel: string | undefined;
+    usage: JevBrowserGoalUsage;
+    minConfidence: number;
+    redactions: string[];
   }): Promise<JevBrowserGoalResult | null> {
-    const { page, input, context, activity, step, values, steps, lastModel } = params;
+    const { page, input, context, activity, step, values, steps } = params;
     if (await this.passesAlready({ page, input, context, activity, step })) {
-      return resultFor(
-        "passed",
-        page,
-        steps,
-        steps.length === 0
-          ? "Verification checks already satisfied before any action."
-          : "Goal completed and verified.",
-        lastModel,
-      );
+      return this.resolveVerifiedPass({
+        ...params,
+        message:
+          steps.length === 0
+            ? "Verification checks already satisfied before any action."
+            : "Goal completed and verified.",
+      });
     }
     if (pageNeedsUserSignIn(page, values)) throw new BrowserSignInRequiredError();
     return null;
+  }
+
+  private async resolveVerifiedPass(params: {
+    page: BrowserPage;
+    input: JevBrowserGoalInput;
+    steps: JevBrowserGoalTraceEntry[];
+    lastModel: string | undefined;
+    usage: JevBrowserGoalUsage;
+    minConfidence: number;
+    redactions: string[];
+    message: string;
+  }): Promise<JevBrowserGoalResult> {
+    const { page, input, steps, lastModel, usage, minConfidence, redactions, message } = params;
+    if (actedOnPage(steps)) return resultFor("passed", page, steps, message, lastModel);
+    let decision: TypeSafeDecisionResponse;
+    try {
+      decision = await this.decisionSource.decide({
+        state: {
+          goal: redactValues(input.goal, redactions),
+          verify: input.verify.map((check) =>
+            redactValues(check.text ?? check.url ?? "", redactions),
+          ),
+        },
+        questions: {
+          goal_kind: {
+            type: "choice",
+            criteria: GOAL_KIND_CRITERIA,
+            instructions: "Classify what the goal asks for, not whether the page already shows it.",
+          },
+        },
+      });
+      addDecisionUsage(usage, decision.usage);
+    } catch (error) {
+      return resultFor(
+        "uncertain",
+        page,
+        steps,
+        `${UNACTED_PASS_MESSAGE} ${decisionFailure(error, redactions)}`,
+        lastModel,
+      );
+    }
+    let kind: TypeSafeChoiceAnswer;
+    try {
+      kind = parseChoiceAnswer(decision.answers.goal_kind, Object.keys(GOAL_KIND_CRITERIA));
+    } catch (error) {
+      return resultFor(
+        "uncertain",
+        page,
+        steps,
+        `${UNACTED_PASS_MESSAGE} ${decisionFailure(error, redactions)}`,
+        decision.model,
+      );
+    }
+    return kind.choice === "check" && kind.confidence >= minConfidence
+      ? resultFor("passed", page, steps, message, decision.model)
+      : resultFor("uncertain", page, steps, UNACTED_PASS_MESSAGE, decision.model);
   }
 
   private async decideUntilDone(params: {
@@ -465,6 +529,9 @@ export class JevBrowserGoalRunner {
         values,
         steps,
         lastModel,
+        usage,
+        minConfidence,
+        redactions,
       });
       if (settled) return settled;
       activity.update({ phase: "deciding", step, action: null });
@@ -514,7 +581,16 @@ export class JevBrowserGoalRunner {
         activity.update({ phase: "verifying", action: doneAction });
         const verified = await this.verify(browserId, input.verify, context);
         if (verified) {
-          return resultFor("passed", page, steps, "Goal completed and verified.", lastModel);
+          return this.resolveVerifiedPass({
+            page,
+            input,
+            steps,
+            lastModel: decision.model,
+            usage,
+            minConfidence,
+            redactions,
+            message: "Goal completed and verified.",
+          });
         }
         rejectedDoneStates.add(stateKey);
         steps.push({
@@ -610,7 +686,16 @@ export class JevBrowserGoalRunner {
     }
 
     if (await this.passesAlready({ page, input, context, activity, step: maxSteps })) {
-      return resultFor("passed", page, steps, "Goal completed and verified.", lastModel);
+      return this.resolveVerifiedPass({
+        page,
+        input,
+        steps,
+        lastModel,
+        usage,
+        minConfidence,
+        redactions,
+        message: "Goal completed and verified.",
+      });
     }
     return resultFor("limit", page, steps, `Stopped after ${maxSteps} steps.`, lastModel);
   }
@@ -1509,6 +1594,12 @@ function requireTarget(target: string | undefined): string {
 }
 
 const MAX_LISTED_CONTROLS = 25;
+
+function actedOnPage(steps: readonly JevBrowserGoalTraceEntry[]): boolean {
+  return steps.some(
+    (entry) => entry.outcome === "executed" || entry.outcome === "execution_uncertain",
+  );
+}
 
 function resultFor(
   status: JevBrowserGoalResult["status"],

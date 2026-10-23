@@ -64,10 +64,21 @@ class GoalBroker {
 class ScriptedDecisions implements TypeSafeDecisionSource {
   public readonly requests: TypeSafeDecisionRequest[] = [];
 
-  public constructor(private readonly operations: string[]) {}
+  public constructor(
+    private readonly operations: string[],
+    private readonly goalKind: "check" | "act" = "check",
+  ) {}
 
   public async decide(request: TypeSafeDecisionRequest) {
     this.requests.push(request);
+    if (request.questions.goal_kind) {
+      return {
+        answers: { goal_kind: answerFor(request, "goal_kind", this.goalKind) },
+        model: "jev-test",
+        latencyMs: 3,
+        usage: { inputTokens: 40, outputTokens: 2 },
+      };
+    }
     const operation = this.operations.shift();
     if (!operation) throw new Error("No scripted decision remaining");
     const answers: Record<string, TypeSafeChoiceAnswer> = {
@@ -134,7 +145,7 @@ describe("JevBrowserGoalRunner", () => {
     expect(broker.calls.filter((call) => call.command.command === "fill")).toHaveLength(1);
   });
 
-  it("verifies an already completed goal without calling a provider", async () => {
+  it("passes a check goal whose verification already holds without choosing an action", async () => {
     const broker = new GoalBroker();
     broker.clicked = true;
     const decisions = new ScriptedDecisions([]);
@@ -143,8 +154,38 @@ describe("JevBrowserGoalRunner", () => {
       CONTEXT,
     );
     expect(result.status).toBe("passed");
-    expect(result.usage).toEqual({ decisions: 0, inputTokens: 0, outputTokens: 0 });
-    expect(decisions.requests).toEqual([]);
+    expect(result.usage).toEqual({ decisions: 1, inputTokens: 40, outputTokens: 2 });
+    expect(decisions.requests.map((request) => Object.keys(request.questions))).toEqual([
+      ["goal_kind"],
+    ]);
+    expect(broker.calls.some((call) => call.command.command === "click")).toBe(false);
+  });
+
+  it("does not pass an action goal on verification that held before any action", async () => {
+    const broker = new GoalBroker();
+    broker.clicked = true;
+    const decisions = new ScriptedDecisions([], "act");
+    const result = await new JevBrowserGoalRunner({ broker, decisionSource: decisions }).run(
+      { goal: "Open the Tasks tab", browserId: BROWSER_ID, verify: [{ text: "Welcome" }] },
+      CONTEXT,
+    );
+    expect(result.status).toBe("uncertain");
+    expect(result.message).toContain("No action ran");
+    expect(broker.calls.some((call) => call.command.command === "click")).toBe(false);
+  });
+
+  it("does not pass when Jev declares an action goal done before acting", async () => {
+    const broker = new GoalBroker();
+    const decisions = new ScriptedDecisions(["DONE"], "act");
+    const result = await new JevBrowserGoalRunner({ broker, decisionSource: decisions }).run(
+      { goal: "Open the Tasks tab", browserId: BROWSER_ID, verify: [{ text: "Welcome" }] },
+      CONTEXT,
+    );
+    expect(result.status).toBe("uncertain");
+    expect(decisions.requests.map((request) => Object.keys(request.questions)[0])).toEqual([
+      "operation",
+      "goal_kind",
+    ]);
   });
 
   it("retains the tab and trace for active-agent takeover on provider failure", async () => {
@@ -412,7 +453,9 @@ describe("JevBrowserGoalRunner", () => {
     broker.clicked = true;
     const decisions: TypeSafeDecisionSource = {
       decide: async (request) => ({
-        answers: { operation: answerFor(request, "operation", "DONE", 0.2) },
+        answers: request.questions.goal_kind
+          ? { goal_kind: answerFor(request, "goal_kind", "check") }
+          : { operation: answerFor(request, "operation", "DONE", 0.2) },
         model: "jev-test",
         latencyMs: 1,
       }),
