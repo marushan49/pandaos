@@ -19,8 +19,15 @@ Folgeauftrag zu [Plan im Tasks-Tab](2026-10-23-plan-tab-harness.md): die dort ge
 
 - Tab-Titel und Kartenüberschrift lauteten beide „Tasks“. Die Karte zeigt jetzt den Sitzungstitel einzeilig gekürzt (`Button.numberOfLines`); der Körper nutzt den Titel nicht mehr als Ersatztext.
 
-## Stand
+## Rollout und Abnahme
 
-- Kandidat `~/.local/share/pandaos-releases/browser-test-fixes` aus `plan-tab`, Dateiliste `.dev/browser-test-fixes/files.txt`. Web-Export übernommen: gegenüber Live nur ein neues JS-Bundle, alle anderen Web-Dateien identisch. Probelauf des geplanten Neustarts bestanden (`.dev/browser-test-fixes/restart-preview.log`).
-- Mac: Die installierte App-UI ist älter als die Zotac-Web-UI (ihr fehlt z. B. Set aside/Snooze aus `d870ee749`); sie hat keine Strings, die dem neuen Export fehlen. Paket mit Hash-Sicherung liegt auf dem Mac unter `/tmp/pandaos-browser-test-fixes` (`install-mac.sh`, alt `b4d7839f…`, neu `3e3fcbc2…`), nicht installiert.
-- Offen: Freigabe für geplanten Neustart, Mac-Installation und Commit; danach Sichtprüfung der Tasks-Karte und ein `browser_test` mit Klick auf „Open Explorer sidebar“.
+- Commits `8f1f29b92`, `64f373c9d`, `a30a784e4` auf main, gepusht.
+- Mac: `install-mac.sh` mit Hash-Sicherung ausgeführt, `index.html` `3e3fcbc2…`, neu signiert, App neu gestartet. Backup `rollout-backups/browser-test-fixes-20261023-223737`. Die Mac-App hat damit auch den neueren Zotac-UI-Stand (u. a. Set aside/Snooze).
+- Geplanter Neustart `browser-test-fixes-20261023`: Daemon auf `browser-test-fixes`, serverId `srv_RtppvtlARpFR` unverändert, alte Releases auf 3 plus aktiv reduziert.
+- Klick: `browser_test` `evr_5c078d5f` schloss und öffnete die Seitenleiste per Rolle/Name („Close/Open Explorer sidebar“) ohne Strict-Mode-Fehler; als Rezept `explorer-sidebar-toggle-unique` nicht gespeichert, weil der erste Versuch fehlschlug.
+- Tasks-Karte: Überschrift „Test: Plan im Tasks-Tab (Codex)“ unter dem Tab „Tasks“, keine doppelte Überschrift, nichts abgeschnitten. Bild angesehen: `evr_2e804508`, Produktbrowser 1280×720, normale Schrift. Sichtprüfung bestanden; Mac-App nicht visuell geprüft.
+
+## Neue Befunde, nicht behoben
+
+- Verfallene Refs: Über `/agent/<id>` geladene Seiten leiten per `replaceState` auf `/workspace/<id>` um. Playwright meldet das als `framenavigated`, der Host leert den Snapshot, und ein Klick direkt danach scheitert mit „Reference … expired“ (`evr_f2ca3cf4`). Mit der Workspace-URL bestand derselbe Lauf. Vermutlich dieselbe Ursache wie die 4 schon auf HEAD scheiternden `recipe-runner`-Tests; nicht geprüft.
+- Codex-Pläne nach Neustart: Die Timeline der Codex-Testsession enthielt vor dem Neustart `[Tasks]`, danach nicht mehr; der Tasks-Tab zeigt „No tasks yet.“ PandaOS übernimmt Codex-Pläne nur live aus `turn/plan/updated`, nicht aus der Historie. Für Claude baut `ClaudeTaskState` sie beim Replay auf; live nicht geprüft.
