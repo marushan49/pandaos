@@ -2233,6 +2233,151 @@ test("preserves the handoff context and old session during a cross-provider fall
   expect(fallbackPrompts[0]).toEqual(expect.stringContaining("Keep the original prompt"));
 });
 
+test("finishes a fallback turn whose ID repeats a turn of the replaced session", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-fallback-turn-id-reuse-"));
+  let initialTurns = 0;
+
+  const initialSession = new (class extends TestAgentSession {
+    override async startTurn(): Promise<{ turnId: string }> {
+      initialTurns += 1;
+      const turnId = `turn-${initialTurns}`;
+      const quotaExceeded = initialTurns > 2;
+      setTimeout(() => {
+        this.pushEvent({ type: "turn_started", provider: this.provider, turnId });
+        if (quotaExceeded) {
+          this.pushEvent({
+            type: "turn_failed",
+            provider: this.provider,
+            turnId,
+            error: "provider quota exceeded",
+            code: "rate_limit_exceeded",
+          });
+          return;
+        }
+        this.pushEvent({
+          type: "timeline",
+          provider: this.provider,
+          turnId,
+          item: { type: "assistant_message", text: "first" },
+        });
+        this.pushEvent({ type: "turn_completed", provider: this.provider, turnId });
+      }, 0);
+      return { turnId };
+    }
+  })({ provider: "codex", cwd: workdir, model: "gpt-6.1-sol" });
+
+  class FallbackSession extends TestAgentSession {
+    override readonly provider = "claude" as const;
+    private turns = 0;
+
+    override async startTurn(): Promise<{ turnId: string }> {
+      this.turns += 1;
+      const turnId = `turn-${this.turns}`;
+      setTimeout(() => {
+        this.pushEvent({ type: "turn_started", provider: this.provider, turnId });
+        this.pushEvent({
+          type: "timeline",
+          provider: this.provider,
+          turnId,
+          item: { type: "assistant_message", text: "continued" },
+        });
+        this.pushEvent({ type: "turn_completed", provider: this.provider, turnId });
+      }, 0);
+      return { turnId };
+    }
+  }
+
+  const manager = new AgentManager({
+    clients: {
+      codex: new (class extends TestAgentClient {
+        override async createSession(): Promise<AgentSession> {
+          return initialSession;
+        }
+      })(),
+      claude: new (class extends TestAgentClient {
+        override readonly provider = "claude" as const;
+
+        override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+          return new FallbackSession(config);
+        }
+      })(),
+    },
+    profileRouter: async () => ({
+      profile: { id: "claude", name: "Opus", provider: "claude", model: "claude-opus-5-5" },
+      model: "claude-opus-5-5",
+      reason: "Limit reached on codex",
+      resetsAt: null,
+    }),
+    logger,
+  });
+
+  const agent = await manager.createAgent(
+    { provider: "codex", cwd: workdir, model: "gpt-6.1-sol", title: "Reuse a turn ID" },
+    undefined,
+    { workspaceId: undefined, labels: { "pandaos.routing.mode": "auto" } },
+  );
+  const finalTexts: string[] = [];
+  for (const task of ["First", "Second", "Routed", "Reuses an old ID", "Reuses the routed ID"]) {
+    finalTexts.push((await manager.runAgent(agent.id, task)).finalText);
+  }
+
+  expect(finalTexts).toEqual(["first", "first", "continued", "continued", "continued"]);
+  expect(manager.getAgent(agent.id)?.lifecycle).toBe("idle");
+});
+
+test("force-cancels a turn whose canceled event repeats a finished turn ID", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-cancel-repeated-turn-id-"));
+  let turns = 0;
+  const session = new (class extends TestAgentSession {
+    override async startTurn(): Promise<{ turnId: string }> {
+      turns += 1;
+      const turnId = turns === 3 ? "turn-3" : "turn-1";
+      const finishes = turns !== 2;
+      setTimeout(() => {
+        this.pushEvent({ type: "turn_started", provider: this.provider, turnId });
+        if (!finishes) return;
+        this.pushEvent({
+          type: "timeline",
+          provider: this.provider,
+          turnId,
+          item: { type: "assistant_message", text: "done" },
+        });
+        this.pushEvent({ type: "turn_completed", provider: this.provider, turnId });
+      }, 0);
+      return { turnId };
+    }
+
+    override async interrupt(): Promise<void> {}
+  })({ provider: "codex", cwd: workdir });
+  const manager = new AgentManager({
+    clients: {
+      codex: new (class extends TestAgentClient {
+        override async createSession(): Promise<AgentSession> {
+          return session;
+        }
+      })(),
+    },
+    logger,
+    rescueTimeouts: { interruptSessionMs: 10 },
+  });
+  const agent = await manager.createAgent({ provider: "codex", cwd: workdir }, undefined, {
+    workspaceId: undefined,
+  });
+  expect((await manager.runAgent(agent.id, "Finish")).finalText).toBe("done");
+
+  const stuck = manager.streamAgent(agent.id, "Hang");
+  const drained = (async () => {
+    for await (const _event of stuck) {
+    }
+  })();
+  await manager.waitForAgentRunStart(agent.id);
+
+  await expect(manager.cancelAgentRun(agent.id)).resolves.toEqual({ status: "settled" });
+  await drained;
+  expect(manager.getAgent(agent.id)?.lifecycle).toBe("idle");
+  expect((await manager.runAgent(agent.id, "Continue")).finalText).toBe("done");
+});
+
 test("does not register a session that finishes starting after shutdown begins", async () => {
   const client = new HeldAgentCreationClient();
   const manager = new AgentManager({

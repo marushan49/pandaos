@@ -3463,6 +3463,7 @@ export class AgentManager {
 
   private finalizeForegroundTurn(agent: ActiveManagedAgent, turnId?: string): void {
     const mutableAgent = agent;
+    const recoveredProviderTurnId = this.recoveredProviderTurnIds.get(agent.id);
     this.activeForegroundPrompts.delete(agent.id);
     this.fallbackAttemptedProfiles.delete(agent.id);
     this.fallbackTurnIds.delete(agent.id);
@@ -3475,7 +3476,7 @@ export class AgentManager {
     this.capacityTimedWait.delete(agent.id);
     this.attemptedRoutes.delete(agent.id);
     if (turnId) {
-      this.runs.rememberFinalizedTurn(mutableAgent, turnId);
+      this.runs.rememberFinalizedTurn(mutableAgent, recoveredProviderTurnId ?? turnId);
     }
     mutableAgent.activeForegroundTurnId = null;
     this.applyActiveTurnTerminal(mutableAgent, turnId);
@@ -3984,13 +3985,26 @@ export class AgentManager {
         { agentId, turnId: runTurnId, kind: run.kind },
         "cancelAgentRun: acknowledged turn still active after timeout, force-canceling",
       );
-      await this.dispatchSessionEvent(agent, {
+      const canceled: AgentStreamEvent = {
         type: "turn_canceled",
         provider: agent.provider,
         reason: "interrupted",
         turnId: runTurnId,
+      };
+      await this.dispatchSessionEvent(agent, canceled);
+      const forced = await this.waitWithTimeout({
+        operation: run.settledPromise,
+        timeoutMs: this.rescueTimeouts.interruptSessionMs,
       });
-      await run.settledPromise;
+      if (forced === "timed_out" && this.runs.getRun(agentId) === run) {
+        this.logger.warn(
+          { agentId, turnId: runTurnId, kind: run.kind },
+          "cancelAgentRun: force-canceled turn did not settle, clearing it",
+        );
+        this.runs.clearAgentRun(agentId);
+        this.runs.notifyAgentWaiters(agent, canceled, { terminal: true });
+        this.finalizeForegroundTurn(agent, runTurnId);
+      }
     } else if (settlement === "timed_out" && run.kind === "foreground") {
       this.logger.warn(
         { agentId, kind: run.kind },
@@ -6051,6 +6065,7 @@ export class AgentManager {
       this.paseoToolPolicies.set(agent.id, paseoToolPolicy);
       agent.provider = profile.provider;
       agent.session = session;
+      agent.finalizedForegroundTurnIds.clear();
       agent.config = storedConfig;
       agent.capabilities = session.capabilities;
       agent.persistence = attachPersistenceCwd(session.describePersistence(), storedConfig.cwd);
