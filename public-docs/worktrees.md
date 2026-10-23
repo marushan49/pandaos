@@ -12,7 +12,7 @@ Git worktrees are one kind of workspace.
 
 A [workspace](/docs/workspaces) is the place where a task happens. When that workspace is backed by a git worktree, Paseo creates a separate directory on a separate branch so parallel agents never step on each other.
 
-This page covers the git-specific details: where worktrees live, how branches are chosen, and how to configure setup hooks, scripts, terminals, and long-running services through `paseo.json`.
+This page covers the git-specific details: where worktrees live, how branches are chosen, and how to configure setup hooks, scripts, terminals, and long-running services through `pandaos.json`.
 
 ## Layout and workflow
 
@@ -78,9 +78,9 @@ paseo workspace create \
 
 Add `--forge <name>` when Paseo cannot infer the forge from the source checkout.
 
-## paseo.json
+## pandaos.json
 
-Drop a `paseo.json` in your repo root. Paseo reads it from the committed version of the base branch you picked, so uncommitted changes in other branches don't apply.
+Drop a `pandaos.json` in your repo root. Paseo reads it from the committed version of the base branch you picked, so uncommitted changes in other branches don't apply.
 
 ```json
 {
@@ -153,7 +153,7 @@ Omit `port` to let Paseo auto-assign one. Bind your process to `$PASEO_PORT` rat
 ### Dynamic port allocation
 
 By default, Paseo asks the OS for an available ephemeral port. Configure a range globally in
-`~/.paseo/config.json` or per project in `paseo.json`:
+`~/.paseo/config.json` or per project in `pandaos.json`:
 
 ```json
 // ~/.paseo/config.json
@@ -165,7 +165,7 @@ By default, Paseo asks the OS for an available ephemeral port. Configure a range
 ```
 
 ```json
-// paseo.json
+// pandaos.json
 {
   "worktree": {
     "servicePorts": { "range": "3000-4000" }

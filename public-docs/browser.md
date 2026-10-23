@@ -143,7 +143,7 @@ The same System One setup also gives every supported coding agent the general `s
 
 A failed run keeps its tab open and returns `browserId` so the agent can inspect it and continue. A passing run closes only a tab created for that verification after saving its screenshot and evidence. Reused tabs stay open. See [tab lifecycle](../docs/agent-lifecycle.md#archive) for the session and preview rules.
 
-Save recurring flows as recipes in the workspace's `paseo.json`:
+Save recurring flows as recipes in the workspace's `pandaos.json`:
 
 ```json
 {
@@ -166,7 +166,7 @@ Save recurring flows as recipes in the workspace's `paseo.json`:
 }
 ```
 
-Scripted steps (`navigate`, `click`, `fill`, `wait-text`, `assert-visible`, `assert-text`, `assert-console-errors`, `assert-failed-requests`, `screenshot`, `ensure-authenticated`) run without any model. A `goal` step hands the part you cannot script to Jev and passes only when its `verify` checks hold; it needs System One. Agents call `browser_test` with no arguments to list recipes, with `recipe` to run one, or with `steps` for an ad-hoc run; adding `saveAs` stores a passing ad-hoc run as a recipe in `paseo.json`, so the next run needs no model at all. While browser tools are enabled, Paseo hides other browser MCP servers (Playwright, Puppeteer, Chrome DevTools, Browser MCP, Browser Use) from its Claude, Codex, and OpenCode agents so every test goes through the engine.
+Scripted steps (`navigate`, `click`, `fill`, `wait-text`, `assert-visible`, `assert-text`, `assert-console-errors`, `assert-failed-requests`, `screenshot`, `ensure-authenticated`) run without any model. A `goal` step hands the part you cannot script to Jev and passes only when its `verify` checks hold; it needs System One. Agents call `browser_test` with no arguments to list recipes, with `recipe` to run one, or with `steps` for an ad-hoc run; adding `saveAs` stores a passing ad-hoc run as a recipe in `pandaos.json`, so the next run needs no model at all. While browser tools are enabled, Paseo hides other browser MCP servers (Playwright, Puppeteer, Chrome DevTools, Browser MCP, Browser Use) from its Claude, Codex, and OpenCode agents so every test goes through the engine.
 
 ## Architecture
 
