@@ -2,6 +2,8 @@
 
 Use `packages/server/src/server/file-observer` for recursive filesystem observation. Create one observer service at the owning service boundary, subscribe roots through it, and close it during owner shutdown. Keep platform watchers, directory discovery, exclusion reconciliation, event batching, failure cleanup, diagnostics, and teardown inside the module. A consumer supplies a root and excluded subtrees; it must not branch on the platform or manage child watchers.
 
+## Observation lifecycle
+
 Do not replace the Linux implementation with `fs.watch({ recursive: true })`. Node 22 implements Linux recursion in JavaScript by walking the tree and watching every file and directory. Paseo's directory-only Linux watcher already exhausted resources before ignored-tree pruning and a watcher cap were added in [#794](https://github.com/getpaseo/paseo/pull/794).
 
 Closing an observation must remain safe after its root is renamed or removed. Workspace archive removes owned worktrees while releasing observation references, so teardown cannot assume the watched path still exists.
@@ -19,3 +21,26 @@ Git owns Git-ignore evaluation. The observer accepts absolute excluded roots and
 Workspace Git verifies each repository metadata subscription with a one-shot canary inside the Git directory. If the event does not round-trip through the subscription callback, treat the watcher as unavailable and enter degraded polling. Refresh working-tree Git-ignore exclusions from ignore-file events, newly observed directories, and watcher recovery, never from a healthy-watcher timer. `git ls-files` reports an ignored directory only once it exists, so new directory topology is a trigger in its own right; the refresh is edge-triggered per directory and debounced so a dependency install collapses into a couple of Git runs.
 
 The real-filesystem contracts and daemon auto-archive lifecycle run in the normal server test suite. Use the scripts only for manual performance and soak work: `npm run measure:file-observer --workspace=@getpaseo/server` measures burst and sustained-create behavior, and `npm run repro:file-observer-teardown --workspace=@getpaseo/server` runs the teardown soak.
+
+## Shared Linux capacity
+
+`ENOSPC` from `inotify_add_watch` or Node's `watch` syscall means the watcher budget can be
+exhausted even with free disk space. Check `fs.inotify.max_user_watches`,
+`fs.inotify.max_user_instances` and the owning UID before changing process file limits for
+`EMFILE`. The budgets are shared by all processes of that UID, including agents, desktop
+services and Metro instances. A per-process sum can count inherited inotify descriptors
+several times; retain that caveat unless open file descriptions were deduplicated.
+
+On the primary Zotac, `/etc/sysctl.d/99-pandaos-inotify.conf` persists262144watches and512instances.
+The prior65536/128limits failed with the active agent workload plus Metro. The64GBhost had
+more than30GiB available at the change. A conservative1.5KiB allowance for every permitted
+watch totals384MiB; this is a planning estimate, not reserved or measured kernel allocation.
+`max_queued_events` remains16384 because there was no queue-overflow evidence. The targeted
+`sysctl -p` applied only these two keys; no daemon, agent or service needed a restart.
+
+For another host, measure the workload and RAM first. Preserve existing higher limits and
+record the prior values and persistent file before changing them. Keep native build outputs
+and caches out of Metro's file map, while retaining actual JS, workspace exports and Expo's
+virtual entry. Reuse an existing server for the same checkout instead of starting duplicates.
+Different active worktrees may legitimately require their own watchers. Never stop another
+agent or server to recover capacity without authorization.

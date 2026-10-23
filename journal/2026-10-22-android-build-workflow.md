@@ -40,15 +40,15 @@ Hermes remains in use.
 
 ## Measurements
 
-| Case                                | Work time   | Definition                                                                                                                                                     |
-| ----------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Historical cold release             | 23m53s      | Job292, fresh native worktree with existing dependency-download cache;819tasks executed.                                                                       |
-| Historical warm release             | 1m59.035s   | Job306, frozen JS overlay in the same builder;45executed/774up-to-date. Queue wait9m32.747s excluded.                                                          |
-| First permanent-workflow activation | 4m29.773s   | Job1090; workspace build35.631s, Metro14.674s, Hermes18.029s, maps6.519s, Gradle180.789s.480executed/29fromcache/768up-to-date.                                |
-| Actual changed-JS warm APK          | 1m12.795s   | Same job, source from a different caller worktree; no npm/workspace rebuild. Metro12.268s, Hermes16.853s, maps5.587s, Gradle33.633s.40executed/1237up-to-date. |
-| Exact signed APK reuse              | 1.914s      | Matching source/config/APK/signer; no Metro, Hermes or Gradle execution.                                                                                       |
-| Initial separate debug native build | 9m47s       | Job1093;744tasks,590executed/154fromcache. Build and signature passed; subsequent installDebug was rejected by the phone.                                      |
-| Physical Fast Refresh               | Unconfirmed | Debug client installed; two Metro attempts reached the shared host inotify watch limit.                                                                        |
+| Case                                | Work time | Definition                                                                                                                                                     |
+| ----------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Historical cold release             | 23m53s    | Job292, fresh native worktree with existing dependency-download cache;819tasks executed.                                                                       |
+| Historical warm release             | 1m59.035s | Job306, frozen JS overlay in the same builder;45executed/774up-to-date. Queue wait9m32.747s excluded.                                                          |
+| First permanent-workflow activation | 4m29.773s | Job1090; workspace build35.631s, Metro14.674s, Hermes18.029s, maps6.519s, Gradle180.789s.480executed/29fromcache/768up-to-date.                                |
+| Actual changed-JS warm APK          | 1m12.795s | Same job, source from a different caller worktree; no npm/workspace rebuild. Metro12.268s, Hermes16.853s, maps5.587s, Gradle33.633s.40executed/1237up-to-date. |
+| Exact signed APK reuse              | 1.914s    | Matching source/config/APK/signer; no Metro, Hermes or Gradle execution.                                                                                       |
+| Initial separate debug native build | 9m47s     | Job1093;744tasks,590executed/154fromcache. Build and signature passed; subsequent installDebug was rejected by the phone.                                      |
+| Physical Fast Refresh               | 0.296s    | Zotac, five visible edits; state/ref/PID retained. Median296ms to frame marker;675ms to captured display (upper bound incl. ADB).                              |
 
 The permanent workflow has one actual changed-JS sample and one artifact hit. Outer queue wait
 was 0.934s, excluded. Receipts prove the changed module was bundled and its verified Hermes
@@ -81,28 +81,52 @@ first-install time stayed identical. No settings were weakened, no package unins
 no APK rebuilt for installation. Bare `--install` now resolves the known Xiaomi's connected
 authenticated WLAN endpoint and verifies its physical serial instead of using port5555.
 
-The first real Metro run failed with `ENOSPC` from the fallback directory watcher. It was
-stopped, with exact source restoration, probe removal, child-process shutdown and unchanged
-production/debug APK identities verified. Host watch limits were not increased. The scoped Metro correction preserves Expo defaults,
-excludes generated native outputs and app caches, and leaves every one of6795checked bundled
-runtime paths visible. It reduced directory observations from23219to17076. Twenty-four focused
-cases, formatting and lint passed. The second actual Metro attempt still reached `ENOSPC`;
-this is a footprint reduction, not a resolved host quota. Both attempts restored source and
-removed only their own probe, Metro/logcat children and reverse mapping; package identities
-stayed unchanged. There is no supported separate dependency watch filter in installed Metro.
-No foreign agent/process was stopped.
+The first two real Metro runs failed with `ENOSPC`, errno-28, from Node's `watch` syscall.
+This was inotify exhaustion, not disk space or an `EMFILE` process-descriptor failure.
+The scoped exclusion keeps Expo defaults and all6795checked bundled runtime paths visible;
+it reduces observations from23219to17076directories. Twenty-four focused cases, formatting
+and lint passed. That reduction alone did not fit the old shared budget.
 
-One read-only Mac inspection found Node24.18.0, free port8081 and the same LAN, but no existing
-PandaOS source checkout or verified Metro dependencies. A user choice is pending before setting
-up that additional development checkout. Physical Fast Refresh timing remains unconfirmed.
+A fresh root read-only audit used kernel `kcmp(KCMP_FILE)` to distinguish open file descriptions.
+With Metro alive, UID1001 had77330watch registrations across131independent inotify instances.
+One Metro PID held17076watches; the other processes already used60254, leaving5282under the
+old65536cap. No duplicate Metro cwd/port was present. The PandaOS daemon, concurrent agent
+processes and Syncthing were the largest groups. Independent agents watch common skills and
+configuration: one physical skills directory appeared in22groups and `/etc` in33. Those were
+independent watches, not inherited-descriptor double counting. The sampled path audit resolves
+4000handles; its coverage is bounded. It found no justification to stop another agent/service.
 
-The prepared Fast Refresh driver preserves PID, component state and ref identity through five
-actual edits. It reports first Metro/full-bundle startup separately, includes ADB log transport
-in the update latency and measures a next-frame commit marker rather than pixel paint. It
-removes inherited CI so Expo file watching remains enabled. It restores source bytes, removes
-only its own reverse mapping and stops only its own Metro/logcat children. It was attempted at
-the device twice, but neither run reached its first marker because Metro exited with ENOSPC;
-no Fast Refresh time is claimed.
+Marushan explicitly authorized persistent host tuning. The primary Zotac now uses
+`/etc/sysctl.d/99-pandaos-inotify.conf`:262144watches and512instances. Available RAM exceeded30GiB
+on this64GBhost. A conservative1.5KiB-per-watch capacity allowance totals384MiB, below1%of RAM;
+it is not measured or preallocated memory. The queue-events cap remains16384. Readback and
+persistent-file bytes matched; only these two inotify keys changed. No service restarted.
+The shared host setting benefits every agent and React Native project. Operational details
+belong to [File observation](../docs/file-observation.md#shared-linux-capacity).
+
+After tuning, job1180 completed five real component edits on the WLAN-connected Xiaomi:
+median302ms, range264–369ms to the physical next-frame log marker. A second run added a visible
+token and an actual screenshot after every edit: median296ms, range290–331ms to the frame marker;
+median675ms, range670–735ms until the captured screen was read. All five images were actually
+viewed and show HMR edit-1through edit-5. The screenshot time is an upper bound including ADB
+encoding/transport; neither metric is pure pixel-paint latency. PID, component state and ref
+identity stayed fixed through each set of five edits. First load is separate and includes
+bringing the test app forward; it is not a Fast Refresh sample.
+
+Both runs used the existing signed debug APK. No APK rebuild, uninstall, data clear or security
+setting change occurred. Production and debug APK hashes, first-install times and app IDs
+matched before/after. All probes and layout bytes were restored exactly; only owned Metro,
+logcat and reverse mappings were cleaned up. The normal production app was brought forward
+after testing. The captures show the temporary marker over the debug startup/Expo introduction
+screen, not an app-wide visual approval. An existing native debug-context teardown exception
+was logged during initial reload setup; it did not occur during the five state-preserving
+edits and no native source was changed in this watcher task.
+
+Zotac remains the primary development host. No independent Mac development checkout was
+created. An additive optional Mac worker is being integrated into the existing scheduler;
+activation and final remote-job evidence remain pending. The stopped original scheduler
+session remains stopped. This work uses its hash-recorded source baseline in an isolated
+implementation worktree and does not introduce a second broker or queue.
 
 ## Evidence and ownership
 
@@ -112,4 +136,4 @@ Current state: `.dev/claude-account-rollout/checkpoint.json`. Production install
 Persistent release and debug worktrees intentionally retain native caches under this task.
 Frozen app-source overlays are build-only and must never be staged. Agent sessions and
 browser tabs stay open. Debug installation is complete; the physical Fast Refresh measurement
-remains blocked by the shared Zotac watcher budget; the Mac development-checkout choice is pending.
+is verified on the Zotac; optional Mac scheduler-worker activation remains in progress.

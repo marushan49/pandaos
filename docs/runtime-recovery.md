@@ -43,30 +43,29 @@ Then the script restarts the service, optionally switching `~/projects/pandaos-l
 
 The heads-up starts a provider turn in every selected idle session. Background work a provider keeps outside a turn is only as visible as the session's own checkpoint.
 
-## Add the Linux Android queue
+## Add the Linux build scheduler
 
-Read [the queue installation and limits](../scripts/android-queue/README.md) first. Download the addon archive or use this checkout, then install using the real JDK and SDK paths:
+The host build scheduler replaces the single-slot Android queue and keeps its entry points. Read [the scheduler README](../scripts/build-scheduler/README.md) for architecture, limits and rollback. Install the legacy queue first for its JDK/SDK facades and `agent-env.json`, then install the scheduler and route the legacy entry points to it:
 
 ```sh
 sudo -n python3 scripts/android-queue/install.py \
   --user "$USER" \
   --java-home /path/to/installed/jdk \
   --android-home /path/to/installed/android-sdk
-pandaos-android-queue status
+sudo -n python3 scripts/build-scheduler/install.py --switch
+pandaos-build-scheduler status
 ```
 
-The queue requires Python 3.10+, systemd 249+ and unified cgroup v2. It runs one FIFO job as the configured account under a root-owned system slice, with a shared 8 GiB hard memory cap, no swap, two CPU cores and 512 tasks. It does not move existing builds or emulators.
+Session Recovery reads the root-owned `/etc/pandaos-android-queue/agent-env.json` before creating agents and opening provider sessions. It preserves incoming environment values except for the guarded JDK/SDK variables and prepends guarded tool directories to PATH. New agents receive the scheduler policy; newly opened and resumed provider sessions receive the environment across providers. Existing processes keep their environment until reopened. An invalid or writable queue configuration rejects agent creation/session opening with a visible error; repair that root-owned file instead of bypassing the resource policy.
 
-Session Recovery reads the root-owned `/etc/pandaos-android-queue/agent-env.json` before creating agents and opening provider sessions. It preserves incoming environment values except for the guarded JDK/SDK variables and prepends guarded tool directories to PATH. New agents receive the complete-command queue policy; newly opened and resumed provider sessions receive the environment across providers. Existing processes need their explicit command wrapped until reopened. An invalid or writable queue configuration rejects agent creation/session opening with a visible error; repair that root-owned file instead of silently bypassing the resource policy.
-
-Submit the entire Android command so Node, prebuild and native compilers share the cap:
+Submit the entire command so Node, prebuild and native compilers share one job:
 
 ```sh
 pandaos-android-queue -- npm run android:production
-pandaos-android-queue -- ./gradlew assembleRelease
+pandaos-build-scheduler --priority blocking -- cargo test -p michelin
 ```
 
-The Java and SDK emulator facades catch common unwrapped entry points. Absolute real tool paths, independent containers or services, SSH workers and external CI runners require their own complete-command integration. The queue is cooperative tooling policy, not a security boundary. A build exceeding its memory cap fails; it does not receive an automatic larger budget. Existing foreground emulators occupy a slot if queued separately, so reuse an existing emulator or include tooling inside one bounded job.
+The Java and SDK emulator facades catch common unwrapped entry points. Absolute real tool paths, independent containers or services, SSH workers and external CI runners require their own complete-command integration. The scheduler is cooperative tooling policy, not a security boundary.
 
 Host SSH capacity and daemon scheduling remain separate administration. CPU weights and memory-low settings are soft protections; these addons cannot guarantee connectivity through host or network failure, and unrelated processes can still cause host pressure.
 
@@ -76,11 +75,11 @@ The Linux queue does not schedule macOS builds. Before delegating to a Mac, veri
 
 ## Verify and remove
 
-Run the queue's focused smoke check on an idle queue and the plugin's existing focused test file from a development checkout. Those checks use short processes and turn fixtures; they do not prove a real Android application fits the cap. Verify the UI by enabling automatic recovery, interrupting only a disposable provider session, and checking that one continuation, its chat marker and its history entry appear without manual input. Check explicit stop and exhausted retry cases in the focused suite.
+Run the scheduler's smoke check and the plugin's existing focused test file from a development checkout. Those checks use short processes and turn fixtures; they do not prove a real Android application fits the cap. Verify the UI by enabling automatic recovery, interrupting only a disposable provider session, and checking that one continuation, its chat marker and its history entry appear without manual input. Check explicit stop and exhausted retry cases in the focused suite.
 
 ```sh
-python3 scripts/android-queue/smoke.py
+python3 scripts/build-scheduler/smoke.py
 npm run test --prefix plugin-examples/session-recovery
 ```
 
-Disable `session-recovery` through plugin management to stop its hooks while keeping its data. Removing the plugin deletes its settings and data: back up the host-owned data directory before removal if you need the recovery evidence. To remove the queue, first remove the plugin's environment integration, drain or explicitly cancel queue jobs, and follow [queue removal](../scripts/android-queue/README.md#remove). Restore the configured account's Gradle properties from the first relevant backup. Do not stop the agent daemon or unrelated emulator services.
+Disable `session-recovery` through plugin management to stop its hooks while keeping its data. Removing the plugin deletes its settings and data: back up the host-owned data directory before removal if you need the recovery evidence. To return to the single-slot queue, run `install.py --rollback` from `scripts/build-scheduler/`. To remove the queue entirely, first remove the plugin's environment integration, drain or explicitly cancel jobs, and follow [queue removal](../scripts/android-queue/README.md#remove). Restore the configured account's Gradle properties from the first relevant backup. Do not stop the agent daemon or unrelated emulator services.
