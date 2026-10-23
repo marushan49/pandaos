@@ -83,6 +83,13 @@ class PlacementTests(unittest.TestCase):
                  wall_kind='e2e')])
         self.assertEqual(self.instance.similar_wall(item, 'macbook'), 20)
 
+    def test_measured_estimate_ignores_failed_run_times(self):
+        self.instance.history['sig'].extend([dict(wall=3, exit=1, cpu_seconds=1, peak_memory=GIB),
+                                              dict(wall=90, exit=0, cpu_seconds=90, peak_memory=2 * GIB)])
+        self.assertEqual(self.instance.estimate('sig', 'medium')['wall'], 90)
+        self.instance.history['bad'].append(dict(wall=3, exit=1, cpu_seconds=1, peak_memory=GIB))
+        self.assertIsNone(self.instance.estimate('bad', 'medium')['wall'])
+
     def test_similar_local_history_keeps_a_warm_zotac(self):
         self.instance.workers['macbook'] = mac()
         item = job()

@@ -9,7 +9,7 @@ const NAMES: Record<string, string> = { pandaos: "PandaOS" };
 const LABELS: Record<string, string> = {
   "play-release": "Play release",
   "ios-release": "iOS release",
-  "android-build": "Android update",
+  "android-build": "Android build",
   "android-update": "Android update",
 };
 

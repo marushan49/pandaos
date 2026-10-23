@@ -396,11 +396,11 @@ class Scheduler:
                         klass=klass)
         peak = max(r['peak_memory'] for r in runs)
         cores = sorted(r['cpu_seconds'] / max(r['wall'], 1) for r in runs)[int(0.9 * (len(runs) - 1))]
-        walls = sorted(r['wall'] for r in runs)
+        walls = sorted(r['wall'] for r in runs if r.get('exit') in (0, None)) or [None]
         wall = walls[len(walls) // 2]
         if peak >= 3 * GIB or cores >= 3.5:
             measured = 'heavy'
-        elif peak < GIB and cores < 1.5 and wall < 180:
+        elif peak < GIB and cores < 1.5 and (wall or 0) < 180:
             measured = 'light'
         else:
             measured = 'medium'
