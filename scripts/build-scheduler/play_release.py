@@ -182,8 +182,12 @@ def upload(args, play):
         play.call('PUT', '/edits/%s/tracks/%s' % (edit, args.track), body=dict(track=args.track, releases=[release]))
         play.call('POST', '/edits/%s:validate' % edit)
         if not args.commit:
+            committed = True
+            discarded = discard_safely(play, edit)
             return dict(committed=False, validated=True, track=args.track, release=release, aab=meta,
-                        note='validation only; the edit was discarded')
+                        discarded=discarded,
+                        note='validation only; ' + ('the edit was discarded' if discarded else
+                                                    'discarding the edit failed, it expires unpublished'))
         play.call('POST', '/edits/%s:commit' % edit)
         committed = True
     finally:
@@ -204,8 +208,10 @@ def upload(args, play):
 def discard_safely(play, edit):
     try:
         play.discard(edit)
+        return True
     except Exception as error:
         log('could not discard edit %s: %s' % (edit, str(error)[:200]))
+        return False
 
 
 def build(args):

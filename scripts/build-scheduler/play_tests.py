@@ -56,6 +56,13 @@ class PlayReleaseTests(unittest.TestCase):
         self.assertIn(('DELETE', '/edits/e1'), play.calls)
         self.assertNotIn(('POST', '/edits/e1:commit'), play.calls)
 
+    def test_failed_discard_after_validation_is_reported(self):
+        play = FakePlay({('DELETE', 'e1'): RuntimeError('delete 503')})
+        result = self.run_upload(play)
+        self.assertFalse(result['discarded'])
+        self.assertIn('discarding the edit failed', result['note'])
+        self.assertNotIn(('POST', '/edits/e1:commit'), play.calls)
+
     def test_failed_validate_with_commit_discards_and_keeps_the_error(self):
         play = FakePlay({('POST', 'e1:validate'): RuntimeError('validate 400')})
         with self.assertRaisesRegex(RuntimeError, 'validate 400'):

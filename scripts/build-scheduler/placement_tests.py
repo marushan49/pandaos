@@ -21,14 +21,15 @@ def mac(**change):
     return probe
 
 
-def job(name='j', klass='heavy', needs=('java_home', 'android_sdk'), darwin=False, portable=True,
+def job(name='j', klass='heavy', needs=('java_home', 'android_sdk'), darwin=False, portable=True, remote_safe=True,
         priority='normal', lock='/home/admin/projects/app', wall=300, state='queued'):
     return scheduler.Job(dict(id=name, sequence=1, state=state, worker='auto', klass=klass, priority=priority,
                               agent='agent-' + name, project='/home/admin/projects/app', cwd='/home/admin/projects/app',
                               lock=lock, command=['./gradlew', 'assembleDebug'], created=time.time(),
                               started=time.time() if state == 'running' else None,
                               estimate=dict(memory_gib=4, cores=4, wall=wall), needs=list(needs), darwin=darwin,
-                              portable=portable, artifacts=[], timeout=600, queue_timeout=600, signature='s',
+                              portable=portable, remote_safe=remote_safe, artifacts=[], timeout=600,
+                              queue_timeout=600, signature='s',
                               measured=None, cache=None, exit=None, reason=None, finished=None))
 
 
@@ -71,15 +72,27 @@ class PlacementTests(unittest.TestCase):
         choice, _, _ = self.place(job())
         self.assertEqual(choice['worker'], 'local')
 
+    def test_estimates_ignore_failed_runs_and_old_remote_measurements(self):
+        item = job()
+        item.command = ['./gradlew', 'assembleDebug']
+        self.instance.history['a'].extend([
+            dict(wall=4, exit=1, project=item.project, worker='macbook', command='./gradlew assembleDebug',
+                 wall_kind='e2e'),
+            dict(wall=6, exit=0, project=item.project, worker='macbook', command='./gradlew assembleDebug'),
+            dict(wall=20, exit=0, project=item.project, worker='macbook', command='./gradlew assembleDebug',
+                 wall_kind='e2e')])
+        self.assertEqual(self.instance.similar_wall(item, 'macbook'), 20)
+
     def test_similar_local_history_keeps_a_warm_zotac(self):
         self.instance.workers['macbook'] = mac()
         item = job()
         item.command = ['./gradlew', 'clean', 'assembleDebug', '--build-cache']
         item.estimate['wall'] = None
-        self.instance.history['local-variant'].append(dict(wall=11, project=item.project, worker='local',
+        self.instance.history['local-variant'].append(dict(wall=11, project=item.project, worker='local', exit=0,
                                                            command='./gradlew clean assembleDebug --no-daemon'))
-        self.instance.history['mac-variant'].append(dict(wall=13, project=item.project, worker='macbook',
-                                                         command='./gradlew clean assembleDebug', sync_seconds=1))
+        self.instance.history['mac-variant'].append(dict(wall=13, project=item.project, worker='macbook', exit=0,
+                                                         command='./gradlew clean assembleDebug', sync_seconds=1,
+                                                         wall_kind='e2e'))
         choice, _, view = self.place(item)
         self.assertEqual(choice['worker'], 'local')
         self.assertEqual(next(c for c in view if c['worker'] == 'local')['wall'], 11)
@@ -88,7 +101,8 @@ class PlacementTests(unittest.TestCase):
         self.instance.workers['macbook'] = mac()
         item = job()
         sig = scheduler.signature(item.project + ':macbook', item.command)
-        self.instance.history[sig].append(dict(wall=60, worker='macbook', project=item.project))
+        self.instance.history[sig].append(dict(wall=60, worker='macbook', project=item.project, exit=0,
+                                               wall_kind='e2e'))
         self.instance.history['other'].append(dict(worker='macbook', project=item.project, sync_seconds=4))
         choice, _, view = self.place(item)
         self.assertEqual(choice['worker'], 'macbook')
@@ -158,9 +172,11 @@ class PlacementTests(unittest.TestCase):
         outside = scheduler.classify(['/home/admin/other/tool'], str(scheduler.Path(__file__).resolve().parents[2]), {})
         self.assertFalse(outside['portable'])
 
-    def admit(self, command, directory):
-        req = dict(command=command, env={}, cwd=directory, timeout=60, queue_timeout=60)
-        with patch.object(scheduler, 'JOBS', scheduler.Path(directory)), patch.object(scheduler.os, 'chown'), \
+    def admit(self, command, cwd, jobs=None):
+        import tempfile
+        req = dict(command=command, env={}, cwd=cwd, timeout=60, queue_timeout=60)
+        jobs = jobs or tempfile.mkdtemp(prefix='scheduler-test-')
+        with patch.object(scheduler, 'JOBS', scheduler.Path(jobs)), patch.object(scheduler.os, 'chown'), \
                 patch.object(scheduler.os, 'fchown'):
             self.instance.save = lambda: None
             return self.instance.admit(req, 1001)
@@ -185,7 +201,11 @@ class PlacementTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.instance.config['auto_placement'] = True
             self.instance.config['workers'] = dict(macbook=dict(SPEC))
-            self.assertEqual(self.admit(['npm', 'run', 'build'], here).worker, 'local')
+            admitted = self.admit(['npm', 'run', 'build'], here, directory)
+            self.assertEqual(admitted.worker, 'local')
+            self.assertFalse(admitted.remote_safe)
+            self.instance.workers['macbook'] = mac()
+            self.assertIn('node_modules', self.instance.compatible(admitted, 'macbook'))
 
     def test_pinned_remote_jobs_check_platform_and_tools(self):
         self.instance.workers['macbook'] = mac(platform='linux')
@@ -222,7 +242,8 @@ class PlacementTests(unittest.TestCase):
         self.instance.workers['macbook'] = mac()
         item = job(wall=600)
         sig = scheduler.signature(item.project + ':macbook', item.command)
-        self.instance.history[sig].append(dict(wall=60, worker='macbook', project=item.project))
+        self.instance.history[sig].append(dict(wall=60, worker='macbook', project=item.project, exit=0,
+                                               wall_kind='e2e'))
         self.instance.history['other'].append(dict(worker='macbook', project=item.project, sync_seconds=5))
         for index in range(2):
             running = job('r%d' % index, state='running', lock='/remote/%d' % index, wall=40)

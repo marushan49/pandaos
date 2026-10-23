@@ -297,7 +297,8 @@ class Job:
         self.sample = None
         self.wait_reason = getattr(self, 'wait_reason', None)
         self.worker = getattr(self, 'worker', 'local')
-        for key, default in (('needs', []), ('darwin', False), ('portable', False), ('artifacts', []),
+        for key, default in (('needs', []), ('darwin', False), ('portable', False), ('remote_safe', False),
+                             ('artifacts', []),
                              ('placement', None)):
             if getattr(self, key, None) is None:
                 setattr(self, key, default)
@@ -320,7 +321,7 @@ class Job:
                 'lock', 'command', 'timeout', 'queue_timeout', 'detach', 'created', 'started', 'finished', 'exit',
                 'reason', 'wait_reason', 'estimate', 'measured', 'signature', 'cache', 'decision', 'label', 'cargo',
                 'gradle', 'worker', 'needs', 'darwin', 'portable', 'artifacts', 'placement', 'sccache_port',
-                'product']
+                'product', 'remote_safe']
         return {key: getattr(self, key, None) for key in keys}
 
     def view(self, full=False):
@@ -464,7 +465,7 @@ class Scheduler:
                                      wall=estimate['wall'], measured_class=estimate['klass']),
                        measured=None, signature=sig, cache=None, decision=None, label=req.get('label'),
                        cargo=info['cargo'], gradle=info['gradle'], worker=worker_name, needs=info['needs'],
-                       product=info['product'],
+                       product=info['product'], remote_safe=info['remote_safe'],
                        darwin=info['darwin'], portable=info['portable'], artifacts=artifacts, placement=None))
         job.directory.mkdir(mode=0o750)
         os.chown(job.directory, 0, self.account.pw_gid)
@@ -521,6 +522,8 @@ class Scheduler:
             return 'kein snapshot_root konfiguriert'
         if not job.portable:
             return 'Projekt nicht als Snapshot übertragbar'
+        if not job.remote_safe:
+            return 'Abhängigkeiten (node_modules) nicht im Snapshot'
         if job.klass == 'light' and not job.darwin:
             return 'leichte Jobs bleiben lokal'
         return None
@@ -528,7 +531,8 @@ class Scheduler:
     def similar_wall(self, job, name):
         key = [arg for arg in job.command if not arg.startswith('-')]
         walls = sorted(r['wall'] for runs in self.history.values() for r in runs
-                       if r.get('wall') and r.get('project') == job.project and r.get('worker', 'local') == name
+                       if self.usable_run(r, name) and r.get('project') == job.project
+                       and r.get('worker', 'local') == name
                        and [a for a in r.get('command', '').split() if not a.startswith('-')] == key)
         return walls[len(walls) // 2] if walls else None
 
@@ -538,7 +542,8 @@ class Scheduler:
         if name == 'local':
             return local
         spec = (self.config.get('workers') or {}).get(name, {})
-        runs = [r for r in self.history.get(signature(job.project + ':' + name, job.command), ()) if r.get('wall')]
+        runs = [r for r in self.history.get(signature(job.project + ':' + name, job.command), ())
+                if self.usable_run(r, name)]
         if runs:
             walls = sorted(r['wall'] for r in runs)
             return walls[len(walls) // 2]
@@ -549,8 +554,14 @@ class Scheduler:
                    for runs in self.history.values() for r in runs)
         return local * spec.get('speed_factor', 0.8) * (1 if warm else spec.get('cold_factor', 1.5))
 
+    @staticmethod
+    def usable_run(run, name):
+        if not run.get('wall') or run.get('exit') not in (0, None):
+            return False
+        return name == 'local' or run.get('wall_kind') == 'e2e'
+
     def has_remote_history(self, job, name):
-        if self.history.get(signature(job.project + ':' + name, job.command)):
+        if any(self.usable_run(r, name) for r in self.history.get(signature(job.project + ':' + name, job.command), ())):
             return True
         return self.similar_wall(job, name) is not None
 
@@ -1030,7 +1041,8 @@ class Scheduler:
                          cpu_seconds=measured['cpu_seconds'], wall=measured['wall'],
                          waited=round(job.started - job.created, 1), exit=code, agent=job.agent,
                          command=' '.join(job.command)[:200], cache=job.cache, io_written=measured.get('io_written'),
-                         worker=job.worker, sync_seconds=(job.cache or {}).get('sync_seconds'))
+                         worker=job.worker, sync_seconds=(job.cache or {}).get('sync_seconds'),
+                         wall_kind='e2e' if job.worker != 'local' else 'process')
             self.history[job.signature].append(entry)
             with open(STATE / 'history.jsonl', 'a') as f:
                 f.write(json.dumps(entry) + '\n')
