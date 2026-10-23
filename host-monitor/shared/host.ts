@@ -119,3 +119,45 @@ export const hostTriage = defineRpc({
   input: z.object({ agentId: z.string() }),
   output: z.object({ started: z.boolean(), message: z.string() }),
 });
+
+export const hostBuildJobSchema = z.object({
+  id: z.string(),
+  sequence: z.number(),
+  state: z.enum(["queued", "running", "finished"]),
+  product: z.string(),
+  task: z.string(),
+  worktree: z.string().nullable(),
+  worker: z.string(),
+  seconds: z.number().nullable(),
+  waited: z.number().nullable(),
+  exit: z.number().nullable(),
+  reason: z.string().nullable(),
+  placement: z.string().nullable(),
+  memoryGb: z.number().nullable(),
+  artifacts: z.array(z.string()),
+  finishedAt: z.number().nullable(),
+});
+
+export const hostBuildsSchema = z.object({
+  available: z.boolean(),
+  error: z.string().nullable(),
+  running: z.number(),
+  queued: z.number(),
+  jobs: z.array(hostBuildJobSchema),
+  workers: z.array(
+    z.object({
+      name: z.string(),
+      state: z.enum(["ready", "disabled", "offline"]),
+      detail: z.string(),
+    }),
+  ),
+});
+
+export type HostBuilds = z.infer<typeof hostBuildsSchema>;
+export type HostBuildJob = z.infer<typeof hostBuildJobSchema>;
+
+export const hostBuilds = defineRpc({
+  name: "host.builds",
+  input: z.object({}),
+  output: hostBuildsSchema,
+});

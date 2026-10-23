@@ -1,6 +1,6 @@
 import { useRpc } from "@getpaseo/plugin/client";
 import { useQuery } from "@tanstack/react-query";
-import { hostCloseTab, hostSnapshot, hostStop, hostTriage } from "../shared/host";
+import { hostBuilds, hostCloseTab, hostSnapshot, hostStop, hostTriage } from "../shared/host";
 
 export function useHostSnapshot() {
   const snapshot = useRpc(hostSnapshot);
@@ -22,4 +22,14 @@ export function useHostStop() {
 
 export function useHostCloseTab() {
   return useRpc(hostCloseTab);
+}
+
+export function useHostBuilds() {
+  const builds = useRpc(hostBuilds);
+  return useQuery({
+    queryKey: ["host-monitor", "builds"],
+    queryFn: () => builds({}),
+    refetchInterval: 5_000,
+    staleTime: 2_000,
+  });
 }

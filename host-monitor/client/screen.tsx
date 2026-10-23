@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { type LayoutChangeEvent, Pressable, ScrollView, Text, View } from "react-native";
 import type { HostAgent, HostConsumer, HostTab, HostTriage, HostVerdict } from "../shared/host";
 import { useHostCloseTab, useHostSnapshot, useHostStop, useHostTriage } from "./use-host";
+import { BuildsCard } from "./builds-card";
 
 const VERDICT_LABEL: Record<HostVerdict, string> = {
   fits: "Fits",
@@ -335,6 +336,8 @@ export function HostScreen({ theme, layout, host, navigation }: PluginScreenProp
           </Text>
         ))}
       </View>
+
+      <BuildsCard colors={theme.colors} />
 
       <View style={styles.card}>
         <Text style={styles.title}>Cost of a start</Text>

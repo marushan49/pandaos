@@ -1,8 +1,9 @@
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { listHostAgents, requestTriage } from "./server/agents";
+import { readBuilds } from "./server/builds";
 import { startMonitor } from "./server/monitor";
 import { canCloseTabs, closeTab, listTabs } from "./server/tabs";
-import { hostCloseTab, hostSnapshot, hostStop, hostTriage } from "./shared/host";
+import { hostBuilds, hostCloseTab, hostSnapshot, hostStop, hostTriage } from "./shared/host";
 
 export default function contribute(server: PluginServerContext) {
   const monitor = startMonitor();
@@ -20,5 +21,6 @@ export default function contribute(server: PluginServerContext) {
   });
   server.handle(hostStop, (input) => monitor.stopProcess(input.pid));
   server.handle(hostCloseTab, (input, context) => closeTab(context.paseo, input));
+  server.handle(hostBuilds, () => readBuilds());
   return () => monitor.stop();
 }

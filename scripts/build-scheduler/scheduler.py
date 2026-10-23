@@ -215,6 +215,26 @@ def project_root(cwd):
     return cwd
 
 
+DISPLAY_NAMES = {'pandaos': 'PandaOS'}
+
+
+def product_name(root):
+    path = Path(root)
+    marker = path / '.git'
+    name = path.name
+    if marker.is_file():
+        with contextlib.suppress(OSError):
+            gitdir = marker.read_text().strip().removeprefix('gitdir:').strip()
+            if '/.git/' in gitdir:
+                name = Path(gitdir.split('/.git/')[0]).name
+    elif not marker.exists():
+        if path.parent.name == 'pandaos-releases':
+            name = 'pandaos'
+        else:
+            name = re.sub(r'-[0-9a-f]{7,}$', '', name)
+    return DISPLAY_NAMES.get(name, name)
+
+
 def classify(command, cwd, env):
     text = script_text(command, cwd)
     lowered = text.lower()
@@ -238,6 +258,7 @@ def classify(command, cwd, env):
     outside = [a for a in command if a.startswith('/') and not a.startswith(('/usr/', '/bin/', '/opt/homebrew/'))
                and not (a + '/').startswith(root.rstrip('/') + '/')]
     return dict(klass=klass, rule=matched, interactive=interactive, project=root, lock=lock, needs=needs,
+                product=product_name(root),
                 darwin=darwin, portable=os.path.exists(os.path.join(root, '.git')) and not outside,
                 remote_safe=self_contained(needs, root, darwin),
                 cargo='cargo' in lowered, gradle=bool(re.search(r'gradlew|gradle|expo\s+run|flutter', lowered)))
@@ -298,7 +319,8 @@ class Job:
         keys = ['id', 'sequence', 'state', 'klass', 'class_source', 'rule', 'priority', 'agent', 'project', 'cwd',
                 'lock', 'command', 'timeout', 'queue_timeout', 'detach', 'created', 'started', 'finished', 'exit',
                 'reason', 'wait_reason', 'estimate', 'measured', 'signature', 'cache', 'decision', 'label', 'cargo',
-                'gradle', 'worker', 'needs', 'darwin', 'portable', 'artifacts', 'placement', 'sccache_port']
+                'gradle', 'worker', 'needs', 'darwin', 'portable', 'artifacts', 'placement', 'sccache_port',
+                'product']
         return {key: getattr(self, key, None) for key in keys}
 
     def view(self, full=False):
@@ -442,6 +464,7 @@ class Scheduler:
                                      wall=estimate['wall'], measured_class=estimate['klass']),
                        measured=None, signature=sig, cache=None, decision=None, label=req.get('label'),
                        cargo=info['cargo'], gradle=info['gradle'], worker=worker_name, needs=info['needs'],
+                       product=info['product'],
                        darwin=info['darwin'], portable=info['portable'], artifacts=artifacts, placement=None))
         job.directory.mkdir(mode=0o750)
         os.chown(job.directory, 0, self.account.pw_gid)
@@ -1426,7 +1449,7 @@ def human_status(data):
             detail = 'Exit %s%s, %ss, Spitze %.1f GiB' % (
                 job['exit'], ' (' + job['reason'] + ')' if job.get('reason') else '', measured.get('wall', '-'),
                 (measured.get('peak_memory') or 0) / GIB)
-        project = Path(job['project'] or '').name
+        project = job.get('product') or Path(job['project'] or '').name
         if job.get('worker', 'local') != 'local':
             detail = job['worker'] + ': ' + detail
         print('#%-5d %s %-6s %-11s %-22s %s | %s' % (job['sequence'], when, job['klass'], job['priority'],
