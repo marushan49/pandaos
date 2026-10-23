@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { AgentMessage } from "@getpaseo/protocol/agent-message";
 import { ChevronRight } from "@/components/icons/ui-icons";
+import { useDisableOuterSpacing } from "@/components/message";
+import { CONTROL_HEIGHTS } from "@/components/ui/control-geometry";
 import { AnimatedDisclosure } from "@/components/ui/animated-disclosure";
 import { useSessionStore } from "@/stores/session-store";
 import type { Theme } from "@/styles/theme";
@@ -35,6 +37,7 @@ export const AgentMessageRow = memo(function AgentMessageRow({
 }: AgentMessageRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const disableOuterSpacing = useDisableOuterSpacing(undefined);
   const senderId = message.sender.id;
   const senderAgent = useSessionStore((state) => {
     const session = serverId ? state.sessions[serverId] : undefined;
@@ -44,6 +47,8 @@ export const AgentMessageRow = memo(function AgentMessageRow({
     message.sender.title ?? senderAgent?.title ?? t("message.agentMessage.anotherSession");
   const canOpenSender = Boolean(senderAgent) && senderId !== agentId;
 
+  const spacingStyle = isLastInSequence ? styles.containerLast : styles.container;
+  const containerStyle = disableOuterSpacing ? undefined : spacingStyle;
   const accessibilityState = useMemo(() => ({ expanded: open }), [open]);
   const toggle = useCallback(() => setOpen((previous) => !previous), []);
   const openSender = useCallback(
@@ -55,10 +60,7 @@ export const AgentMessageRow = memo(function AgentMessageRow({
   );
 
   return (
-    <View
-      testID="agent-message-row"
-      style={[styles.container, isLastInSequence && styles.containerLast]}
-    >
+    <View testID="agent-message-row" style={containerStyle}>
       <Pressable
         onPress={toggle}
         accessibilityRole="button"
@@ -114,7 +116,7 @@ const styles = StyleSheet.create((theme) => ({
     maxWidth: "100%",
     minWidth: 0,
     gap: theme.spacing[1.5],
-    paddingVertical: theme.spacing[1],
+    minHeight: CONTROL_HEIGHTS.compact,
   },
   verb: {
     flexShrink: 0,

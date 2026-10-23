@@ -1,5 +1,7 @@
 # PandaOS product journal
 
+- [2026-10-23 Gleichmäßige Abstände bei Sitzungsnachrichten](2026-10-23-agent-message-spacing.md)
+
 - [2026-10-22 Sitzungen einklappen und Titelüberlagerung beheben](2026-10-22-sidebar-sessions.md)
 
 - [2026-10-22 Main-Zusammenführung und Worktreebereinigung](2026-10-22-main-worktrees.md)
