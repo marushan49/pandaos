@@ -68,7 +68,7 @@ The Settings screen replaces only the first entry and preserves the rest of a cu
 
 ## Per-project instructions
 
-You can steer the wording of each kind of metadata per repository with a `paseo.json` file at your repo root. Paseo reads it from the committed version of the base branch, the same way it reads worktree config.
+You can steer the wording of each kind of metadata per repository with a `pandaos.json` file at your repo root. Paseo reads it from the committed version of the base branch, the same way it reads worktree config.
 
 ```json
 {

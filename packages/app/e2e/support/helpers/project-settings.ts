@@ -222,11 +222,11 @@ export async function removeProjectScript(page: Page, scriptName: string): Promi
 }
 
 export async function corruptPaseoConfig(repoPath: string): Promise<void> {
-  await writeFile(path.join(repoPath, "paseo.json"), "{not valid json}");
+  await writeFile(path.join(repoPath, "pandaos.json"), "{not valid json}");
 }
 
 export async function bumpPaseoConfigOnDisk(repoPath: string): Promise<void> {
-  const configPath = path.join(repoPath, "paseo.json");
+  const configPath = path.join(repoPath, "pandaos.json");
   const raw = await readFile(configPath, "utf8");
   const config = JSON.parse(raw) as Record<string, unknown>;
   config._bump = Date.now();
@@ -237,11 +237,11 @@ export async function restorePaseoConfig(
   repoPath: string,
   config: Record<string, unknown>,
 ): Promise<void> {
-  await writeFile(path.join(repoPath, "paseo.json"), JSON.stringify(config, null, 2) + "\n");
+  await writeFile(path.join(repoPath, "pandaos.json"), JSON.stringify(config, null, 2) + "\n");
 }
 
 export function commitPaseoConfig(repoPath: string): void {
-  execFileSync("git", ["add", "paseo.json"], { cwd: repoPath });
+  execFileSync("git", ["add", "pandaos.json"], { cwd: repoPath });
   execFileSync("git", ["commit", "-m", "Update project config"], { cwd: repoPath });
 }
 

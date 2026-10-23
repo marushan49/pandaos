@@ -209,7 +209,7 @@ Create and list results include `id`, `name`, `cwd`, and `workspaceId`. Use `--j
 
 ## Workspace scripts
 
-List, start, and stop the scripts configured in a workspace's `paseo.json`:
+List, start, and stop the scripts configured in a workspace's `pandaos.json`:
 
 ```bash
 pandaos script ls
@@ -219,7 +219,7 @@ pandaos script stop web
 
 By default, Paseo selects the workspace whose directory is the current directory. Pass `--cwd <path>` to select a different directory, or `--workspace <workspace-id>` when a directory has multiple workspaces. Use the global `--host` option to target another daemon. These commands also accept standard output options such as `--json`.
 
-The output includes each script's lifecycle and supervised terminal ID. Services also include their assigned port, proxy URL, and health. See [Git worktrees](/docs/worktrees#scripts-and-services) for `paseo.json` configuration.
+The output includes each script's lifecycle and supervised terminal ID. Services also include their assigned port, proxy URL, and health. See [Git worktrees](/docs/worktrees#scripts-and-services) for `pandaos.json` configuration.
 
 ## Plugins
 

@@ -35,7 +35,7 @@ Choose `baseBranch` explicitly: `origin/main` selects the remote-tracking branch
 
 ## Workspace scripts
 
-Configured `paseo.json` scripts use the same supervised lifecycle from tools and the CLI.
+Configured `pandaos.json` scripts use the same supervised lifecycle from tools and the CLI.
 
 **`list_workspace_scripts`** — `{ workspaceId }`. Lists configured scripts with lifecycle, service port, proxy URLs, health, exit code, and terminal ID.
 
