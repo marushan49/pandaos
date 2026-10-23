@@ -31,3 +31,14 @@ Folgeauftrag zu [Plan im Tasks-Tab](2026-10-23-plan-tab-harness.md): die dort ge
 
 - Verfallene Refs: Über `/agent/<id>` geladene Seiten leiten per `replaceState` auf `/workspace/<id>` um. Playwright meldet das als `framenavigated`, der Host leert den Snapshot, und ein Klick direkt danach scheitert mit „Reference … expired“ (`evr_f2ca3cf4`). Mit der Workspace-URL bestand derselbe Lauf. Vermutlich dieselbe Ursache wie die 4 schon auf HEAD scheiternden `recipe-runner`-Tests; nicht geprüft.
 - Codex-Pläne nach Neustart: Die Timeline der Codex-Testsession enthielt vor dem Neustart `[Tasks]`, danach nicht mehr; der Tasks-Tab zeigt „No tasks yet.“ PandaOS übernimmt Codex-Pläne nur live aus `turn/plan/updated`, nicht aus der Historie. Für Claude baut `ClaudeTaskState` sie beim Replay auf; live nicht geprüft.
+
+## Zweite Runde: verfallene Refs und Codex-Pläne
+
+- Freigabe „ja mach“ für beide Befunde samt geplantem Neustart.
+- Refs (`9b2c4a772`): Der Login löste Benutzername, Passwort und Absenden über drei Snapshots auf; jeder Snapshot vergibt neue Ref-Nummern, also war die erste Ref beim Ausfüllen verfallen. Jetzt ein Snapshot für alle drei. Klick und Ausfüllen lösen eine vor der Aktion verfallene Ref einmal neu auf. `recipe-runner.test.ts`: 3 der 4 vorher roten Tests grün; „streams the current and next recipe step“ erwartet eine ältere Abfolge von Aktivitätsphasen und bleibt rot (Lauf selbst besteht).
+- Codex-Pläne (`f64375f16`): `thread/read` enthält keine Plan-Einträge. Beim Laden der Historie liest der Provider `update_plan` aus der Rollout-Datei (`thread.path`), zeilenweise; Funktionsaufrufe als JSON, Code-Modus-Literale ohne Auswertung. Echte Daten: Testsession 4 Pläne in 13 ms, 48-MB-Rollout ohne Plan in 309 ms. Tests 183/183.
+- Kandidat `~/.local/share/pandaos-releases/codex-plan-restore` aus `browser-test-fixes`, Dateiliste `.dev/codex-plan-restore/files.txt`, Probelauf bestanden.
+- Geplanter Neustart `codex-plan-restore-20261023`: Daemon auf `codex-plan-restore`, serverId `srv_RtppvtlARpFR` unverändert.
+- Codex-Plan live: Die Timeline der Testsession `770629c8` enthält nach dem Neustart wieder vier `[Tasks]`-Stände am Ende des ersten Turns. Tasks-Karte: „3/3 tasks“, „3 Completed“ eingeklappt. Bild angesehen: `evr_c70c56c7`, 1280×720, normale Schrift. Funktion und Sicht bestanden.
+- Refs live: `browser_test` `evr_0be1f16e` lud die `/agent/…`-URL und klickte sofort „Close/Open Explorer sidebar“; bestanden, kein „Reference expired“. Gespeichert als Rezept `explorer-sidebar-toggle-after-redirect` (hängt an der offenen Testsession `770629c8`). `saveAs` schreibt `pandaos.json` mit anderer JSON-Formatierung; die Datei wurde auf den Repo-Stil zurückgesetzt, nur das Rezept kam hinzu.
+- Offen: der Takeover-Test in `recipe-runner.test.ts` (Phasenabfolge veraltet).
