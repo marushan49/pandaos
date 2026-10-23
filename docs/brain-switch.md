@@ -60,6 +60,12 @@ so a daemon restart or a rejected first turn does not discard it. The note is
 consumed after the provider accepts the turn. The Second Brain supplies durable
 project context separately.
 
+Automatic quota and capacity recovery keep the original logical turn alive across
+provider turns. Follow-up messages must target the latest provider turn, while
+admission and timeline messages retain the logical identity. Provider turn IDs can
+repeat after a session switch, so map insertion order cannot identify the current
+turn.
+
 ## Missing native sessions
 
 An interactive resume or reload can encounter a deleted Codex rollout. In that

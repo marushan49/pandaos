@@ -859,6 +859,7 @@ export class AgentManager {
   private readonly fallbackAttemptedProfiles = new Map<string, Set<string>>();
   private readonly foregroundToolCalls = new Set<string>();
   private readonly fallbackTurnIds = new Map<string, Map<string, string>>();
+  private readonly recoveredProviderTurnIds = new Map<string, string>();
   private readonly resolveWorkspaceForgeConfigDir?: AgentManagerOptions["resolveWorkspaceForgeConfigDir"];
   private acceptingAgentRegistrations = true;
 
@@ -3333,6 +3334,7 @@ export class AgentManager {
     this.attemptedRoutes.set(agentId, new Set());
 
     const pendingRun = this.runs.createPendingRun(agentId);
+    this.recoveredProviderTurnIds.delete(agentId);
 
     const streamForwarder = async function* streamForwarder(this: AgentManager) {
       let turnId: string;
@@ -3355,9 +3357,6 @@ export class AgentManager {
       this.openActiveTurn(agent, turnId, turnStartedAt);
       agent.lifecycle = "running";
       this.touchUpdatedAt(agent);
-      // AgentManager owns the accepted-turn boundary. Publish liveness before the canonical
-      // prompt so clients can retire optimistic activity without painting an idle frame.
-      // The provider's duplicate start for this turn is suppressed at the ingestion boundary.
       this.dispatchStream(
         agent.id,
         { type: "turn_started", provider: agent.provider, turnId },
@@ -3467,6 +3466,7 @@ export class AgentManager {
     this.activeForegroundPrompts.delete(agent.id);
     this.fallbackAttemptedProfiles.delete(agent.id);
     this.fallbackTurnIds.delete(agent.id);
+    this.recoveredProviderTurnIds.delete(agent.id);
     this.foregroundToolCalls.delete(agent.id);
     this.recoveryControllers.get(agent.id)?.abort();
     this.recoveryControllers.delete(agent.id);
@@ -3579,7 +3579,7 @@ export class AgentManager {
     const result = await this.runSteerAdmission(agent, expectedTurnId, async () => {
       const admission = await agent.session.steerActiveTurn!(prompt, {
         ...options,
-        expectedTurnId,
+        expectedTurnId: this.recoveredProviderTurnIds.get(agentId) ?? expectedTurnId,
       });
       if (admission.status === "accepted") {
         await this.recordAcceptedSteer(
@@ -3592,8 +3592,6 @@ export class AgentManager {
       }
       return admission;
     });
-    // An unavailable answer is only safe to fall back from while this admission
-    // still owns the active turn. Never let an A admission replace a later B.
     if (result.status === "unavailable" && agent.activeTurnId !== expectedTurnId) {
       throw new Error("Active turn changed before steering could be delivered");
     }
@@ -3615,7 +3613,7 @@ export class AgentManager {
       ? await this.runSteerAdmission(agent, expectedTurnId, async () => {
           const admission = await agent.session.steerActiveTurn!(prompt, {
             ...options,
-            expectedTurnId,
+            expectedTurnId: this.recoveredProviderTurnIds.get(agentId) ?? expectedTurnId,
           });
           if (admission.status === "accepted") {
             await this.recordAcceptedSteer(
@@ -3633,8 +3631,6 @@ export class AgentManager {
       return { status: "steered" };
     }
 
-    // Providers without autonomous steering keep their existing dispatch behavior. The shared
-    // admission may recognize the turn, but only an accepted steer can own it without replacement.
     if (agent.activeForegroundTurnId === null && agent.activeTurnId === expectedTurnId) {
       return { status: "inactive" };
     }
@@ -4663,6 +4659,7 @@ export class AgentManager {
   ): ManagedAgentClosed {
     this.agentStreamCoalescer.flushAndDiscard(agent.id);
     this.agents.delete(agent.id);
+    this.recoveredProviderTurnIds.delete(agent.id);
     this.previousStatuses.delete(agent.id);
     if (agent.unsubscribeSession) {
       agent.unsubscribeSession();
@@ -5863,6 +5860,7 @@ export class AgentManager {
       const turnIds = this.fallbackTurnIds.get(agent.id) ?? new Map<string, string>();
       turnIds.set(result.turnId, logicalTurnId);
       this.fallbackTurnIds.set(agent.id, turnIds);
+      this.recoveredProviderTurnIds.set(agent.id, result.turnId);
       this.recoveryJobs.delete(agent.id);
       if (signal.aborted) {
         await this.interruptSession(agent.session, agent.id);

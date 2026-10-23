@@ -13122,14 +13122,19 @@ async function createCapacityFixture(
     quotaOnlyOrigin?: boolean;
     separateFamilies?: boolean;
     routingPolicy?: AgentSessionConfig["routingPolicy"];
+    holdSuccess?: boolean;
   } = {},
 ) {
   const workdir = mkdtempSync(join(tmpdir(), "capacity-recovery-"));
   const attempts: Array<{ profile: string; model: string; prompt: AgentPromptInput }> = [];
   let writes = 0;
   const started = { business: deferred<void>(), claude: deferred<void>() };
+  const heldSessions: CapacitySession[] = [];
   class CapacitySession extends TestAgentSession {
     readonly actualConfig: AgentSessionConfig;
+    heldTurnId: string | null = null;
+    readonly steers: string[] = [];
+    interruptCount = 0;
     constructor(config: AgentSessionConfig) {
       super(config);
       this.actualConfig = config;
@@ -13183,11 +13188,34 @@ async function createCapacityFixture(
               ? (options.quotaMessage ?? "429 quota exceeded")
               : "Selected model is at capacity. Please try a different model.",
           });
+        } else if (options.holdSuccess) {
+          this.heldTurnId = turnId;
+          heldSessions.push(this);
         } else this.pushEvent({ type: "turn_completed", provider: this.provider, turnId });
       };
       if (options.synchronous) emit();
       else setTimeout(emit, 0);
       return { turnId };
+    }
+
+    async steerActiveTurn(
+      _prompt: AgentPromptInput,
+      steerOptions: import("./agent-sdk-types.js").SteerActiveTurnOptions,
+    ): Promise<import("./agent-sdk-types.js").SteerResult> {
+      this.steers.push(steerOptions.expectedTurnId);
+      return {
+        status: steerOptions.expectedTurnId === this.heldTurnId ? "accepted" : "unavailable",
+      };
+    }
+
+    override async interrupt(): Promise<void> {
+      this.interruptCount++;
+      if (this.heldTurnId)
+        this.pushEvent({
+          type: "turn_canceled",
+          provider: this.provider,
+          turnId: this.heldTurnId,
+        });
     }
   }
   const client = (provider: string): AgentClient => ({
@@ -13300,8 +13328,69 @@ async function createCapacityFixture(
     for (const item of manager.listAgents()) await manager.closeAgent(item.id);
     rmSync(workdir, { recursive: true, force: true });
   };
-  return { manager, agent, attempts, started, writes: () => writes, cleanup };
+  return { manager, agent, attempts, started, heldSessions, writes: () => writes, cleanup };
 }
+
+test.each(["quota switch", "repeated capacity retry"])(
+  "steers the current provider turn after %s while retaining logical message identity",
+  async (recovery) => {
+    vi.useFakeTimers();
+    const fixture = await createCapacityFixture({
+      failures: recovery === "quota switch" ? 1 : 2,
+      quotaReset:
+        recovery === "quota switch" ? new Date(Date.now() + 60_000).toISOString() : undefined,
+      quotaOnlyOrigin: true,
+      holdSuccess: true,
+    });
+    try {
+      const run = drainAsyncGenerator(
+        fixture.manager.streamAgent(fixture.agent.id, "Continue the task"),
+      );
+      await vi.advanceTimersByTimeAsync(3_010);
+      await vi.waitFor(() =>
+        expect(fixture.heldSessions, JSON.stringify(fixture.attempts)).toHaveLength(1),
+      );
+      const session = fixture.heldSessions[0]!;
+      const logicalTurnId = fixture.manager.getAgent(fixture.agent.id)!.activeForegroundTurnId;
+      expect(logicalTurnId).not.toBe(session.heldTurnId);
+
+      await expect(
+        fixture.manager.steerAgentRun(fixture.agent.id, "First follow-up", {
+          clientMessageId: "recovered-direct-steer",
+        }),
+      ).resolves.toEqual({ status: "accepted" });
+      await expect(
+        fixture.manager.steerOrReplaceActiveTurn(fixture.agent.id, "Second follow-up", {
+          clientMessageId: "recovered-dispatch-steer",
+        }),
+      ).resolves.toEqual({ status: "steered" });
+
+      expect(session.steers).toEqual([session.heldTurnId, session.heldTurnId]);
+      expect(session.interruptCount).toBe(0);
+      expect(fixture.attempts).toHaveLength(recovery === "quota switch" ? 2 : 3);
+      const messages = fixture.manager
+        .fetchTimeline(fixture.agent.id, { projection: "canonical" })
+        .rows.filter(({ item }) => item.type === "user_message");
+      expect(messages).toHaveLength(2);
+      expect(messages.every((row) => row.turnId === logicalTurnId)).toBe(true);
+      await fixture.manager.cancelAgentRun(fixture.agent.id);
+      await run;
+
+      const nextRun = drainAsyncGenerator(
+        fixture.manager.streamAgent(fixture.agent.id, "Start a fresh task"),
+      );
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(
+        fixture.manager.steerAgentRun(fixture.agent.id, "Fresh follow-up"),
+      ).resolves.toEqual({ status: "accepted" });
+      await fixture.manager.cancelAgentRun(fixture.agent.id);
+      await nextRun;
+    } finally {
+      vi.useRealTimers();
+      await fixture.cleanup();
+    }
+  },
+);
 
 test.each([1, 2])(
   "native capacity succeeds after %i short unchanged retries without a second user message",
