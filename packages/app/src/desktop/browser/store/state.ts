@@ -183,6 +183,7 @@ export function applyBrowserPatch<S extends BrowserIndexState>(
   if (
     nextRecord.url === existing.url &&
     nextRecord.remoteBrowserId === existing.remoteBrowserId &&
+    nextRecord.kind === existing.kind &&
     nextRecord.title === existing.title &&
     nextRecord.isLoading === existing.isLoading &&
     nextRecord.canGoBack === existing.canGoBack &&

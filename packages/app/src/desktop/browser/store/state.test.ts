@@ -90,6 +90,16 @@ describe("applyBrowserPatch", () => {
     expect(next.browsersById.b1?.url).toBe("https://example.com/path");
   });
 
+  it("switches the pane kind when only the kind changes", () => {
+    const initial = withRecords([
+      createBrowserRecord({ browserId: "b1", initialUrl: "https://a.test", now: 0 }),
+    ]);
+
+    const next = applyBrowserPatch(initial, "b1", { kind: "host" });
+
+    expect(next.browsersById.b1?.kind).toBe("host");
+  });
+
   it("returns the same state reference when nothing changes", () => {
     const initial = withRecords([
       createBrowserRecord({ browserId: "b1", initialUrl: "https://a.test", now: 0 }),
