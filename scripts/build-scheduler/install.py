@@ -76,10 +76,13 @@ if __name__ == '__main__':
         systemctl('enable', '--now', 'pandaos-android-queue.service')
         print(json.dumps(dict(rolled_back=[str(e) for e in LEGACY_ENTRIES], backups=str(BACKUPS / stamp)), indent=2))
         raise SystemExit(0)
-    for name in ['scheduler.py', 'guard.py', 'android_update.py', 'remote_worker.py', 'worker.mjs']:
+    for name in ['scheduler.py', 'guard.py', 'android_update.py', 'remote_worker.py', 'worker.mjs', 'play_release.py',
+                 'ios_release.py']:
         place(SOURCE / name, INSTALL / name, 0o755, stamp)
     place(SOURCE / 'pandaos-build-scheduler', Path('/usr/local/bin/pandaos-build-scheduler'), 0o755, stamp)
     place(SOURCE / 'pandaos-android-update', Path('/usr/local/bin/pandaos-android-update'), 0o755, stamp)
+    for name in ['pandaos-play-release', 'pandaos-ios-release']:
+        place(SOURCE / name, Path('/usr/local/bin') / name, 0o755, stamp)
     for name in ['pandaos-build.slice', 'pandaos-build-scheduler.service']:
         place(SOURCE / name, Path('/etc/systemd/system') / name, 0o644, stamp)
     CONFIG.mkdir(exist_ok=True)
