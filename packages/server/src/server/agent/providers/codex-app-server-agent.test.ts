@@ -2193,6 +2193,7 @@ describe("Codex app-server provider", () => {
         cwd: "/workspace/project",
         model: "gpt-5.4",
         serviceTier: null,
+        config: { tools: { update_plan: { enabled: true } } },
         excludeTurns: false,
         persistExtendedHistory: true,
       },
@@ -2249,6 +2250,7 @@ describe("Codex app-server provider", () => {
         cwd: "/workspace/project",
         model: "gpt-5.4",
         serviceTier: null,
+        config: { tools: { update_plan: { enabled: true } } },
         excludeTurns: false,
         persistExtendedHistory: true,
       },
@@ -2387,6 +2389,7 @@ describe("Codex app-server provider", () => {
           wire_api: "responses",
         },
       },
+      tools: { update_plan: { enabled: true } },
     });
   });
 
@@ -2403,6 +2406,7 @@ describe("Codex app-server provider", () => {
           base_url: "https://custom-relay.example.com/v1",
         }),
       },
+      tools: { update_plan: { enabled: true } },
     });
   });
 
@@ -5518,7 +5522,13 @@ describe("Codex app-server provider", () => {
     expect(session.currentThreadId).toBe("archived-thread-id");
     expect(requests).toEqual([
       { method: "thread/loaded/list", params: {} },
-      { method: "thread/resume", params: { threadId: "archived-thread-id" } },
+      {
+        method: "thread/resume",
+        params: {
+          threadId: "archived-thread-id",
+          config: { tools: { update_plan: { enabled: true } } },
+        },
+      },
     ]);
   });
 

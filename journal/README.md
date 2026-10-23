@@ -1,5 +1,7 @@
 # PandaOS product journal
 
+- [2026-10-23 Plan im Tasks-Tab aus dem Harness](2026-10-23-plan-tab-harness.md)
+
 - [2026-10-23 Gleichmäßige Abstände bei Sitzungsnachrichten](2026-10-23-agent-message-spacing.md)
 
 - [2026-10-22 Sitzungen einklappen und Titelüberlagerung beheben](2026-10-22-sidebar-sessions.md)

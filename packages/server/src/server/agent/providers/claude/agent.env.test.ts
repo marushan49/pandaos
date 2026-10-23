@@ -93,9 +93,8 @@ describe("Claude SDK env", () => {
       expect(capturedEnv?.MCP_TIMEOUT).toBe("claude-startup-timeout");
       expect(capturedEnv?.MCP_TOOL_TIMEOUT).toBe("claude-tool-timeout");
       expect(session.usageSession?.()?.env).toBe(capturedEnv);
-      // Paseo reads session_state_changed to know when an autonomous turn is over.
       expect(capturedEnv?.CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS).toBe("1");
-      // Without it, Stop and replace kill every background subagent along with the turn.
+      expect(capturedEnv?.CLAUDE_CODE_ENABLE_TODO_TOOLS).toBe("1");
       expect(capturedPerTaskStopAffordance).toBe(true);
     } finally {
       await session.close();

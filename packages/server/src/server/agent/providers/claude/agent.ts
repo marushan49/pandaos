@@ -3430,9 +3430,7 @@ class ClaudeAgentSession implements AgentSession {
       runtimeSettings: this.runtimeSettings,
       overlays: [
         this.launchEnv,
-        // Makes the CLI announce session_state_changed, whose "idle" is the safety net that closes
-        // an autonomous turn (see consumeSessionStateChange).
-        { CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: "1" },
+        { CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: "1", CLAUDE_CODE_ENABLE_TODO_TOOLS: "1" },
       ],
     });
   }

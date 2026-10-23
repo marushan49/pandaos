@@ -5375,6 +5375,11 @@ export class CodexAppServerAgentSession implements AgentSession {
     if (this.deps.customCodexConfig) {
       Object.assign(innerConfig, this.deps.customCodexConfig);
     }
+    const tools = toObjectRecord(innerConfig.tools);
+    innerConfig.tools = {
+      ...tools,
+      update_plan: { enabled: true, ...toObjectRecord(tools?.update_plan) },
+    };
     const mcpServers: Record<string, CodexMcpServerConfig | { enabled: false }> = {};
     for (const [name, serverConfig] of Object.entries(this.config.mcpServers ?? {})) {
       mcpServers[name] = toCodexMcpConfig(serverConfig);
