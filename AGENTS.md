@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Verbindlich: Android, Metro und gemeinsame Build-Hosts
+
+**Alle Provider, Hauptagenten und Subagents lesen vor Android-/Metro-Arbeit diesen Abschnitt und die verlinkten Belege. Diese Entscheidungen nicht bei jeder Session neu herleiten.**
+
+- **Zotac bleibt primärer Development-Host.** Das MacBook ist ein optionaler Worker im bestehenden gemeinsamen Scheduler. Keine ungefragte zweite Entwicklungsumgebung und keine zusätzliche Queue aufbauen.
+- **Native Caches erhalten.** Die persistenten Builder `.worktrees/android-build` und `.worktrees/android-build-debug` behalten ihre Pfade und Artefakte; sie sind absichtlich dauerhafte Builder, keine nach einem Merge zu löschenden Feature-Worktrees. Kein routinemäßiges `clean`, Löschen oder neuer Worktree pro APK-Revision.
+- **JS über Metro/Fast Refresh, APKs inkrementell.** Schwere Befehle über den gemeinsamen Build-Scheduler ausführen; für Geräteinstallationen interaktive Priorität und ein eindeutig verifiziertes Gerät verwenden. Signatur und App-Daten erhalten; nie zur Reparatur deinstallieren oder Daten löschen. Ablauf: [Android](docs/android.md).
+- **Wächterfehler zuerst diagnostizieren.** Bei `ENOSPC`/`EMFILE` den tatsächlichen Syscall, gemeinsame inotify-Auslastung, Prozesse und doppelte Metro-Instanzen prüfen. Native Ausgaben/Caches ausschließen, echte Laufzeitquellen behalten. Die freigegebene persistente Zotac-Konfiguration und ihre Dimensionierung stehen in [File observation](docs/file-observation.md#shared-linux-capacity). Andere Agenten und Dienste bleiben ununterbrochen.
+- **Belege statt Annahmen.** Vor Fortsetzung den [verifizierten Verlauf und offene Punkte](journal/2026-10-22-android-build-workflow.md) sowie den bestehenden Aufgabencheckpoint lesen. Kalt-/Warm-Build, Queue-Wartezeit, Frame-Marker und bestätigte Bildschirmaufnahme getrennt ausweisen. Ein vorbereiteter oder nur gestagter Worker ist noch nicht aktiviert.
+
 Paseo is a mobile app for monitoring and controlling your local AI coding agents from anywhere. Your dev environment, in your pocket. Connects directly to your actual development environment — your code stays on your machine.
 
 **Supported agents:** Claude Code, Codex, GitHub Copilot, OpenCode, Pi, Antigravity, and Muse Code.
