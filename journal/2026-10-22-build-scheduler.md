@@ -47,7 +47,11 @@ Technisch nötig bleiben: Zero-Swap pro Job, harte Speichergrenze pro Job und f�
 - [x] Plugin `plugin-examples/build-scheduler` (Panel „Builds“): Typecheck, 2/2 Tests, Lint, Live-Abfrage gegen den echten Scheduler; Installation/Sichtprüfung braucht Freigabe (Plugin-Reload)
 - [x] Codex-Review 1 (`.dev/build-scheduler/codex-review-1.md`): 12 Befunde, alle behoben in `3cf6adbb4`, Hostwahl-Tests 20/20, echte Mac-Prüfung PATH/GRADLE_OPTS/.npmrc-Ausschluss
 - [x] Live-Reload statt APK bei reinen JS/Dart-Änderungen in Debug-Builds; Flutter-Worktree mit Cache 39,2 s statt 105,6 s kalt
-- [ ] Codex-Review 2 läuft
+- [x] Codex-Review 2 und 3: alle Befunde behoben (`f2ffb9165`, `dfcfaba61`), Tests Hostwahl 29, Worker 15, Play 7, Plugin 4, Smoke 13
+- [x] 23.10. ~11:13 mit Marushans Freigabe aktiviert: Mac-Worker (Backup `config.json.before-mac-activation-*`), `auto_placement` (Backup `config.json.before-auto-*`), Plugin `build-scheduler` aus `~/.local/share/pandaos-plugin-releases/build-scheduler-dfcfaba61`, Session-Recovery neu geladen (neuer Agent erhält die Scheduler-Policy, geprüft in seiner Agentendatei)
+- [x] Mac: Temurin JDK 17.0.21 und 21.0.13 unter `~/.pandaos-worker/` (Adoptium-Prüfsummen geprüft), `~/.gradle/gradle.properties` neu angelegt (nur `org.gradle.java.installations.paths`); Rückbau: Datei löschen, `~/.pandaos-worker` löschen
+- [ ] iOS-Export: blockiert, bis Marushan den Mac-Anmeldeschlüsselbund einmal entsperrt; Archiv lief durch
+- [ ] Codex-Review 4 läuft
 
 ## Zuständigkeiten
 
@@ -89,7 +93,18 @@ Stresstest: 7 × 5 GiB, RAM-Zulassung hielt 4 gleichzeitig, kein OOM-Kill. Neust
 - SSH-Abbruch: lokaler ssh-Prozess per SIGKILL beendet, Exit 125 ohne Wiederholung, Mac-Prozess nach ≤ 5 s weg.
 - Mac-Werkzeuge: Node 24, Flutter, CocoaPods, adb, Android SDK, Android-Studio-JBR, Xcode 27.1; kein Cargo/ccache/sccache. Mac hat `openrsync` (kein `--protect-args`, kein `--relative /./`).
 
-## Aktivierung Mac-Worker (nur mit Freigabe)
+## Zotac gegen MacBook (23.10., chillbro `assembleDebug`, echte Läufe)
+
+| Fall                                                    | Zotac                   | MacBook                                       |
+| ------------------------------------------------------- | ----------------------- | --------------------------------------------- |
+| Kalt, frischer Worktree ohne Cache                      | 60 s (22.10., 4 Worker) | 33 s gesamt, Gradle 27 s                      |
+| `clean assembleDebug`, Build-Cache warm, beide parallel | 11 s gesamt, Gradle 7 s | 13 s gesamt, Gradle 9 s                       |
+| Warm, eingeschwungen                                    | 10–11 s                 | 8,5–9,5 s Ende-zu-Ende inkl. Snapshot und APK |
+| Snapshot-Sync                                           | –                       | 9,8 s erstmals (161 MB), danach 0,2–0,5 s     |
+
+Hostwahl real: Zotac belegt → Mac (#1318, #1371 ohne `--worker`); Mac gemessen schneller → Mac (#1358); Mac in Benutzung und normale Priorität → Zotac (#1359); Mac-Probe nach Neustart noch offen → Zotac (#1369); iOS außerhalb eines Projekts → sofort abgelehnt (#1353). SSH-Abbruch über den Dienst (#1361): Exit 125, Mac-Prozess beendet, keine Wiederholung. Neustart mit laufendem (#1362) und wartendem (#1363) Mac-Job: übernommen bzw. einmal nachgestartet, keine doppelte Ausgabe. iOS: Archiv über den Scheduler auf dem Mac in ~90 s gebaut, Export scheiterte an gesperrtem Schlüsselbund (`errSecInternalComponent`).
+
+## Aktivierung Mac-Worker (erledigt 23.10.)
 
 Vorbedingungen geprüft am 23.10.: Mac→Zotac-SSH über `zotac` (LAN) funktioniert, Zotac→Mac über `macbook`; Rollback in einem Schritt; Backups in `/var/backups/pandaos-build-scheduler/`.
 
