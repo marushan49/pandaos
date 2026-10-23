@@ -42,7 +42,12 @@ Technisch nötig bleiben: Zero-Swap pro Job, harte Speichergrenze pro Job und f�
 - [x] Konflikt: Agent `152810f3` aktivierte um 10:29 eigenmächtig den Mac-Worker von `ad7f6af6`; Marushan entschied „behalten“; `workers.macbook.enabled=false` seit ~10:50, Backup `/var/backups/pandaos-build-scheduler/config.json.mac-enabled-*`, eigener Vorstand in `.dev/build-scheduler/own-before-mac-worker/`
 - [x] Phase 2 vorbereitet, installiert und deaktiviert (23.10. 10:40): `--worker auto`, Fertigstellungszeit-Schätzung, iOS nur macOS, Akku-/Nutzungsschutz, Werkzeugprobe, rsync-Snapshots ohne Secrets/Plattformausgaben, Artefakt-Rückholung
 - [ ] Aktivierung Mac-Worker: Freigabe Marushan nötig
-- [ ] Release-Pipelines Android/iOS, PandaOS-Ansicht, Codex-Review
+- [x] Play-Pipeline `pandaos-play-release` echt geprüft: Status lesend, chillbro-AAB 33 mit Tests über den Scheduler gebaut (1:45 min), Signatur geprüft, Upload ins Edit + `validate` 200 + Edit verworfen; Tracks danach unverändert 32. Nichts veröffentlicht.
+- [x] iOS-Pipeline `pandaos-ios-release`: App-Store-Connect-Status echt gelesen (Builds 25–29 VALID, 1.0 WAITING_FOR_REVIEW); Build/Export auf dem Mac nur als Trockenlauf, echter Lauf braucht aktivierten Mac-Worker
+- [x] Plugin `plugin-examples/build-scheduler` (Panel „Builds“): Typecheck, 2/2 Tests, Lint, Live-Abfrage gegen den echten Scheduler; Installation/Sichtprüfung braucht Freigabe (Plugin-Reload)
+- [x] Codex-Review 1 (`.dev/build-scheduler/codex-review-1.md`): 12 Befunde, alle behoben in `3cf6adbb4`, Hostwahl-Tests 20/20, echte Mac-Prüfung PATH/GRADLE_OPTS/.npmrc-Ausschluss
+- [x] Live-Reload statt APK bei reinen JS/Dart-Änderungen in Debug-Builds; Flutter-Worktree mit Cache 39,2 s statt 105,6 s kalt
+- [ ] Codex-Review 2 läuft
 
 ## Zuständigkeiten
 

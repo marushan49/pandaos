@@ -78,7 +78,7 @@ pandaos-android-update install app/build/outputs/apk/debug/app-debug.apk --packa
 pandaos-android-update update --project . --variant release --device SERIAL
 ```
 
-It fingerprints dependency, native and source files against the last build of the same project and variant (`~/.cache/pandaos-android-update/`). `up-to-date` skips the build. `js-only` and `native` run the incremental Gradle task. `dependency` reruns `npm ci` when the lockfile changed and `expo prebuild --clean` for Expo. It never runs `clean` unless asked.
+It fingerprints dependency, native and source files against the last build of the same project and variant (`~/.cache/pandaos-android-update/`). `up-to-date` skips the build. `js-only` and `native` run the incremental Gradle task. For debug builds of Expo and Flutter projects, a source-only change does not build: the installed debug app picks it up through Metro/Fast Refresh or Flutter Hot Reload; `--apk` builds anyway. `dependency` reruns `npm ci` when the lockfile changed and `expo prebuild --clean` for Expo. It never runs `clean` unless asked.
 
 Installation picks the only connected physical device or requires `--device`, compares the package, refuses an older `versionCode` without `--allow-downgrade` and refuses a different signing certificate, because that update would require uninstalling and lose app data. It uses `adb install -r` and reports whether `firstInstallTime` stayed unchanged. Play-delivered APKs with a v3.2 PQC signer cannot be fully verified by `apksigner` on JDK 21; the certificate comparison reads the v2/v3 signing block directly.
 

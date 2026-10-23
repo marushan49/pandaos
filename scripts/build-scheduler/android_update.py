@@ -276,6 +276,11 @@ def build(info, args):
     if category == 'up-to-date' and not args.force:
         log('artifact is current: ' + previous['apk'])
         return dict(category=category, apk=previous['apk'], seconds=0)
+    live = dict(expo='Metro/Fast Refresh', flutter='Flutter Hot Reload (r) oder Hot Restart (R)').get(info['kind'])
+    if category == 'js-only' and args.variant == 'debug' and live and not (args.apk or args.force):
+        log('only %s source changed; the installed debug build picks it up through %s. Pass --apk to build anyway'
+            % ('JavaScript' if info['kind'] == 'expo' else 'Dart', live))
+        return dict(category=category, apk=previous.get('apk'), seconds=0, workflow=live)
     env = dict(os.environ)
     if args.prepare:
         run(['bash', '-c', args.prepare], info['root'], env)
@@ -330,6 +335,7 @@ def main():
         p.add_argument('--gradle-arg', action='append', default=[])
         p.add_argument('--clean', action='store_true')
         p.add_argument('--force', action='store_true')
+        p.add_argument('--apk', action='store_true', help='build an APK even when live reload covers the change')
         p.add_argument('--device')
         p.add_argument('--package')
         p.add_argument('--allow-downgrade', action='store_true')
@@ -362,7 +368,7 @@ def main():
         return
     info = detect(args.project)
     result = build(info, args)
-    if args.action == 'update':
+    if args.action == 'update' and not result.get('workflow'):
         result['install'] = install(result['apk'], args.device, args.package, args.allow_downgrade)
     print(json.dumps(result))
 
