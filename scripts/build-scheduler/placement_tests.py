@@ -175,6 +175,18 @@ class PlacementTests(unittest.TestCase):
             self.assertEqual(self.admit(['xcodebuild', '-version'], directory).worker, 'auto')
             self.assertEqual(self.admit(['bash', '-c', 'ssh macbook xcodebuild'], directory).worker, 'local')
 
+    def test_automatic_placement_only_for_self_contained_builds(self):
+        self.assertTrue(scheduler.self_contained(['android_sdk', 'java_home'], '/nonexistent', False))
+        self.assertTrue(scheduler.self_contained(['flutter'], '/nonexistent', False))
+        self.assertFalse(scheduler.self_contained(['node'], '/nonexistent', False))
+        here = str(scheduler.Path(__file__).resolve().parents[2])
+        self.assertFalse(scheduler.self_contained(['java_home'], here, False))
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            self.instance.config['auto_placement'] = True
+            self.instance.config['workers'] = dict(macbook=dict(SPEC))
+            self.assertEqual(self.admit(['npm', 'run', 'build'], here).worker, 'local')
+
     def test_pinned_remote_jobs_check_platform_and_tools(self):
         self.instance.workers['macbook'] = mac(platform='linux')
         self.assertEqual(self.instance.compatible(job(darwin=True, needs=['xcode']), 'macbook', pinned=True),

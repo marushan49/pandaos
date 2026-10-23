@@ -3932,6 +3932,33 @@
             "name": "hidden-sessions-reopened"
           }
         ]
+      },
+      "build-queue-panel": {
+        "params": [],
+        "steps": [
+          {
+            "url": "http://127.0.0.1:6767/h/srv_RtppvtlARpFR/agent/51082479-a689-4ec3-933e-71eb5ee1881e",
+            "action": "navigate"
+          },
+          {
+            "action": "goal",
+            "goal": "Öffne die Befehlspalette (Command Center, z. B. mit Strg+K oder über die Suche) und wähle den Eintrag „Build-Queue öffnen“, sodass das Panel „Builds“ sichtbar wird.",
+            "verify": [
+              {
+                "text": "Zotac: Controller"
+              }
+            ],
+            "maxSteps": 12
+          },
+          {
+            "action": "assert-text",
+            "text": "macbook"
+          },
+          {
+            "action": "screenshot",
+            "name": "build-queue-panel"
+          }
+        ]
       }
     }
   }

@@ -54,7 +54,9 @@ function workerEnvironment(requested) {
   const jdks = ["jdk-17", "jdk-21"]
     .map((name) => `${os.homedir()}/.pandaos-worker/${name}/Contents/Home`)
     .filter((path) => existsSync(path));
-  const installations = jdks.length ? ` -Dorg.gradle.java.installations.paths=${jdks.join(",")}` : "";
+  const installations = jdks.length
+    ? ` -Dorg.gradle.java.installations.paths=${jdks.join(",")}`
+    : "";
   const gradle = `-Dorg.gradle.daemon=false -Dkotlin.compiler.execution.strategy=in-process${installations}`;
   env.GRADLE_OPTS = env.GRADLE_OPTS ? `${env.GRADLE_OPTS} ${gradle}` : gradle;
   return env;

@@ -239,7 +239,16 @@ def classify(command, cwd, env):
                and not (a + '/').startswith(root.rstrip('/') + '/')]
     return dict(klass=klass, rule=matched, interactive=interactive, project=root, lock=lock, needs=needs,
                 darwin=darwin, portable=os.path.exists(os.path.join(root, '.git')) and not outside,
+                remote_safe=self_contained(needs, root, darwin),
                 cargo='cargo' in lowered, gradle=bool(re.search(r'gradlew|gradle|expo\s+run|flutter', lowered)))
+
+
+def self_contained(needs, root, darwin):
+    if darwin or 'flutter' in needs:
+        return True
+    if 'java_home' in needs and not os.path.exists(os.path.join(root, 'package.json')):
+        return True
+    return False
 
 
 def signature(project, command):
@@ -404,7 +413,7 @@ class Scheduler:
             if not self.worker_names():
                 raise ValueError('iOS/Xcode braucht einen aktivierten macOS-Worker; keiner ist aktiviert')
             worker_name = 'auto'
-        if worker_name == 'local' and self.config.get('auto_placement') and info['portable']:
+        if worker_name == 'local' and self.config.get('auto_placement') and info['portable'] and info['remote_safe']:
             worker_name = 'auto'
         self.sequence += 1
         job_id = uuid.uuid4().hex
