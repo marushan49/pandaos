@@ -1,5 +1,7 @@
 # PandaOS product journal
 
+- [2026-10-23 browser_test, Codex-Sandbox und Tasks-Überschrift](2026-10-23-browser-test-sandbox-fixes.md)
+
 - [2026-10-23 Plan im Tasks-Tab aus dem Harness](2026-10-23-plan-tab-harness.md)
 
 - [2026-10-23 Gleichmäßige Abstände bei Sitzungsnachrichten](2026-10-23-agent-message-spacing.md)
